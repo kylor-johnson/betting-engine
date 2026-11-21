@@ -1,0 +1,25 @@
+# Money
+unit: 25            # dollars
+max_units: 2        # cap per bet, in units
+bankroll: 2500      # implied by a $25 unit at 1% a bet; change if this is wrong
+
+# Scope
+sports: [NFL, College, NBA]
+
+# Market reference: DraftKings as published by ESPN (follows the market; not a sharp book)
+reference_book: DraftKings
+
+# How spread out final margins are around the line, in points. Used only to turn
+# "half a point better than the close" into an approximate win-probability change.
+margin_sd:
+  NFL: {spread: 13.3, total: 13.5}
+  College: {spread: 16.0, total: 17.0}
+  NBA: {spread: 12.0, total: 18.0}
+
+# Key numbers (football only)
+key_numbers:
+  NFL: [3, 7, 6, 10, 14]
+  College: [3, 7, 10, 14]
+
+timezone_display: America/Denver
+timezone_wagerhouse: America/New_York

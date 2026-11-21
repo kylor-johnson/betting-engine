@@ -1,91 +1,80 @@
-# Betting Engine: Build Spec for Claude Code
+# Betting Engine: Build Spec (revised after Phase 0, approved 2026-11-21)
 
-Owner: Kylor. Drop this in the repo root as `CLAUDE.md` (or reference it from there). Build in phases. Do not start a phase until the one before it passes its exit test.
+Owner: Kylor (Denver, Mountain time). This file is copied to `CLAUDE.md`. The research behind it is in `docs/research/00-red-team.md`; decisions are in `docs/decisions/`. `HANDOFF.md` has the working rules and folder layout. Build one phase at a time. Do not start a phase until the one before it passes its exit test and Kylor says go.
+
+## What this is, and what it is not
+
+- It compares the price at Kylor's book (Wagerhouse) with the market price and says when his is better, when a line is moving, and whether his past bets were good prices.
+- It does not copy how he has been betting. Big favorites, 13-point teasers, moneyline parlays, same-game stacks and live bets are graded as leaks in the research and the engine never recommends them.
+- Scope: pregame NFL, college football and NBA. No live betting, baseball, hockey or soccer.
+- It does not place bets. Kylor places every bet by hand (see `docs/decisions/0002`).
 
 ## Ground rules
 
-- Python 3.11+, `uv` for env, `polars` for data, `duckdb` as the local database (one file: `data/engine.duckdb`).
-- Every number the system outputs gets logged with a timestamp and the odds at that moment. If we can't measure it against the close, it didn't happen.
-- No model output becomes a bet without a "don't bet past" number.
-- Unit = $25. Bankroll and Kelly fraction live in `config.yaml`, not in code.
-- Secrets (API keys) in `.env`, never committed.
+- Python 3.11+, `uv` for the environment (`UV_PROJECT_ENVIRONMENT=.venv.nosync`), DuckDB as the local database (`data.nosync/engine.duckdb`).
+- No paid data. Sources: Wagerhouse's own lines and history read from Kylor's account, ESPN's public scoreboard and odds pages (DraftKings open, close and current lines), and The Odds API free tier (500 credits a month) for occasional Pinnacle checks.
+- The market reference is DraftKings as published by ESPN. It follows the market; it is not a sharp book. Every report says so, and "fair price" is labelled approximate.
+- Every number the system outputs is logged with a timestamp and the odds at that moment. Times are stored in UTC and shown in Mountain time. Wagerhouse timestamps arrive in Eastern time.
+- Unit = $25. Flat one unit per bet, two at most. No Kelly sizing until there are 500 bets with measured price quality. Unit, cap and bankroll live in `config.yaml`.
+- No pick without a "don't bet past" number.
+- Secrets live in `.env`, never committed, never printed or logged. That includes the Wagerhouse login.
+- Wagerhouse account access is read-only: sign in, read lines, read history. A handful of reads a day in the hours lines open, never a constant poll.
+- If a source is down or returns junk, fail loudly and alert. Never skip silently.
+- Every report prints the luck range next to results so a hot streak cannot pass for an edge.
+- Closing line value is measured on sides, totals and moneylines only, never props, and is treated as a compass, not proof.
 
-## Phase 1: Odds logger + CLV tracker (build this first, it pays for itself)
+## Phase 1A: Audit the bets already made
 
-Why first: most of the value lost this season came from betting after the line moved. This phase fixes that before any model exists, and it creates the closing-line history every later phase needs.
+1. Import the graded history pulled from the account into the database: one row per wager, one per leg, with time placed, game time, risk, to-win, result, line, price, bought points and teaser points.
+2. Split wagers by how they were placed: before the game, live in-game, same-game builder.
+3. For every pregame side, total and moneyline leg on NFL, college football and NBA, find the game on ESPN and record DraftKings' opening and closing line and price.
+4. Report, by bet type and by price band: results, how often the bet beat the closing line, by how many points, approximate value against the vig-free close, and what bought points and teasers cost.
 
-1. **Odds ingest.** The Odds API (paid tier, ~$30/mo). Pull NFL, NCAAF, NBA spreads, totals and moneylines from Pinnacle (or the sharpest book available), Circa if available, plus 2-3 retail books. Poll every 15 min on game days, hourly otherwise. Table: `odds_snapshots(ts, sport, game_id, book, market, side, line, price)`.
-2. **Openers and closers.** Derive `open_line` (first snapshot) and `close_line` (last snapshot before kickoff) per game/market/book.
-3. **No-vig fair price.** Remove juice from the sharp book to get a fair probability for every snapshot.
-4. **Alerts** (Telegram bot or Slack webhook):
-   - A retail book is off the sharp fair line by more than a threshold (start at 1.5 pts for spreads, 2 for totals).
-   - A line crosses a key number: NFL 3, 7, 10, 14; CFB the same plus 17, 21; NBA none.
-   - Openers posted for the week (Sunday evening CFB, Sunday night NFL lookahead).
-5. **Bet log.** A CLI command `bet add "KSU +10 -110 $20"` writes to `bets(ts, game_id, market, side, line, price, stake, book, source)`. After close, compute CLV in points and in no-vig probability.
-6. **Weekly report.** Units won, CLV by sport/market/bet type, and the same split for -300 and shorter favorites vs. everything else.
+Exit test: every wager is either priced or listed as unpriced with the reason; totals reconcile to the account's weekly figures.
 
-Exit test: one full week of snapshots with no gaps, alerts firing, CLV computed for every logged bet.
+## Phase 1B: Line logger, alerts, bet log
 
-## Phase 2: Football ratings model (NFL + CFB spreads/totals)
+1. **Line logger.** On a schedule, read Wagerhouse's posted lines for NFL, college football and NBA, and ESPN's DraftKings lines for the same games. Store every snapshot. Derive first-seen (open) and last-before-kickoff (close) per game, market and source.
+2. **Your-book measurement.** For every game: when Wagerhouse first posted it, how far it sits from DraftKings, and how long it takes to follow a DraftKings move.
+3. **Alerts by Telegram:**
+   - Opener digest when Wagerhouse posts a new slate.
+   - Off-market: Wagerhouse differs from DraftKings by a point or more, or sits on the good side of 3 or 7 (NFL and college; also 6, 10, 14).
+   - Moving now: the market moved a point or more, or through a key number, and Wagerhouse has not followed.
+   - Watchlist: Kylor enters "Kansas State +10 or better"; alert when Wagerhouse is there, and when the market is leaving.
+4. **Bet log.** New bets come from the account history automatically; `engine bet add "Kansas State +10 -110 25"` exists for notes and for bets that need a reason attached.
+5. **Calculators** on every logged bet: is this teaser a 2-team 6.5-point NFL teaser with both legs crossing 3 and 7; was a bought half point worth its price; does a stake exceed the cap.
+6. **Weekly report**: results, closing line value by sport and bet type, favorites of −300 and shorter separately, leaks (anything the research grades negative), luck ranges.
+7. **Operations.** launchd job on the Mac, gap detection, a heartbeat alert when a scheduled read is missed.
+8. **Tests** for the vig removal, key-number logic, bet parser, closing line value and teaser math.
 
-Data:
-- NFL: `nfl_data_py`. Play-by-play with EPA, success rate, CPOE, air yards, 2016-present.
-- CFB: CollegeFootballData API (free key). PBP, EPA/PPA, havoc, drives, lines.
-- Weather: Open-Meteo forecast for stadium coordinates (wind and precip only matter outdoors).
+Exit test: three weeks of scheduled reads with every gap explained, closing line value on every eligible bet, and a short written answer to "does Wagerhouse lag the market, by how much, and in which direction does it shade."
 
-Features (process over results):
-- Opponent-adjusted offense and defense: early-down EPA/play, success rate, pass vs. rush split.
-- Havoc / pressure rate vs. pass-block quality (Collin Wilson's Havoc lens).
-- Turnover luck: fumble recovery rate and INT rate vs. expected. Fade teams running hot on these.
-- Pace (plays per game, seconds per play), red-zone TD rate (regress hard toward the mean).
-- Situational: rest, travel, lookahead/letdown spots, rivalry, motivation flags. Keep these as small manual adjustments, not model features, until there's enough data to fit them.
-- QB adjustment table, Walters-style: starting QB worth up to ~7 pts in the rating, top non-QB starters 1-3 pts. Maintained by hand from injury reports.
+## Phase 2: Decide where the edge is
 
-Model:
-1. Baseline: Elo-style power ratings with home field and QB adjustments. Output a fair spread and total.
-2. Then: ridge regression of game margin and total on the adjusted efficiency features, walk-forward by week.
-3. Translate to probabilities with an empirical margin distribution (not normal: key numbers matter in football). Build a lookup of historical cover rates by line.
+Read the Phase 1 measurements. If Wagerhouse lags, tune the alerts to that lag. If it does not, say so plainly; the remaining price edge would need a second book.
 
-Exit test: walk-forward over 3+ seasons. Beat the closing spread on mean absolute error, or at least match it while generating positive CLV in paper bets taken at the opener.
+## Phase 3: NBA, narrow version
 
-## Phase 3: NBA model
+Injury-report change alerts for players who move a line, aimed at catching Wagerhouse not reposting. A props check that compares Wagerhouse's number with other books. No sub-minute requirement.
 
-Data: `nba_api` (PBP, lineups, tracking), Cleaning the Glass-style filtering (drop garbage time yourself from PBP), the official injury report.
+## Phase 4: Football ratings (offseason 2027)
 
-Features:
-- Garbage-time-filtered offensive/defensive rating, pace, 3PA rate (regress 3P% hard, don't regress 3PA rate much).
-- Record vs. point differential gap (the regression-to-mean signal).
-- Rest: back-to-backs, 3-in-4, travel, altitude (Denver, Utah).
-- Lineup-level on/off for the actual starting five, recomputed the moment injury news lands.
+NFL first, then college football with preseason priors. The model is blended with the market from day one, tested only on seasons it never saw, and passes only if it adds predictive value on top of the market line. Its job is to rank which openers to look at first. Use `nflreadpy` (not `nfl_data_py`, archived 2025) and CollegeFootballData.
 
-Speed matters more here than in football. The edge is reacting to confirmed lineup news before the market adjusts.
+## Phase 5: Own props model
 
-Exit test: same as Phase 2, plus alert latency under 60 seconds from injury-report change to recalculated line.
+Only if Phase 3 shows props at Wagerhouse are worth it.
 
-## Phase 4: Player props (highest edge, build last)
+## Rules the engine enforces as checks
 
-- Derive props from the game sim, bottom-up: team volume (plays, pass attempts, possessions) given game script, then player share (snaps, routes, targets, usage, minutes), then efficiency.
-- Distributions: Poisson / negative binomial for counts (TDs, 3PM, receptions, rebounds); gamma or log-normal for yardage and points. Compare our median to the book's line, since books set yardage props near the median, which sits below the mean.
-- Correlations: game script drives pass/rush mix; same-game outcomes are not independent.
+- Bet the number, not the team. No value at the current price, no bet.
+- Ask why a line moved, not only whether it moved.
+- No reverse-line-movement or bets-versus-money signals; the evidence is against them.
+- "Favorites early, dogs late" is a question the log answers, not a rule.
+- Don't double-count: a factor already in a rating is not added again by hand.
+- Teasers: only 2-team 6.5-point at −120, NFL sides, both legs crossing 3 and 7. Everything else is flagged.
+- Buying points: only on or off 3 in the NFL at 10 to 15 cents; on or off 7 at 10 cents is neutral; never in the NBA.
 
-## Phase 5: Sizing
+## Out of scope
 
-- Edge = model probability minus no-vig market probability.
-- Stake = quarter Kelly, capped at 3% of bankroll and 3 units, floored at 0.5 unit.
-- No bet if the edge disappears at the current price. Every output shows the price where edge goes to zero (the "don't bet past" number).
-
-## Rule layer (handicapper principles to encode as checks, not features)
-
-- Bet the number, not the team. No edge at the current price, no bet.
-- Favorites early, dogs late (Walters).
-- Buy low / sell high on teams the market overreacts to (Wilson).
-- Ask why a line moved, not just whether it moved. Agreement with the move: bet early. Disagreement: wait.
-- Don't double-count. If a factor is already in the rating (e.g., pace), don't add it again as a manual adjustment.
-- Check that data matches real conditions (stadium wind vs. airport wind, roof open/closed).
-- Track CLV, but also track results on bets that went against the market.
-
-## Explicitly out of scope for v1
-
-- Auto-placing bets (manual only).
-- Soccer.
-- Live/in-game betting.
+Auto-placing bets, live betting, baseball, hockey, soccer, paid data feeds.
