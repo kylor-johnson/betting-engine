@@ -8,7 +8,6 @@
     <string>/opt/homebrew/bin/uv</string><string>run</string><string>--project</string><string>/Users/kylorjohnson/Library/Mobile Documents/com~apple~CloudDocs/Bettng Model</string>
     <string>engine</string><string>report</string>
   </array>
-  <key>WorkingDirectory</key><string>/Users/kylorjohnson/Library/Mobile Documents/com~apple~CloudDocs/Bettng Model</string>
   <key>EnvironmentVariables</key>
   <dict>
     <key>UV_PROJECT_ENVIRONMENT</key><string>/Users/kylorjohnson/Library/Mobile Documents/com~apple~CloudDocs/Bettng Model/.venv.nosync</string>
@@ -17,7 +16,7 @@
   <!-- Tuesday 9:00 local time: the account week closes after Monday night football -->
   <key>StartCalendarInterval</key>
   <dict><key>Weekday</key><integer>2</integer><key>Hour</key><integer>9</integer><key>Minute</key><integer>0</integer></dict>
-  <key>StandardOutPath</key><string>/Users/kylorjohnson/Library/Mobile Documents/com~apple~CloudDocs/Bettng Model/logs.nosync/weekly.log</string>
-  <key>StandardErrorPath</key><string>/Users/kylorjohnson/Library/Mobile Documents/com~apple~CloudDocs/Bettng Model/logs.nosync/weekly.err.log</string>
+  <key>StandardOutPath</key><string>/Users/kylorjohnson/Library/Logs/betting-engine/weekly.log</string>
+  <key>StandardErrorPath</key><string>/Users/kylorjohnson/Library/Logs/betting-engine/weekly.err.log</string>
 </dict>
 </plist>

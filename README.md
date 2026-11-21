@@ -40,12 +40,12 @@ cp ops/launchd/*.plist ~/Library/LaunchAgents/
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.kylor.betting-engine.poll.plist
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.kylor.betting-engine.weekly.plist
 launchctl kickstart gui/$(id -u)/com.kylor.betting-engine.poll    # run once now
-tail -5 logs.nosync/poll.log logs.nosync/poll.err.log             # check it worked
+tail -5 ~/Library/Logs/betting-engine/poll.log ~/Library/Logs/betting-engine/poll.err.log   # check it worked
 ```
 
 To stop: `launchctl bootout gui/$(id -u)/com.kylor.betting-engine.poll` (and `.weekly`).
 
-If `poll.err.log` says "Operation not permitted", macOS is blocking background access to iCloud Drive: System Settings → Privacy & Security → Full Disk Access → add `/opt/homebrew/bin/uv`.
+Job logs live in `~/Library/Logs/betting-engine/` (outside iCloud, because macOS will not let a background job open a log file inside iCloud Drive). If `poll.err.log` says "Operation not permitted", macOS is blocking background access to iCloud Drive: System Settings → Privacy & Security → Full Disk Access → add `/opt/homebrew/bin/uv`.
 
 Keep the Mac awake: plugged in, lid open, and `sudo pmset -c sleep 0` (never sleep on power). If reads stop for a long stretch, the next read sends a "no line reads for N hours" message.
 
@@ -54,6 +54,6 @@ Keep the Mac awake: plugged in, lid open, and `sudo pmset -c sleep 0` (never sle
 - `data.nosync/engine.duckdb`: the database (not synced, not in git). Tables: `line_snapshots`, `polls`, `alerts_sent`, `watchlist`, `manual_bets`, `wagers`, `legs`.
 - `data.nosync/raw/`: bet history from Wagerhouse and cached ESPN responses
 - `data.nosync/reports/`: weekly reports
-- `logs.nosync/`: scheduled job output
+- `~/Library/Logs/betting-engine/`: scheduled job output
 - `config.yaml`: unit, cap, alert thresholds, read hours, key numbers
 - Times are stored in UTC and shown in Mountain. Wagerhouse reports Eastern.

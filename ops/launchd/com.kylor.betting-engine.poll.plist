@@ -8,7 +8,6 @@
     <string>/opt/homebrew/bin/uv</string><string>run</string><string>--project</string><string>/Users/kylorjohnson/Library/Mobile Documents/com~apple~CloudDocs/Bettng Model</string>
     <string>engine</string><string>poll</string>
   </array>
-  <key>WorkingDirectory</key><string>/Users/kylorjohnson/Library/Mobile Documents/com~apple~CloudDocs/Bettng Model</string>
   <key>EnvironmentVariables</key>
   <dict>
     <key>UV_PROJECT_ENVIRONMENT</key><string>/Users/kylorjohnson/Library/Mobile Documents/com~apple~CloudDocs/Bettng Model/.venv.nosync</string>
@@ -19,7 +18,7 @@
     <dict><key>Minute</key><integer>2</integer></dict>
     <dict><key>Minute</key><integer>32</integer></dict>
   </array>
-  <key>StandardOutPath</key><string>/Users/kylorjohnson/Library/Mobile Documents/com~apple~CloudDocs/Bettng Model/logs.nosync/poll.log</string>
-  <key>StandardErrorPath</key><string>/Users/kylorjohnson/Library/Mobile Documents/com~apple~CloudDocs/Bettng Model/logs.nosync/poll.err.log</string>
+  <key>StandardOutPath</key><string>/Users/kylorjohnson/Library/Logs/betting-engine/poll.log</string>
+  <key>StandardErrorPath</key><string>/Users/kylorjohnson/Library/Logs/betting-engine/poll.err.log</string>
 </dict>
 </plist>
