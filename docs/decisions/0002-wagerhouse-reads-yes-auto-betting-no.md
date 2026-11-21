@@ -4,7 +4,7 @@ Date: 2026-11-21.
 
 **Decided by Kylor:** the engine may sign in to his Wagerhouse account on a schedule to read posted lines and bet history.
 
-**Limits.** Read-only. A handful of reads a day in the hours lines open, paced like a person, never a constant poll. The login lives in `.env` and is never printed or logged. Wagerhouse is a credit account with an agent; the risk being managed is the book noticing automated sign-ins and cutting the account off.
+**Limits.** Read-only, enforced in code: the client has a short list of read operations and refuses anything else. Reads are hourly on Sundays (9am to 9pm Mountain, when openers post) and five times on other days, never a constant poll. The login lives in `.env` and is never printed or logged. Wagerhouse is a credit account with an agent; the risk being managed is the book noticing automated sign-ins and cutting the account off.
 
 **Raised by Kylor, not built:** letting the engine place bets itself when it sees a strong early lean while he is away.
 

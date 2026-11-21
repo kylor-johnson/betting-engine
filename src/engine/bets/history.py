@@ -61,7 +61,7 @@ class Wager:
     free_play: bool
     teaser_name: str
     description: str
-    week: int
+    week: str            # first day of the account week (Tuesday), e.g. 2026-11-10
     legs: list[Leg] = field(default_factory=list)
 
     @property
@@ -117,6 +117,7 @@ def load_wagers(path: str | Path) -> list[Wager]:
     rows = data["rows"]
     if not rows:
         raise ValueError(f"{path} has no rows")
+    bows = {w["week"]: w.get("bow", str(w["week"])) for w in data.get("weeks", [])}
     wagers: dict[tuple, Wager] = {}
     seen_legs: set[tuple] = set()
     for r in rows:
@@ -140,7 +141,7 @@ def load_wagers(path: str | Path) -> list[Wager]:
                 free_play=r.get("FreePlayFlag") == "Y",
                 teaser_name=(r.get("TeaserName") or "").strip() if r["WagerType"] == "T" else "",
                 description=_clean(r.get("Description")),
-                week=r.get("_week", -1),
+                week=r.get("_bow") or bows.get(r.get("_week"), str(r.get("_week", ""))),
             )
         lk = (*k, r.get("ItemNumber"), r.get("PlayNumber"))
         if lk in seen_legs:
@@ -152,9 +153,26 @@ def load_wagers(path: str | Path) -> list[Wager]:
     return list(wagers.values())
 
 
-def weekly_figures(path: str | Path) -> dict[int, float]:
+def weekly_figures(path: str | Path) -> dict[str, float]:
+    """The account's own net per week, keyed by the week's first day."""
     data = json.loads(Path(path).read_text())
-    return {w["week"]: round(sum(w["days"]), 2) for w in data["weeks"]}
+    return {w.get("bow", str(w["week"])): round(sum(w["days"]), 2) for w in data["weeks"]}
+
+
+def merge_pull(master: dict | None, pull: dict) -> dict:
+    """Fold a fresh pull into the running history. Newer rows and figures win."""
+    bows = {w["week"]: w.get("bow", str(w["week"])) for w in pull.get("weeks", [])}
+    out = master or {"weeks": [], "rows": []}
+    weeks = {w["bow"]: w for w in out["weeks"]}
+    for w in pull.get("weeks", []):
+        bow = w.get("bow", str(w["week"]))
+        weeks[bow] = {"week": bow, "bow": bow, "days": w["days"]}
+    fresh = set()
+    for r in pull["rows"]:
+        r["_bow"] = r.get("_bow") or bows.get(r.get("_week"), str(r.get("_week", "")))
+        fresh.add((r["TicketNumber"], r["WagerNumber"]))
+    rows = [r for r in out["rows"] if (r["TicketNumber"], r["WagerNumber"]) not in fresh] + pull["rows"]
+    return {"pulled_at_utc": pull.get("pulled_at_utc"), "weeks": sorted(weeks.values(), key=lambda w: w["bow"]), "rows": rows}
 
 
 def category(w: Wager) -> str:

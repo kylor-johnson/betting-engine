@@ -18,7 +18,7 @@ Owner: Kylor (Denver, Mountain time). This file is copied to `CLAUDE.md`. The re
 - Unit = $25. Flat one unit per bet, two at most. No Kelly sizing until there are 500 bets with measured price quality. Unit, cap and bankroll live in `config.yaml`.
 - No pick without a "don't bet past" number.
 - Secrets live in `.env`, never committed, never printed or logged. That includes the Wagerhouse login.
-- Wagerhouse account access is read-only: sign in, read lines, read history. A handful of reads a day in the hours lines open, never a constant poll.
+- Wagerhouse account access is read-only: sign in, read lines, read history. Hourly on Sundays when openers post and five times on other days (set in `config.yaml`), never a constant poll. The client refuses any operation not on its read-only list.
 - If a source is down or returns junk, fail loudly and alert. Never skip silently.
 - Every report prints the luck range next to results so a hot streak cannot pass for an edge.
 - Closing line value is measured on sides, totals and moneylines only, never props, and is treated as a compass, not proof.

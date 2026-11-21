@@ -23,3 +23,16 @@ key_numbers:
 
 timezone_display: America/Denver
 timezone_wagerhouse: America/New_York
+
+# Alerts
+alerts:
+  spread_points: 1.0          # Wagerhouse vs market spread gap that triggers an alert
+  total_points: {NFL: 1.5, College: 1.5, NBA: 2.0}
+  min_value: -0.01            # skip alerts whose approximate value per $1 is below this
+
+# When the scheduled job actually reads lines (Mountain time). The job wakes every
+# 30 minutes; it only reads when the hour is listed for that day.
+read_hours:
+  sunday: [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]   # openers post through the day
+  other: [7, 10, 13, 16, 19]
+missed_read_alert_hours: 8

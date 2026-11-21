@@ -10,7 +10,7 @@ import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 LEAGUES = {
@@ -108,6 +108,7 @@ class EventOdds:
     provider: str
     open: Lines
     close: Lines
+    current: Lines | None = None
 
 
 def _lines(item: dict, when: str) -> Lines:
@@ -153,7 +154,19 @@ def event_odds(ev: Event, cache_dir: Path | None = None) -> EventOdds | None:
         provider=(item.get("provider") or {}).get("name", "unknown"),
         open=_lines(item, "open"),
         close=_lines(item, "close"),
+        current=_lines(item, "current"),
     )
+
+
+def upcoming(league: str, start: date, end: date) -> list[Event]:
+    """Games scheduled between two dates (inclusive), one request per day. Never cached."""
+    out: dict[str, Event] = {}
+    day = start
+    while day <= end:
+        for e in scoreboard(league, day, None):
+            out[e.event_id] = e
+        day += timedelta(days=1)
+    return list(out.values())
 
 
 # --- team name matching -----------------------------------------------------

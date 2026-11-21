@@ -33,7 +33,8 @@ def _row(label: str, ws: list[Wager]) -> str:
 HEAD = "| | Bets | Won-lost | Risked | Net | Return | Luck range |\n|---|---|---|---|---|---|---|"
 
 
-def build(wagers: list[Wager], priced: list[Priced], figures: dict[int, float], cfg: dict, tz: str) -> str:
+def build(wagers: list[Wager], priced: list[Priced], figures: dict[str, float], cfg: dict, tz: str,
+          title: str = "Bet audit: every graded bet, priced against the closing line") -> str:
     now = datetime.now(ZoneInfo(tz))
     out: list[str] = []
     add = out.append
@@ -42,7 +43,7 @@ def build(wagers: list[Wager], priced: list[Priced], figures: dict[int, float], 
     first = min(w.accepted for w in wagers if w.accepted).astimezone(ZoneInfo(tz))
     last = max(w.accepted for w in wagers if w.accepted).astimezone(ZoneInfo(tz))
 
-    add("# Bet audit: every graded bet, priced against the closing line\n")
+    add(f"# {title}\n")
     add(f"Run {now:%Y-%m-%d %H:%M} Mountain. Covers bets placed {first:%b %-d} to {last:%b %-d, %Y}.\n")
     add("How to read this: \"Luck range\" is how far results swing by chance alone for someone with no edge "
         "making the same bets. A net inside the luck range says nothing about skill. The reference price is "
@@ -56,15 +57,20 @@ def build(wagers: list[Wager], priced: list[Priced], figures: dict[int, float], 
     over_ = [w for w in wagers if w.risk > cap_ and not w.free_play]
     swing_all = luck_range([(w.risk, w.to_win) for w in wagers])
     add("## Bottom line\n")
-    add(f"- **Overall: {money(total_net)} on {len(wagers)} wagers.** Chance alone moves this set of bets by ±${swing_all:,.0f}, "
-        "so the result is indistinguishable from break-even.")
+    verdict = ("so the result is indistinguishable from break-even." if abs(total_net) <= swing_all
+               else "and this result is outside that range.")
+    add(f"- **Overall: {money(total_net)} on {len(wagers)} wagers.** Chance alone moves this set of bets by ±${swing_all:,.0f}, {verdict}")
     if ok_:
         risk_ = sum(p.wager.risk for p in ok_)
         val = sum(p.ev * p.wager.risk for p in ok_) / risk_
         beat = sum(1 for p in ok_ if (p.price_vs_close == "better") or (p.pts_vs_close or 0) > 0)
-        add(f"- **Prices: no sign of an edge yet.** On {len(ok_)} straight bets that could be checked, you beat the closing number on {beat}. "
+        actual_, expected_ = sum(p.wager.net for p in ok_), val * risk_
+        head = "Prices: no sign of an edge yet." if val < 0 else "Prices: better than fair on average."
+        luck = ("which is luck running ahead of the prices." if actual_ > expected_
+                else "which is behind what the prices implied.")
+        add(f"- **{head}** On {len(ok_)} straight bets that could be checked, you beat the closing number on {beat}. "
             f"Each dollar risked was worth about {pct(val)} at closing prices; a bettor with no edge sits near −4.5%. "
-            f"Those bets actually made {money(sum(p.wager.net for p in ok_))}, which is luck running ahead of the prices.")
+            f"Those bets returned {money(actual_)} against {money(expected_)} expected, {luck}")
     if live:
         add(f"- **Live in-game betting: {money(sum(w.net for w in live))}** on {len(live)} tickets.")
     add(f"- **Bets over the ${cap_} cap: {len(over_)}, net {money(sum(w.net for w in over_))}.**")

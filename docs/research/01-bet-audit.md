@@ -1,13 +1,13 @@
 # Bet audit: every graded bet, priced against the closing line
 
-Run 2026-11-21 14:39 Mountain. Covers bets placed Sep 5 to Nov 21, 2026.
+Run 2026-11-21 15:37 Mountain. Covers bets placed Sep 5 to Nov 21, 2026.
 
 How to read this: "Luck range" is how far results swing by chance alone for someone with no edge making the same bets. A net inside the luck range says nothing about skill. The reference price is DraftKings' closing line as published by ESPN. DraftKings follows the market and is not a sharp book, so the value figures are approximate.
 
 ## Bottom line
 
 - **Overall: −$57 on 310 wagers.** Chance alone moves this set of bets by ±$1,849, so the result is indistinguishable from break-even.
-- **Prices: no sign of an edge yet.** On 85 straight bets that could be checked, you beat the closing number on 34. Each dollar risked was worth about −6.1% at closing prices; a bettor with no edge sits near −4.5%. Those bets actually made +$347, which is luck running ahead of the prices.
+- **Prices: no sign of an edge yet.** On 85 straight bets that could be checked, you beat the closing number on 34. Each dollar risked was worth about −6.1% at closing prices; a bettor with no edge sits near −4.5%. Those bets returned +$347 against −$182 expected, which is luck running ahead of the prices.
 - **Live in-game betting: −$427** on 86 tickets.
 - **Bets over the $50 cap: 91, net −$526.**
 
@@ -96,9 +96,6 @@ Teaser legs against the close (before teaser points): 23 better, 42 same, 30 wor
 
 | Sport | Market | Bought | From → to | Price paid | On or off 3 or 7 | Result |
 |---|---|---|---|---|---|---|
-| NFL | total | 0.5 | 51 → 51.5 | -120 | no | +$20 |
-| College | total | 0.5 | 44 → 44.5 | -120 | no | +$15 |
-| College | spread | 0.5 | 16.5 → 17 | -120 | no | +$30 |
 | College | spread | 0.5 | -7.5 → -7 | -130 | 7 | +$20 |
 | College | spread | 1.5 | 16 → 17.5 | -140 | no | +$15 |
 | College | spread | 2 | 15.5 → 17.5 | -150 | no | −$15 |
@@ -113,6 +110,9 @@ Teaser legs against the close (before teaser points): 23 better, 42 same, 30 wor
 | NFL | spread | 0.5 | -3 → -2.5 | -130 | 3 | −$50 |
 | NFL | total | 2 | 46 → 48 | -150 | no | −$60 |
 | NFL | total | 1.5 | 43 → 44.5 | -140 | no | +$74 |
+| NFL | total | 0.5 | 51 → 51.5 | -120 | no | +$20 |
+| College | total | 0.5 | 44 → 44.5 | -120 | no | +$15 |
+| College | spread | 0.5 | 16.5 → 17 | -120 | no | +$30 |
 
 17 bets with bought points, net +$146. 2 were NFL spreads moving on or off 3 or 7, the only case where buying can be worth the price. Buying points on totals is never on a key number.
 
