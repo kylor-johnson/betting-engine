@@ -326,3 +326,37 @@ What the weekly totals in the history say (sums of Wagerhouse's own weekly resul
 What the history is missing for the audit: the time each bet was placed (so bets can only be priced against the close, not against the price when placed, and live bets cannot be separated from pregame ones), the amount on the last bet of each week (cut off in the paste), the week of 10/6 and the current week.
 
 Other things visible in the history that the plan did not assume: stakes range from $5 to $168, not a flat $25; a meaningful share of tickets look like in-game bets (several prices on the same game minutes apart); and there are baseball and hockey bets, which the engine does not cover.
+
+## Addendum 2, 2026-11-21: account history pulled, and plan edits from Kylor
+
+**History pulled from the account** (read-only, with permission) and saved unsynced at `data.nosync/raw/wagerhouse_graded_wagers_pull_2026-11-21.json`. It has every graded bet since 9/1 with the time placed, the game time, amount risked, amount to win, each leg, and the line before teaser points. The totals match the account's weekly figures to the cent.
+
+- Season to date (9/1 through 11/21): 310 wagers, $14,634 risked, net **−$57**. Of that, $210 was winnings on free plays, so on your own money it is −$267.
+- Placed on the regular site before games: 212 wagers, +$405 (including the $210 of free-play winnings).
+- Live in-game tickets: 86 wagers, $4,836 risked, **−$427**.
+- Same-game builder tickets: 12 wagers, 4 won, −$35.
+- 13-point teasers: 16 tickets, 8 won, 8 lost, −$164.
+- 6.5-point teasers: 9 tickets, 5 won, +$22.
+- Average stake about $47. Account limits: $5 minimum, $250 maximum per bet, $800 credit limit.
+
+**Teaser prices at this book, and what each leg has to win to break even:**
+
+| Teaser | Price | Each leg must win | Published history |
+|---|---|---|---|
+| 2-team, 6.5 points | −120 | 73.9% | 72.5 to 77% for true Wong legs at 6 points |
+| 3-team, 6.5 points | +140 | 74.7% | same |
+| 2-team, 7 points | −140 | 76.4% | same, plus half a point |
+| 3-team, 10 points, ties lose | −130 | 82.7% | 78.1% |
+| 4-team, 13 points, ties lose | −140 | 87.4% | 83.7% |
+
+The 2-team 6.5-point teaser at −120 is the only one with a chance, and only on NFL sides that cross both 3 and 7.
+
+**Plan edits from Kylor:**
+
+- Pregame NFL, college football and NBA only. No live betting, baseball or hockey in the engine.
+- Staying on Wagerhouse only.
+- Bankroll set at $300. That makes the unit $5 (the book's minimum) with a $10 cap per bet.
+- No paid odds feed. At $5 units a $30 feed costs more than any realistic edge returns. Free sources instead: Wagerhouse's own lines read from the account, ESPN's public scoreboard (confirmed today to carry the DraftKings spread, total and moneyline for each game) as the market reference, and The Odds API free tier (500 credits a month) for occasional Pinnacle spot checks. Trade-off: DraftKings is a market-following book, not a sharp one, so "fair price" is rougher than with Pinnacle.
+- The Mac is a MacBook Air. It will run the checker while plugged in with the lid open and sleep disabled on power. Nothing to buy.
+
+**Open decision:** whether the engine may sign in to the Wagerhouse account on a schedule to read lines. It is the only way to get the actual lines being bet without typing them in. The risk is the book noticing automated sign-ins; a handful of reads a day in the hours lines open keeps that low but not zero.
