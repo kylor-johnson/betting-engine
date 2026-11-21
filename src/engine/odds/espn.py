@@ -45,6 +45,7 @@ class Event:
     home: dict               # ESPN team dict
     away: dict
     completed: bool
+    neutral: bool = False
 
 
 def scoreboard(league: str, day: date, cache_dir: Path | None = None) -> list[Event]:
@@ -71,6 +72,7 @@ def scoreboard(league: str, day: date, cache_dir: Path | None = None) -> list[Ev
             home=teams["home"],
             away=teams["away"],
             completed=bool(e.get("status", {}).get("type", {}).get("completed")),
+            neutral=bool(comp.get("neutralSite")),
         ))
     return out
 

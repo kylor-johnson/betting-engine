@@ -189,6 +189,49 @@ def cmd_bet_add(args) -> int:
     return 0
 
 
+def cmd_slate(args) -> int:
+    """Build the slate sheet: every number for every game, from live prices."""
+    from engine.picks import slate
+
+    sheet = slate.build_nfl(days_ahead=args.days)
+    path = slate.save(sheet)
+    flagged = [(g["game"], s["pick"], s["value"]) for g in sheet["games"] for m in g["markets"]
+               for s in m.get("sides", []) if s["numbers_say_bet"]]
+    print(f"Slate sheet: {path}")
+    print(f"{len(sheet['games'])} games. The numbers flag {len(flagged)} side(s) for a second look:")
+    for game, pick, val in flagged:
+        print(f"  {pick}  ({game})  {100 * val:+.1f}% per $1")
+    for pr in sheet["problems"]:
+        print(f"  PROBLEM: {pr}")
+    return 0
+
+
+def cmd_card(args) -> int:
+    """Render the card from the latest slate sheet and the decisions file."""
+    import json as _json
+
+    from engine.picks import card
+
+    cfg = config.load_config()
+    sheet_path = DATA / "slates" / "NFL_latest.json"
+    if not sheet_path.exists():
+        print("No slate sheet yet. Run `engine slate` first.", file=sys.stderr)
+        return 2
+    sheet = _json.loads(sheet_path.read_text())
+    day = args.date or datetime.fromisoformat(sheet["games"][0]["start_utc"]).astimezone(config.display_tz(cfg)).strftime("%Y-%m-%d")
+    dpath = ROOT / "docs" / "cards" / "decisions" / f"{day}-nfl.yaml"
+    if not dpath.exists():
+        print(f"No decisions file at {dpath.relative_to(ROOT)}.", file=sys.stderr)
+        return 2
+    decisions, note = card.load_decisions(dpath)
+    text, rows = card.build(sheet, decisions, note, cfg)
+    out = ROOT / "docs" / "cards" / f"{day}.md"
+    out.write_text(text)
+    print(f"Card: {out.relative_to(ROOT)}  ({sum(r['status'] == 'Bet' for r in rows)} bets, "
+          f"{sum(r['status'] == 'Conditional' for r in rows)} conditional, {sum(r['status'] == 'Pass' for r in rows)} passed)")
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="engine")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -209,6 +252,12 @@ def main(argv=None) -> int:
     a.set_defaults(func=cmd_poll)
     a = sub.add_parser("book", help="how Wagerhouse compares with the market so far")
     a.set_defaults(func=cmd_book)
+    a = sub.add_parser("slate", help="build the slate sheet: fair lines and edges for every NFL game")
+    a.add_argument("--days", type=int, default=3)
+    a.set_defaults(func=cmd_slate)
+    a = sub.add_parser("card", help="render the card from the slate sheet and the decisions file")
+    a.add_argument("--date", help="card date, e.g. 2026-11-22 (default: first game on the sheet)")
+    a.set_defaults(func=cmd_card)
     a = sub.add_parser("telegram-setup", help="find the chat id and send a test message")
     a.set_defaults(func=cmd_telegram_setup)
     a = sub.add_parser("watch", help='watchlist: add "Kansas State +10", list, remove 3')

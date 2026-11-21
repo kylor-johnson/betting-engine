@@ -12,13 +12,13 @@ Owner: Kylor (Denver, Mountain time). This file is copied to `CLAUDE.md`. The re
 ## Ground rules
 
 - Python 3.11+, `uv` for the environment (`UV_PROJECT_ENVIRONMENT=.venv.nosync`), DuckDB as the local database (`data.nosync/engine.duckdb`).
-- No paid data. Sources: Wagerhouse's own lines and history read from Kylor's account, ESPN's public scoreboard and odds pages (DraftKings open, close and current lines), and The Odds API free tier (500 credits a month) for occasional Pinnacle checks.
+- No paid data. Sources: Wagerhouse's own lines and history read from Kylor's account, Pinnacle's public guest lines (the sharp reference), ESPN (DraftKings lines, NFL injuries), The Prediction Tracker's weekly file of public rating systems, nflverse game history, CollegeFootballData (free key in `.env`), Open-Meteo weather.
 - The market reference is DraftKings as published by ESPN. It follows the market; it is not a sharp book. Every report says so, and "fair price" is labelled approximate.
 - Every number the system outputs is logged with a timestamp and the odds at that moment. Times are stored in UTC and shown in Mountain time. Wagerhouse timestamps arrive in Eastern time.
-- Unit = $25. Flat one unit per bet, two at most. No Kelly sizing until there are 500 bets with measured price quality. Unit, cap and bankroll live in `config.yaml`.
+- Unit = $25. Engine picks are 1 unit (0.5 for a Conditional) until 100 are graded. Unit, cap and bankroll live in `config.yaml`.
 - No pick without a "don't bet past" number.
 - Secrets live in `.env`, never committed, never printed or logged. That includes the Wagerhouse login.
-- Wagerhouse account access is read-only: sign in, read lines, read history. Hourly on Sundays when openers post and five times on other days (set in `config.yaml`), never a constant poll. The client refuses any operation not on its read-only list.
+- Wagerhouse account access is read-only: sign in, read lines, read history. Hourly from 7am to 5pm Mountain, and to 9pm on Sundays for openers (set in `config.yaml`), never a constant poll. The client refuses any operation not on its read-only list.
 - If a source is down or returns junk, fail loudly and alert. Never skip silently.
 - Every report prints the luck range next to results so a hot streak cannot pass for an edge.
 - Closing line value is measured on sides, totals and moneylines only, never props, and is treated as a compass, not proof.
@@ -48,6 +48,21 @@ Exit test: every wager is either priced or listed as unpriced with the reason; t
 8. **Tests** for the vig removal, key-number logic, bet parser, closing line value and teaser math.
 
 Exit test: three weeks of scheduled reads with every gap explained, closing line value on every eligible bet, and a short written answer to "does Wagerhouse lag the market, by how much, and in which direction does it shade."
+
+## Picks engine (approved 2026-11-21; this is the product)
+
+The goal is an agent that does the handicapping on a schedule and alerts Kylor when there is a bet to place. The line logger, audit and reports above are plumbing for it. Research and design: `docs/research/01-picks-engine.md`. Decision: `docs/decisions/0004`.
+
+- **Code owns every number.** `engine slate` builds the slate sheet: your book's price, Pinnacle (free, sharp) and DraftKings; three independent fair numbers (ratings backed out of the market's own closing lines, the average of about 50 public rating systems, Pinnacle with the vig removed); the blended fair line (55% Pinnacle, 45% model); the edge using how real games landed on each margin; the "don't bet past" number; the stake.
+- **The agent owns research and judgment.** It reads the slate sheet, checks injuries, availability reports, weather and why a line moved, and writes a decisions file with status and reasons only. It may add entries to `adjustments.yaml` (each with points, reason, source link and time). It cannot type a line, price, edge or stake; `engine card` refuses a Bet the numbers do not support.
+- **A Bet needs all four:** an edge of at least 2% at the book's current number; the model on the same side; a written reason that is not "the line moved"; the book's number re-checked in the same minute as the alert. An edge that exists only because of the agent's own estimated adjustment is not a Bet.
+- **Statuses:** Bet, Conditional (with the exact condition), Pass (with why, and the number that would change it).
+- **Sizing:** 1 unit per Bet, 0.5 for a Conditional, until the engine has 100 graded picks. Then revisit 0.5 to 3 units by edge.
+- **Totals** are not picked from ratings alone; a total needs a specific sourced adjustment (wind, quarterback).
+- **Betting splits** are logged and shown, never a reason.
+- **Get the early number.** The point is to be the one holding +10 before it becomes +6.5: numbers ready Sunday night for openers, injury and availability news checked hourly 7am to 5pm Mountain, and an alert within the hour when news lands and the book has not moved.
+- **Grading.** Every engine pick is logged at issue and graded on result and against Pinnacle's close, next to Kylor's own record. After 100 picks, if they have not beaten the close on average, the report says so.
+- **Order of work:** NFL slate and card (built) → scheduled agent runs and pick alerts → injury and news watcher → college football → NBA.
 
 ## Phase 2: Decide where the edge is
 

@@ -26,7 +26,7 @@ def load_env() -> dict[str, str]:
             if line and not line.startswith("#") and "=" in line:
                 k, v = line.split("=", 1)
                 env[k.strip()] = v.strip()
-    for k in ("WAGERHOUSE_USER", "WAGERHOUSE_PASSWORD", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "ODDS_API_KEY"):
+    for k in ("WAGERHOUSE_USER", "WAGERHOUSE_PASSWORD", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "ODDS_API_KEY", "CFBD_API_KEY"):
         if os.environ.get(k):
             env[k] = os.environ[k]
     return env

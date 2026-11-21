@@ -33,6 +33,14 @@ alerts:
 # When the scheduled job actually reads lines (Mountain time). The job wakes every
 # 30 minutes; it only reads when the hour is listed for that day.
 read_hours:
-  sunday: [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]   # openers post through the day
-  other: [7, 10, 13, 16, 19]
+  sunday: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]   # news all day, openers in the evening
+  other: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]                    # news breaks 7am to 5pm
 missed_read_alert_hours: 8
+
+# Picks engine
+picks:
+  home_field: {NFL: 1.7, College: 2.5, NBA: 2.2}
+  market_weight: 0.55        # fair line = 55% Pinnacle (vig removed) + 45% our model (Peabody's blend)
+  min_value: 0.02            # a bet needs at least +2% expected return at the book's current number
+  max_units: 1               # cap until the engine has 100 graded picks
+  conditional_units: 0.5
