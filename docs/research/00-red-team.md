@@ -310,3 +310,19 @@ Two pieces, in this order.
 - Telegram bot limits: https://core.telegram.org/bots/faq
 - Wagerhouse login page: https://wagerhouse.ag
 - Pay-per-head odds come bundled from the platform: https://www.gambling911.com/node/65383
+
+## Addendum, 2026-11-21: answers received and a first look at the history
+
+**Answers.** Kylor is staying on Wagerhouse only for now, and is willing to pay extra vig for adjusted lines when the value is there. Consequence: the "retail book off sharp" alert stays dropped, measuring Wagerhouse's lag stays the first job of Phase 1B, and the bought-point and alt-line pricer moves up in importance because it is the tool that says when the extra vig is worth paying.
+
+**Bet history received** for ten weeks (9/1 through 11/10; the week of 10/6 was not included), saved unsynced at `data.nosync/raw/wagerhouse_history_2026-09-01_to_2026-11-16.txt`.
+
+What the weekly totals in the history say (sums of Wagerhouse's own weekly results):
+
+- Ten weeks, 275 wagers, net about **−$285**.
+- First five weeks (9/1 to 9/29): −$1,513. Last five (10/13 to 11/10): +$1,228.
+- 13-point teasers: 16 tickets, 8 won, 8 lost, net −$165 on about $1,413 risked (−12%). At −140 a ticket needs to win 58.3% of the time. The published leg rate (83.7%) predicts a ticket wins 49%. The record is 50%.
+
+What the history is missing for the audit: the time each bet was placed (so bets can only be priced against the close, not against the price when placed, and live bets cannot be separated from pregame ones), the amount on the last bet of each week (cut off in the paste), the week of 10/6 and the current week.
+
+Other things visible in the history that the plan did not assume: stakes range from $5 to $168, not a flat $25; a meaningful share of tickets look like in-game bets (several prices on the same game minutes apart); and there are baseball and hockey bets, which the engine does not cover.
