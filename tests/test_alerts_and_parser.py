@@ -83,7 +83,8 @@ def test_watchlist():
 
 def test_opener_digest_and_missed_reads():
     d = rules.opener_digest([snap("wagerhouse", -3)], {"E1": snap("draftkings", -3.5)})
-    assert "posted 1 new game" in d.text and "Chargers -3" in d.text and "market -3.5" in d.text
+    assert "posted 1 new game" in d.text and "Your book: Chargers -3" in d.text and "DraftKings has Chargers -3.5" in d.text
+    assert "not a pick" in d.text
     assert rules.opener_digest([], {}) is None
     assert rules.missed_reads(NOW - timedelta(hours=30), NOW, 20) is not None
     assert rules.missed_reads(NOW - timedelta(hours=3), NOW, 20) is None

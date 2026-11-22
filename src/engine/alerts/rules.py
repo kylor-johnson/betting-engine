@@ -145,16 +145,17 @@ def opener_digest(new: list, markets: dict) -> Alert | None:
     lines = []
     for s in sorted(new, key=lambda s: s.start):
         m = markets.get(s.event_id)
-        wh_txt = f"{s.home} {fmt_line(s.home_spread)}" if s.home_spread is not None else "no spread"
+        wh_txt = f"{s.home} {fmt_line(s.home_spread)}" if s.home_spread is not None else "no spread yet"
         tot = f", total {s.total:g}" if s.total is not None else ""
         mk = ""
         if m is not None and m.home_spread is not None:
-            mk = f" | market {fmt_line(m.home_spread)}" + (f", {m.total:g}" if m.total is not None else "")
-        lines.append(f"{s.away} at {wh_txt}{tot}{mk}")
+            mk = f" (DraftKings has {s.home} {fmt_line(m.home_spread)}" + (f", total {m.total:g})" if m.total is not None else ")")
+        lines.append(f"{s.away} at {s.home}. Your book: {wh_txt}{tot}{mk}")
     sport = new[0].sport
     ids = ",".join(sorted(s.event_id for s in new))
     return Alert(f"opener|{sport}|{ids}", "opener",
-                 f"{sport}: Wagerhouse posted {len(new)} new game{'s' if len(new) != 1 else ''}\n" + "\n".join(lines))
+                 f"{sport}: your book just posted {len(new)} new game{'s' if len(new) != 1 else ''}. "
+                 "This is a heads-up, not a pick; pick alerts follow if the research run finds one.\n" + "\n".join(lines))
 
 
 def missed_reads(last_ok, now, expected_gap_hours: float) -> str | None:

@@ -82,6 +82,8 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
             alerts += rules.watchlist_hits(w, mk_now.get(eid), entries)
         first_ever = con.execute("SELECT count(*) FROM line_snapshots").fetchone()[0] == 0
         for sport, new in new_by_sport.items():
+            if sport not in cfg.get("opener_messages", ["NFL"]):
+                continue          # still stored; just no message for sports the picks engine does not cover
             d = rules.opener_digest(new[:40], mk_now)
             if d and not first_ever:
                 alerts.insert(0, d)

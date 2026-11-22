@@ -36,6 +36,7 @@ read_hours:
   sunday: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]   # news all day, openers in the evening
   other: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]                    # news breaks 7am to 5pm
 missed_read_alert_hours: 8
+opener_messages: [NFL]     # sports that get a "your book posted new games" message
 
 # Picks engine
 picks:
