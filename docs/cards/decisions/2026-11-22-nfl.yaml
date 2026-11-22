@@ -1,9 +1,11 @@
 # The agent's decisions for this card. Status and reasons only: every number on the
 # card comes from the slate sheet. A Bet the numbers do not support is refused.
 slate_note: >
-  Sample card, built Saturday evening for Sunday's games. By this point in the week the
-  market has had six days to settle, which is when value is hardest to find. The numbers
-  flagged three sides; none has a reason that is not already in the price.
+  Sunday morning run, a few hours before kickoff. The numbers flag two sides, Panthers and
+  Jaguars, and neither has a reason that the market has not already priced, so both are
+  Passes. One new adjustment: wind at Kansas City (about 17 mph sustained) takes points off
+  that total, which the market had already done. Two quarterbacks are listed questionable and
+  not adjusted for: Mac Jones (49ers, illness) and Baker Mayfield (Buccaneers, foot and thumb).
 decisions:
   - game: "New Orleans Saints at Chicago Bears"
     market: spread
@@ -25,6 +27,23 @@ decisions:
     side: home
     status: Pass
     why_pass: >
-      The edge exists only because of my own 3-point estimate for Lamar Jackson's absence.
-      Without that estimate the model and Pinnacle both make it Panthers by about 3, which is
-      your book's number. An estimate is not a reason to bet.
+      The edge still depends on my own 3-point estimate for Lamar Jackson's absence. Without it
+      the model makes the Panthers a smaller favorite than your book's number and there is no
+      edge. What is real is the price: even money on -3 while Pinnacle charges more for -2.5.
+      That is a good price on a fair number, not a wrong number. I checked both injury reports
+      (ESPN, Nov 21): Baltimore is without Humphrey, Madubuike and Hawkins, Carolina without
+      Okereke, Ekwonu, Christensen and Brooks. All of it was public by Friday and is in the
+      line. It would change if the book offered -2.5, or if Brissett were ruled out.
+  - game: "Jacksonville Jaguars at New York Giants"
+    market: spread
+    side: away
+    status: Pass
+    why_pass: >
+      Your book is half a point behind Pinnacle and DraftKings, and the model agrees with the
+      Jaguars without any adjustment of mine. But that is the whole case: the book has not
+      followed a move, and I cannot say why the line moved 4.5 points from the opener. The
+      Giants' Friday report has no one with a game status; Jacksonville is missing a center
+      (Hainsey) and two defensive ends, which points the other way. Wind at MetLife is light.
+      No news in the last day that the market lacks. The margin is also thin: the number stops
+      being playable half a point from here. It would change with late news against the Giants
+      that the book does not follow, such as McCarthy being ruled out.
