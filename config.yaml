@@ -70,6 +70,17 @@ models:
                                # and blending the model into Pinnacle must lower the error (best weight above 0)
     max_status: Conditional    # even then, half a unit, and only at Wagerhouse at or better than Pinnacle's line
 
+
+# NBA injury watcher (engine nba-watch, launchd every 10 minutes). Reads ESPN's public report only; reads
+# Wagerhouse and Pinnacle once when a player who matters changes between playing and not playing.
+nba_watch:
+  enabled: true
+  start_hour: 9                # Mountain; NBA reports update through the afternoon and up to tip-off
+  end_hour: 21
+  min_minutes: 22              # a player matters if he averages this many minutes (3+ games this season)
+  max_book_reads_per_day: 12   # extra Wagerhouse reads the watcher may make in a day
+  cooldown_minutes: 20         # at most one NBA research run started by news in this window
+
 # Research agent (a headless Claude run on this Mac)
 agent:
   claude_path: /Users/kylorjohnson/.nvm/versions/node/v25.2.1/bin/claude

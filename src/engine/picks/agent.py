@@ -270,9 +270,13 @@ def run(reason: str, send: bool = True, skip_research: bool = False, sport: str 
         return 1, lines + [f"{sport} research run FAILED: {msg}"]
 
 
-def cooled_down(con, now: datetime, minutes: int) -> bool:
+def cooled_down(con, now: datetime, minutes: int, sport: str | None = None) -> bool:
+    """No research run in the last `minutes` (any sport, or only `sport`'s runs when given)."""
     con.execute(SCHEMA)
-    last = con.execute("SELECT max(ts_utc) FROM agent_runs").fetchone()[0]
+    if sport:
+        last = con.execute("SELECT max(ts_utc) FROM agent_runs WHERE reason LIKE ?", [f"{sport}: %"]).fetchone()[0]
+    else:
+        last = con.execute("SELECT max(ts_utc) FROM agent_runs").fetchone()[0]
     return last is None or (now.replace(tzinfo=None) - last) > timedelta(minutes=minutes)
 
 

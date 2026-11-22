@@ -51,18 +51,21 @@ Research runs happen on a schedule (Sunday 8:15am, 6:45pm and 8:45pm; Monday and
 
 ## Running on a schedule (launchd)
 
-Three jobs: line and news reads every 30 minutes (the command itself only reads in scheduled hours), research runs on the schedule above, and the weekly report Tuesday 9:00.
+Four jobs: line and news reads every 30 minutes (the command itself only reads in scheduled hours), research runs on the schedule above, the weekly report Tuesday 9:00, and the NBA injury watcher every 10 minutes (9am to 9pm Mountain, set in `config.yaml` under `nba_watch`).
 
 ```sh
 cp ops/launchd/*.plist ~/Library/LaunchAgents/
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.kylor.betting-engine.poll.plist
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.kylor.betting-engine.weekly.plist
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.kylor.betting-engine.agent.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.kylor.betting-engine.nba-watch.plist
 launchctl kickstart gui/$(id -u)/com.kylor.betting-engine.poll    # run once now
 tail -5 ~/Library/Logs/betting-engine/poll.log ~/Library/Logs/betting-engine/poll.err.log   # check it worked
 ```
 
-To stop: `launchctl bootout gui/$(id -u)/com.kylor.betting-engine.poll` (and `.weekly`).
+To stop: `launchctl bootout gui/$(id -u)/com.kylor.betting-engine.poll` (and `.weekly`, `.agent`, `.nba-watch`).
+
+**NBA injury watcher** (`engine nba-watch`): reads ESPN's public NBA injury report. When a player who averages 22+ minutes on a team playing in the next 30 hours moves between playing and not playing (to or from Out or Doubtful, or off the report), it reads Wagerhouse and Pinnacle once (at most 12 extra reads a day), messages the news with both lines, and starts an NBA research run (at most one every 20 minutes). A pick still comes only from the card, when the numbers support it. Test it without messaging: `uv run engine nba-watch --dry-run --force`.
 
 Job logs live in `~/Library/Logs/betting-engine/` (outside iCloud, because macOS will not let a background job open a log file inside iCloud Drive). If `poll.err.log` says "Operation not permitted", macOS is blocking background access to iCloud Drive: System Settings → Privacy & Security → Full Disk Access → add `/opt/homebrew/bin/uv`.
 

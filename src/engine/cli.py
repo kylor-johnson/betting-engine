@@ -341,6 +341,17 @@ def cmd_props_test(args) -> int:
     return 0
 
 
+def cmd_nba_watch(args) -> int:
+    """NBA injury watcher: news for players who matter, lines at your book and Pinnacle, research run."""
+    from engine.picks import nba_news
+
+    code, lines = nba_news.run(force=args.force, send=not args.dry_run)
+    stamp = datetime.now().strftime("%Y-%m-%d %H:%M")
+    for line in lines:
+        print(f"{stamp} {line}")
+    return code
+
+
 def cmd_board(args) -> int:
     """Rebuild the picks page and open it in the browser."""
     import subprocess
@@ -459,6 +470,10 @@ def main(argv=None) -> int:
     a.set_defaults(func=cmd_props)
     a = sub.add_parser("props-test", help="held-out test of the props model")
     a.set_defaults(func=cmd_props_test)
+    a = sub.add_parser("nba-watch", help="NBA injury watcher (launchd runs it every 10 minutes)")
+    a.add_argument("--force", action="store_true", help="run outside the watch hours")
+    a.add_argument("--dry-run", action="store_true", help="print, do not message or start a research run")
+    a.set_defaults(func=cmd_nba_watch)
     a = sub.add_parser("board", help="rebuild the picks page (board.html) and open it")
     a.add_argument("--no-open", action="store_true")
     a.set_defaults(func=cmd_board)
