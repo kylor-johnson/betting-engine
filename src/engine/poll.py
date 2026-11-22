@@ -110,6 +110,8 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
             for gl in grade.run(cfg, con):
                 if gl.startswith(("GRADED", "NOT GRADED")):
                     out.append(gl)
+                if gl.startswith(("GRADED Bet", "GRADED Conditional")):
+                    alerts.append(rules.Alert(f"graded|{gl}", "graded", "PICK GRADED: " + gl.removeprefix("GRADED ")))
         except Exception as e:
             problems.append(f"Pick grading failed: {type(e).__name__}: {e}")
         entries = [dict(zip(("id", "team", "market", "target", "worst_price"), r)) for r in con.execute(

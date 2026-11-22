@@ -98,7 +98,15 @@ def cmd_report(args) -> int:
     out.write_text(text)
     print(f"Report: {out}")
     summary = text.split("## Bottom line\n", 1)[1].split("\n## ", 1)[0].replace("**", "").strip()
-    msg = f"Week of {week}\n{summary}\n\nFull report: data.nosync/reports/weekly_{week}.md"
+    from engine.odds import snapshots as snap
+    from engine.picks import grade
+    gcon = snap.connect(config.DB)
+    try:
+        engine_lines = grade.summary(gcon, cfg)
+    finally:
+        gcon.close()
+    msg = (f"Week of {week}\n{summary}\n\nThe engine's own picks (all time):\n" + "\n".join(engine_lines)
+           + f"\n\nFull report: data.nosync/reports/weekly_{week}.md")
     if args.no_send:
         print(msg)
     else:

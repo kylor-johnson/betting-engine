@@ -79,3 +79,19 @@ def test_run_says_why_when_no_pinnacle_close():
                  -3.0, -110, -110, None, None, 44.0, -110, -110])
     out = grade.run(CFG, con, scorer=lambda *a: (27, 20))
     assert any("no Pinnacle line stored" in l for l in out)
+
+
+def test_board_section_shows_graded_picks(tmp_path, monkeypatch):
+    from datetime import datetime
+    from engine import config
+    from engine.picks import board
+    db = tmp_path / "t.duckdb"
+    monkeypatch.setattr(config, "DB", db)
+    con = snap.connect(db)
+    con.execute(grade.GRADES)
+    con.execute("INSERT INTO engine_pick_grades VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                ["E1|spread|home", "A at H", "H -2.5", "Bet", "NFL", "spread", datetime(2026, 11, 22), -2.5, -110, 1.0, -3.5, 1.0,
+                 27, 20, "W", 0.909, datetime(2026, 11, 23)])
+    con.close()
+    html = board._grades_html(None)
+    assert "H -2.5" in html and "+1.0" in html and "W" in html and "+0.91" in html

@@ -54,6 +54,32 @@ def _num(x, signed=True) -> str:
     return f"{x:+g}" if signed else f"{x:g}"
 
 
+def _grades_html(tz) -> str:
+    """Graded engine picks: totals by status, then the latest ten. Read-only; failures show on the page."""
+    from engine.odds import snapshots as snap
+    from engine.picks import grade
+    try:
+        con = snap.connect(config.DB)
+        try:
+            lines = grade.summary(con, config.load_config())
+            rows = con.execute("SELECT pick, game, status, result, clv_points, profit_units, issued_line, price FROM engine_pick_grades "
+                               "ORDER BY graded_utc DESC, pick LIMIT 10").fetchall()
+        finally:
+            con.close()
+    except Exception as e:
+        return f"<p class=sub>Grading could not be read: {_e(type(e).__name__)}: {_e(e)}</p>"
+    out = "<ul class=close>" + "".join(f"<li>{_e(l)}</li>" for l in lines) + "</ul>"
+    if rows:
+        out += ("<div class=wrap><table><tr><th>Pick</th><th>Status</th><th>Result</th><th>Points vs Pinnacle close</th><th>Units</th></tr>"
+                + "".join(f"<tr><td class=g>{_e(r[0])}<br><span class=sub>{_e(r[1])}</span></td><td>{_e(r[2])}</td><td>{_e(r[3])}</td>"
+                          f"<td>{r[4]:+.1f}</td><td>{r[5]:+.2f}</td></tr>" for r in rows) + "</table></div>"
+                "<p class=sub>Points vs Pinnacle close: positive means the number you could have had beat the sharp book's last line. "
+                "A compass, not proof. Passes show what passing was worth; no money was risked on them.</p>")
+    else:
+        out += "<p class=sub>No pick has been graded yet; a pick is graded after its game ends.</p>"
+    return out
+
+
 def build() -> Path:
     cfg = config.load_config()
     tz = config.display_tz(cfg)
@@ -117,6 +143,7 @@ def build() -> Path:
         parts.append("<h2>Came close, and why not</h2><ul class=close>" + "".join(
             f"<li><b>{_e(r['pick'])}</b> <span class=sub>({LABEL[r['sport']]}, {_when(r['kick'], tz)})</span><br>"
             f"{_e(r.get('downgraded') or ' '.join(str(r['decision'].get('why_pass', '')).split()))}</li>" for r in close) + "</ul>")
+    parts.append("<h2>How the engine's picks have done</h2>" + _grades_html(tz))
     parts.append("<h2>Every game</h2>" + ("".join(tables) or "<p class=sub>No games priced yet.</p>"))
     page = ("<!doctype html><html lang=en><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"
             "<meta http-equiv=refresh content=120><title>Betting board</title><style>" + CSS + "</style></head><body><main>"
