@@ -97,6 +97,14 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
                 prior_mk = [s for s in snap.history(con, eid, snap.MKT) if s.ts >= day_ago]
                 prior_w = [s for s in prior_wh if s.ts >= day_ago]
                 alerts += rules.off_market(w, m, cfg, prior_mk[0] if prior_mk else None, prior_w[0] if prior_w else None)
+        try:   # period lines, team totals, props: logged only, never drive a pick (plan item 2 in docs/research/04-evaluation.md)
+            from engine.odds import derivatives
+            drows, dprobs = derivatives.collect(wh, cfg["sports"], now)
+            derivatives.save(con, drows)
+            problems += dprobs
+            out.append(f"Logged {len(drows)} period, team-total and prop rows.")
+        except Exception as e:
+            problems.append(f"Period/team-total/prop logging failed: {type(e).__name__}: {e}")
         entries = [dict(zip(("id", "team", "market", "target", "worst_price"), r)) for r in con.execute(
             "SELECT id, team, market, target, worst_price FROM watchlist WHERE active").fetchall()]
         for eid, w in wh_now.items():

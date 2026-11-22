@@ -98,6 +98,20 @@ class Wagerhouse:
         self.customer_id = d["accountInfo"]["customerID"].strip()
         self.office = (d["accountInfo"].get("Office") or "").strip()
 
+    def raw_lines(self, sport: str, period: str = "Game") -> list[dict]:
+        """Raw rows for one period ("Game", "1st Half", "1st Quarter"). Same read-only operation as lines()."""
+        if not self._token:
+            self.login()
+        stype, sub = SPORTS[sport]
+        d = self._post("Lines/Get_LeagueLines2", {
+            "customerID": self.customer_id, "operation": "Get_LeagueLines2", "sportType": stype,
+            "sportSubType": sub, "period": period, "hourFilter": 0, "propDescription": "",
+            "wagerType": "Straight", "keyword": "", "office": self.office, "correlationID": "",
+            "periodNumber": 0, "periods": 0, "rotOrder": 0, "placeLateFlag": False, "RRO": 1})
+        if "Lines" not in d:
+            raise SourceError(f"Wagerhouse {period} lines for {sport} came back without a 'Lines' field")
+        return d["Lines"]
+
     def lines(self, sport: str) -> list[BookLine]:
         if not self._token:
             self.login()
