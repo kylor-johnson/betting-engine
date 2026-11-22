@@ -177,6 +177,13 @@ def finalize(cfg, env, day: str, sport: str = "NFL", send: bool = True, reason: 
                     con.execute("INSERT INTO engine_pick_events VALUES (?,?,?,?,?,?,?,?,?,?)",
                                 [ts, key, r["game"], r["pick"], r["status"], r["book_line"], r["price"], r["fair"],
                                  r["value"], pin.get(r["event_id"]) if r["market"] == "spread" else None])
+            elif r["status"] == "Pass":
+                # log every flagged Pass too, once per change, so the engine's hit rate is not measured on bets alone
+                last = con.execute("SELECT status FROM engine_pick_events WHERE pick_key=? ORDER BY ts_utc DESC LIMIT 1", [key]).fetchone()
+                if last is None or last[0] != "Pass":
+                    con.execute("INSERT INTO engine_pick_events VALUES (?,?,?,?,?,?,?,?,?,?)",
+                                [ts, key, r["game"], r["pick"], "Pass", r["book_line"], r["price"], r["fair"],
+                                 r["value"], pin.get(r["event_id"]) if r["market"] == "spread" else None])
             # arm the watchlist at the number that would make a pass a bet
             if r["status"] == "Pass" and not r["numbers_say_bet"] and r.get("limit_line") is not None and r["market"] == "spread":
                 team = r["pick"].rsplit(" ", 1)[0]
