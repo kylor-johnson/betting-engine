@@ -152,6 +152,11 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
         con.execute("INSERT INTO polls VALUES (?,?,?,?,?)",
                     [now.replace(tzinfo=None), True, len(wh_now), len(mk_now), "; ".join(problems)[:500] or None])
         out.append(f"Read {len(wh_now)} Wagerhouse games, {len(mk_now)} with a market line. {len(alerts)} alert candidates.")
+        if not cfg["alerts"].get("price_messages", False):
+            quiet = [a for a in alerts if a.kind in ("off-market", "moving")]
+            alerts = [a for a in alerts if a.kind not in ("off-market", "moving")]
+            if quiet:
+                out.append(f"{len(quiet)} price gap(s) noted for the slate sheet; no message sent (price gaps alone are not picks).")
         if send_alerts:
             _deliver(con, env, alerts, now, out)
         else:

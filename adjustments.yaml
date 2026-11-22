@@ -17,10 +17,10 @@ adjustments:
   - game: "Arizona Cardinals at Kansas City Chiefs"
     team: "Kansas City Chiefs"
     market: total
-    points: -3.0
-    reason: "Open-Meteo forecast for Arrowhead at kickoff (noon to 3pm Central, Nov 22): sustained wind 15.5 to 17.5 mph, gusts 24 to 27 mph, dry. Falls in the 16 to 25 mph band of the guide."
+    points: -2.5
+    reason: "Open-Meteo forecast for Arrowhead at kickoff (noon to 3pm Central, Nov 22), re-read Sunday morning: sustained wind 16.1 mph at kickoff easing to 13.6, gusts 21 to 25.5 mph, dry. The forecast eased from 15.5 to 17.5 overnight and now straddles the 10 to 15 and 16 to 25 mph bands of the guide, so the entry sits between the two."
     source: "https://api.open-meteo.com/v1/forecast?latitude=42.774,41.862,39.049,39.901,35.226,39.744,40.813,38.908,19.303&longitude=-78.787,-87.617,-94.484,-75.168,-80.853,-105.020,-74.074,-76.864,-99.150&hourly=wind_speed_10m,wind_gusts_10m,precipitation,temperature_2m&wind_speed_unit=mph&temperature_unit=fahrenheit&timezone=UTC&start_date=2026-11-22&end_date=2026-11-24"
-    added: "2026-11-22 01:01 MT"
+    added: "2026-11-22 08:15 MT"
   - game: "Pittsburgh Steelers at Philadelphia Eagles"
     team: "Philadelphia Eagles"
     market: spread
@@ -49,6 +49,13 @@ adjustments:
     reason: "Malik Willis is not playing; Kyle McCord makes his second career start (AP, Nov 19). ESPN's injury page lists Willis on injured reserve. One game without Willis is only slightly in the ratings."
     source: "https://www.tsn.ca/nfl/article/bills-get-chance-to-feast-on-another-backup-qb-with-mccord-dolphins-up-next/"
     added: "2026-11-21 17:15 MT"
+  - game: "Boston Celtics at Golden State Warriors"
+    team: "Golden State Warriors"
+    market: spread
+    points: -2.0
+    reason: "Stephen Curry out with an oblique tear (diagnosed Nov 12, re-evaluation in two weeks). A star is worth 3 to 6 points; he has been out about ten days of the ratings' 35-day window, so roughly half is already in and only the rest is counted."
+    source: "https://www.espn.com/nba/injuries"
+    added: "2026-11-22 08:19 MT"
   - game: "New England Patriots at Los Angeles Chargers"
     team: "New England Patriots"
     market: spread

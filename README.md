@@ -17,6 +17,8 @@ uv run engine telegram-setup                  # after sending your bot any messa
 
 | Command | What it does |
 |---|---|
+| `uv run engine matchup TEN DAL` | Play-by-play matchup numbers for two NFL teams (away, then home), with league ranks, last-four-games splits and schedule strength |
+| `uv run engine spread-test` | Tests the engine's own play-by-play power number against closing spreads |
 | `uv run engine totals-test` | Reruns the test of the NFL totals model against the market's closing totals (see `docs/research/02-totals-model.md`) |
 | `uv run engine board` | Opens the picks page (`board.html`) in your browser: what to bet now, what is waiting, what came close and every game's numbers. Rebuilt after every research run |
 | `uv run engine agent` | The research run: builds the numbers, has Claude research and decide, writes the card to `docs/cards/`, sends pick alerts |

@@ -240,6 +240,38 @@ def cmd_totals_test(args) -> int:
     return 0
 
 
+def cmd_matchup(args) -> int:
+    """Side-by-side play-by-play numbers for two NFL teams (use nflverse abbreviations, e.g. TEN DAL)."""
+    from engine.picks import matchup
+
+    mu, pw = matchup.current(datetime.now(timezone.utc))
+    a, b = args.away.upper(), args.home.upper()
+    for t in (a, b):
+        if t not in mu:
+            print(f"Unknown team {t}. Known: {' '.join(sorted(mu))}", file=sys.stderr)
+            return 2
+    print(matchup.sheet(mu, a, b))
+    pm = matchup.power_margin(pw, b, a, config.load_config()["picks"]["home_field"]["NFL"])
+    print(f"\nEngine's own play-by-play number: {b} by {pm:+.1f} at home (context only; it did not beat the closing spread in testing).")
+    return 0
+
+
+def cmd_spread_test(args) -> int:
+    """Walk-forward test of the engine's own power number against closing spreads."""
+    from engine.picks import matchup, sources
+
+    rows = sources.nfl_games(DATA / "raw" / "nflverse_games.csv")
+    closes = {r["game_id"]: (float(r["spread_line"]), float(r["result"])) for r in rows
+              if r["spread_line"] not in ("", None) and r["result"] not in ("", None) and r["game_type"] == "REG"}
+    year = max(int(r["season"]) for r in rows if r["result"] not in ("", None))
+    res = matchup.spread_backtest(list(range(year - 4, year + 1)), year, closes, config.load_config()["picks"]["home_field"]["NFL"])
+    print(f"{res['games']} games. Average miss: market {res['mae_close']:.2f}, own number {res['mae_model']:.2f}.")
+    print(f"Best blend puts {100 * res['best_market_weight_all']:.0f}% on the market.")
+    for gap, (w, n) in res["ats"].items():
+        print(f"Betting the own number's side at a {gap}+ point gap: {w}-{n - w} ({100 * w / n:.1f}%; break-even 52.4%).")
+    return 0
+
+
 def cmd_board(args) -> int:
     """Rebuild the picks page and open it in the browser."""
     import subprocess
@@ -328,6 +360,12 @@ def main(argv=None) -> int:
     a.set_defaults(func=cmd_agent)
     a = sub.add_parser("totals-test", help="test the NFL totals model against the market's closing totals")
     a.set_defaults(func=cmd_totals_test)
+    a = sub.add_parser("matchup", help="play-by-play matchup numbers for two NFL teams: matchup TEN DAL (away home)")
+    a.add_argument("away")
+    a.add_argument("home")
+    a.set_defaults(func=cmd_matchup)
+    a = sub.add_parser("spread-test", help="test the engine's own NFL power number against closing spreads")
+    a.set_defaults(func=cmd_spread_test)
     a = sub.add_parser("board", help="rebuild the picks page (board.html) and open it")
     a.add_argument("--no-open", action="store_true")
     a.set_defaults(func=cmd_board)

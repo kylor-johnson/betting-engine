@@ -146,6 +146,13 @@ def build(sport: str = "NFL", now: datetime | None = None, days_ahead: int | Non
         except (SourceError, ValueError) as ex:
             problems.append(f"Pace-and-efficiency numbers unavailable: {ex}")
     to_nflverse = {v: k for k, v in history.NFLVERSE_TO_ESPN.items()}
+    mu = pw = None
+    if sport == "NFL":
+        try:
+            from engine.picks import matchup
+            mu, pw = matchup.current(now)
+        except (SourceError, ValueError) as ex:
+            problems.append(f"Matchup numbers unavailable: {ex}")
 
     games = []
     for e in listed:
@@ -254,6 +261,14 @@ def build(sport: str = "NFL", now: datetime | None = None, days_ahead: int | Non
             # shown for context only: in testing this number added nothing on top of the market's total
             mt["efficiency_total_for_context_only"] = None if et is None else round(et, 1)
             g["luck"] = {"home": eff.luck.get(hn), "away": eff.luck.get(an)}
+        if mu is not None:
+            from engine.picks import matchup
+            hn, an = to_nflverse.get(e.home["abbreviation"], e.home["abbreviation"]), to_nflverse.get(e.away["abbreviation"], e.away["abbreviation"])
+            pm = matchup.power_margin(pw, hn, an, game_hfa)
+            # the engine's own play-by-play number; in testing it added nothing on top of the closing spread
+            m["own_power_line_for_context_only"] = None if pm is None else round(-pm, 1)
+            g["matchup"] = {"home": matchup.brief(mu.get(hn)), "away": matchup.brief(mu.get(an)),
+                            "how_to_read": "rank 1 is best for that unit; 'recent' is the last 4 games, 'earlier' the games before; toughness rank 1 means the hardest opponents faced"}
         g["markets"].append(mt)
         games.append(g)
 

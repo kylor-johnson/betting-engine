@@ -29,6 +29,7 @@ alerts:
   spread_points: 1.0          # Wagerhouse vs market spread gap that triggers an alert
   total_points: {NFL: 1.5, College: 1.5, NBA: 2.0}
   min_value: -0.01            # skip alerts whose approximate value per $1 is below this
+  price_messages: false       # do not message about a better number alone; that is an input to the picks, not a pick
 
 # When the scheduled job actually reads lines (Mountain time). The job wakes every
 # 30 minutes; it only reads when the hour is listed for that day.

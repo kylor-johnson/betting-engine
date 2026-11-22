@@ -1,44 +1,50 @@
-slate_note: 'Four games on the sheet and two sides flagged, both because the slow ratings sit away from a market
-  that has not moved since it opened. The only live news is in Oklahoma City at Miami, where Shai Gilgeous-Alexander
-  and Giannis Antetokounmpo are both listed questionable, so that number is a guess about who plays. Nothing is
-  a Bet as of this run.
-
-  '
+slate_note: >
+  Six games on the sheet and three sides flagged, all because the slow ratings sit away from the market.
+  The only live news is in Oklahoma City at Miami, where Shai Gilgeous-Alexander and Giannis Antetokounmpo
+  are both listed questionable, so that number is a guess about who plays. Nothing is a Bet as of this run.
 decisions:
 - game: Oklahoma City Thunder at Miami Heat
   market: spread
   side: away
   status: Conditional
   condition: Shai Gilgeous-Alexander is cleared to play tonight.
-  reasons:
-    price: 'The book, DraftKings and Pinnacle all have Miami favored, and Pinnacle''s price leans further to Miami.
-      The ratings make Oklahoma City the slightly better side on this floor. The gap is what the sheet flags.
-
-      '
-    matchup: 'Oklahoma City''s long absences (Holmgren, Jalen Williams, Wallace) are a month old and already in
-      the ratings. Caruso, Jaylin Williams and Topic were ruled out on Nov 21; they are bench pieces and worth about
-      nothing by the guide. Miami lists Antetokounmpo questionable (groin).
-
-      '
-    situation: 'The market number is priced with Gilgeous-Alexander questionable (back/neck, listed Nov 21). The
-      ratings assume he plays. If he is cleared and the book has not followed, that is news the book''s number has
-      not absorbed. If he sits, the market is right and the ratings are wrong.
-
-      '
-    kills_it: 'Gilgeous-Alexander ruled out or limited; the book moving off the sheet''s number before he is cleared;
-      Antetokounmpo''s status does not rescue it either way, since his being out would move the line first.
-
-      '
-  summary: The line has Miami favored with Gilgeous-Alexander questionable; the ratings, which assume he plays,
+  summary: >
+    The line has Miami favored with Gilgeous-Alexander questionable; the ratings, which assume he plays,
     make Oklahoma City the better side, so if he is cleared the number is stale.
+  reasons:
+    price: >
+      The book, DraftKings and Pinnacle all have Miami favored, and Pinnacle's price leans further to Miami.
+      The ratings make Oklahoma City the slightly better side on this floor. The gap is what the sheet flags.
+    matchup: >
+      Oklahoma City's long absences (Holmgren, Jalen Williams, Wallace) are a month old and already in
+      the ratings. Caruso, Jaylin Williams and Topic were ruled out on Nov 21; they are bench pieces and worth
+      about nothing by the guide. Miami lists Antetokounmpo questionable (groin).
+    situation: >
+      The market number is priced with Gilgeous-Alexander questionable (back/neck, listed Nov 21). The
+      ratings assume he plays. If he is cleared and the book has not followed, that is news the book's number
+      has not absorbed. If he sits, the market is right and the ratings are wrong.
+    kills_it: >
+      Gilgeous-Alexander ruled out or limited; the book moving off the sheet's number before he is cleared;
+      Antetokounmpo's status does not rescue it either way, since his being out would move the line first.
 - game: Orlando Magic at Washington Wizards
   market: spread
   side: home
   status: Pass
-  why_pass: 'Looked for anything new that favors Washington and found nothing. Banchero has been out since late
-    October, so his absence is already in Orlando''s rating; Isaac out (listed Nov 21) is a bench player. Washington''s
-    own absences are all weeks old. The market has held the same number since it opened and Pinnacle agrees with
-    it, so the gap is the ratings being slow, not the price being wrong. It would be worth a second look only if
-    a Magic starter is ruled out on the final report and the book does not move.
-
-    '
+  why_pass: >
+    Looked for anything new that favors Washington and found nothing. Banchero has been out since late
+    October, so his absence is already in Orlando's rating; Isaac out (listed Nov 21) is a bench player.
+    Washington's own absences are all weeks old. DraftKings has come down toward Washington since it opened
+    and the book sits slightly better than DraftKings and Pinnacle, but I could not find a reason for that
+    move, and a move I cannot explain is not a reason. It would be worth a second look only if a Magic
+    starter is ruled out on the final report and the book does not move.
+- game: Boston Celtics at Golden State Warriors
+  market: spread
+  side: home
+  status: Pass
+  why_pass: >
+    The flag is the ratings still catching up to Golden State without Curry (oblique tear, out since
+    Nov 12); I added an adjustment for the part not yet absorbed and the edge shrank but stayed. The book,
+    DraftKings and Pinnacle all agree and the number has not moved since it opened, so nothing says the
+    price is wrong. Boston is on the second night of a back-to-back, which the sheet already counts. Tatum
+    (rest), White (shoulder) and Robinson (illness) sat Saturday and have no status posted for tonight; it
+    would be worth a second look only if two of them are ruled out and the book does not move.
