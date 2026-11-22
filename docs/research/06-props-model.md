@@ -38,9 +38,38 @@ Read: honest probabilities (gaps of 1 to 5 points), small accuracy gains over a 
 
 The largest disagreements were lopsided: model 77% vs Pinnacle 40% on Justin Jefferson under 6.5 receptions, and a rookie running back's rushing line 71.5 against a model median of 34. Those look like news and role changes the model can't see (injuries, a teammate out, a new starter). Pinnacle prices news; this model only knows past box scores. Grading will show whether the moderate disagreements carry anything.
 
+## Injury and role news (added 2026-11-22, `src/engine/models/props_news.py`)
+
+Three effects, each sized on earlier seasons only and each a multiplier on the projection:
+- **Teammate out.** A regular (appeared in one of the team's last two games) with 10%+ of the targets, carries or touches who is out. In history, "out" means listed Out or Doubtful on that week's nflverse injury report, or missing from the game (the inactive list shows this before kickoff). Live, it means listed Out, Doubtful, Injured Reserve or Suspended on ESPN's report. The vacated share goes to the players still playing, in proportion to their shares, at a fitted rate.
+- **Role change.** His share over his last two games against his longer average, clipped to half to double, raised to a fitted power.
+- **Questionable.** A fitted trim for players listed Questionable who play. A player listed Out or Doubtful himself is not priced.
+
+**What the history said.** With 40%+ of the team's targets vacated, receivers got about 6% more targets than their average said. With that much of the carries vacated, running backs got about 20% more carries. The fitted rates are small (10% of the vacated share, plus a 0.25 power on recent role) and matter for running backs only. For receivers the fit chose zero: the extra targets are real but too small and noisy to help the projection.
+
+**Held-out result (2023-2026), probability score, lower is better.** The last two numbers are only the player-games where news changed the projection by more than 5%. "Used" means news is on for that stat live; it is on only where it helped.
+
+| Stat | Player-games | Plain average | Base model | With news | Player-games news touched | Base on those | With news on those | Used |
+|---|---|---|---|---|---|---|---|---|
+| receptions | 8527 | 0.2392 | 0.2367 | 0.2367 | 486 | 0.2413 | 0.2401 | on |
+| receiving yards | 8527 | 0.2464 | 0.2448 | 0.2450 | 486 | 0.2463 | 0.2486 | off |
+| rushing yards | 3176 | 0.2502 | 0.2445 | 0.2424 | 1317 | 0.2460 | 0.2411 | on |
+| rush attempts | 3170 | 0.2598 | 0.2482 | 0.2411 | 1416 | 0.2476 | 0.2339 | on |
+| passing yards | 1920 | 0.2354 | 0.2326 | 0.2327 | 19 | 0.2372 | 0.2395 | off |
+| pass attempts | 1912 | 0.2498 | 0.2482 | 0.2481 | 16 | 0.2498 | 0.2491 | on |
+| completions | 1917 | 0.2484 | 0.2475 | 0.2475 | 35 | 0.2551 | 0.2559 | off |
+| touchdown passes | 1922 | 0.2188 | 0.2174 | 0.2173 | 35 | 0.2034 | 0.1998 | on |
+| interceptions | 1922 | 0.1666 | 0.1665 | 0.1665 | 0 | n/a | n/a | off |
+| touchdowns | 6741 | 0.1465 | 0.1461 | 0.1461 | 383 | 0.1373 | 0.1367 | on |
+| field goals | 1908 | 0.2117 | 0.2106 | 0.2105 | 19 | 0.1813 | 0.1773 | on |
+
+Read: a clear gain on rush attempts and rushing yards, the props where a role change or a teammate out shifts the workload most. Elsewhere, news is close to neutral. For passing and field goals it is only the Questionable trim, on very few games.
+
+**What it did to today's sheet.** It caught real role changes (a rookie back's share up from 39% to 55% over two games; veteran backs' shares down) and moved those projections 6-15%. It did not close the biggest gaps. The model still says 77% for Justin Jefferson under 6.5 catches against Pinnacle's 40%, with Jordan Addison out. History says a receiver's target bump from a teammate out is small, while the market expects a big one. The forward test will settle who is right.
+
 ## Known gaps, in order of likely value
 
-1. **News.** Injuries, inactives and role changes, which a sharp book prices and this model can't. The research agent can supply them, but code can't check that yet.
+1. **News it still can't see.** Late inactives, a coach's stated plan, new signings, a backup quarterback starting (receivers' numbers do not adjust for who throws to them).
 2. **Opponent.** No adjustment for how the defense defends that position.
 3. **Wagerhouse props.** Still unread (the request hasn't been found), so even a passing prop has to be checked by hand against Wagerhouse's posted line.
 4. NBA props: not built.

@@ -54,7 +54,7 @@ def _graded(rows):
     con = duckdb.connect()
     con.execute(props.SCHEMA)
     for i, (mp, qp, outcome) in enumerate(rows):
-        con.execute("INSERT INTO prop_evals VALUES (?, 'S', 'A', 'H', 'P', ?, 'T', 'receptions', 4.5, -110, -110, ?, ?, 4, 4, 2026, 11, ?, ?)",
+        con.execute("INSERT INTO prop_evals VALUES (?, 'S', 'A', 'H', 'P', ?, 'T', 'receptions', 4.5, -110, -110, ?, ?, 4, 4, 2026, 11, ?, ?, NULL)",
                     [datetime(2026, 11, 22), f"p{i}", mp, qp, outcome, datetime(2026, 11, 23)])
     return con
 
@@ -72,3 +72,46 @@ def test_scorecard_and_gate():
 def test_scorecard_uses_last_read_and_skips_pushes():
     con = _graded([(0.5, 0.5, 4.5)])
     assert props.scorecard(con)["graded"] == 0
+
+
+from engine.models import props_news
+
+
+def _h(season, tshare, cshare=0.0):
+    return (season, {"tshare": tshare, "cshare": cshare, "xshare": (tshare + cshare) / 2}, 22.0)
+
+
+def test_vacated_counts_only_real_roles_that_are_out():
+    hist = {"star": [_h(2026, 0.30)] * 4, "wr2": [_h(2026, 0.20)] * 4, "scrub": [_h(2026, 0.06)] * 4, "te": [_h(2026, 0.15)] * 4}
+    regs = set(hist)
+    boost, named = props_news.vacated(regs, {"star", "scrub"}, hist, 2026)
+    # the scrub (6%) does not count as vacated; the star's 30% goes to the 35% still playing
+    assert boost["t"] == pytest.approx(0.30 / (0.20 + 0.15))
+    assert [p for p, _ in named] == ["star"]
+    assert props_news.vacated(regs, set(), hist, 2026)[0]["t"] == 0.0
+
+
+def test_role_ratio_and_factor():
+    hist = {"rb": [_h(2026, 0.0, 0.30)] * 6 + [_h(2026, 0.0, 0.60)] * 2}
+    f = props_news.features("rb", hist, 2026, {"t": 0.0, "c": 0.5, "x": 0.0}, questionable=True)
+    assert f["R"]["c"] > 1.3 and f["q"]
+    base = props_news.factor(f, "carries", (0.0, 0.0, 1.0))
+    full = props_news.factor(f, "carries", (0.2, 0.5, 0.9))
+    assert base == 1.0 and full == pytest.approx((1 + 0.2 * 0.5) * f["R"]["c"] ** 0.5 * 0.9)
+    assert props_news.factor(f, "passing_yards", (0.2, 0.5, 1.0)) == 1.0     # no usage share for passing; only Questionable
+
+
+def test_team_state_drops_players_who_changed_teams():
+    ts = props_news.TeamState()
+    ts.record("MIN", {"a", "b"})
+    ts.record("DAL", {"b"})            # b traded
+    assert ts.regulars("MIN") == {"a"}
+
+
+def test_injuries_lookup_by_name_and_team():
+    class P:
+        def __init__(self, name, team, status):
+            self.name, self.team, self.status = name, team, status
+    inj = props.Injuries([P("Jordan Addison", "Minnesota Vikings", "Out"), P("Brock Bowers", "Las Vegas Raiders", "Questionable")])
+    assert inj.of("Jordan Addison", "MIN") == "Out" and inj.of("brock bowers", "LV") == "Questionable"
+    assert inj.of("Jordan Addison", "LV") == ""

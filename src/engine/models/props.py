@@ -22,6 +22,7 @@ Two tests:
 from __future__ import annotations
 
 import bisect
+from itertools import groupby
 import math
 import re
 import urllib.request
@@ -34,6 +35,7 @@ import duckdb
 from engine import config
 from engine.odds.espn import SourceError
 from engine.odds.math import implied_prob, no_vig
+from engine.models import props_news
 
 RAW = config.DATA / "raw" / "nflverse"
 GAMES_CSV = config.DATA / "raw" / "nflverse_games.csv"
@@ -113,21 +115,48 @@ def stats_file(year: int, current: bool) -> Path:
     return path
 
 
+def injuries_file(year: int, current: bool) -> Path | None:
+    """nflverse weekly injury reports. Missing for a season = no Questionable flags that season (said in the backtest)."""
+    path = RAW / f"injuries_{year}.parquet"
+    fresh = path.exists() and path.stat().st_size > 10_000 and (
+        not current or (datetime.now().timestamp() - path.stat().st_mtime) < 12 * 3600)
+    if fresh:
+        return path
+    try:
+        url = f"https://github.com/nflverse/nflverse-data/releases/download/injuries/injuries_{year}.parquet"
+        with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"}), timeout=120) as r:
+            data = r.read()
+        if len(data) > 10_000:
+            path.write_bytes(data)
+    except OSError:
+        pass
+    return path if path.exists() else None
+
+
 def load_rows(last_season: int) -> list[dict]:
     """One row per player per game (QB, RB, WR, TE, FB, K), in time order, with the team's implied points."""
     files = [str(stats_file(y, y == last_season)) for y in range(FIRST_SEASON, last_season + 1)]
     cols = ", ".join(f"coalesce({c}, 0) AS {c}" for c in
                      ("receptions", "receiving_yards", "rushing_yards", "carries", "passing_yards", "attempts", "completions",
                       "passing_tds", "passing_interceptions", "fg_made", "targets", "fg_att"))
+    inj = [str(p) for y in range(FIRST_SEASON, last_season + 1) if (p := injuries_file(y, y == last_season)) is not None]
+    qjoin = (f"""LEFT JOIN (SELECT DISTINCT gsis_id, CAST(season AS INTEGER) AS season, CAST(week AS INTEGER) AS week
+                FROM read_parquet({inj!r}, union_by_name=true) WHERE report_status = 'Questionable') i
+               ON i.gsis_id = s.player_id AND i.season = s.season AND i.week = s.week""" if inj else "")
+    qcol = "i.gsis_id IS NOT NULL" if inj else "false"
     q = f"""
     SELECT s.player_id, s.player_display_name AS name, s.position, s.season, s.week, s.game_id, s.team, {cols},
            coalesce(s.rushing_tds, 0) + coalesce(s.receiving_tds, 0) AS tds,
-           g.gameday, g.home_team, g.spread_line, g.total_line
+           g.gameday, g.home_team, g.spread_line, g.total_line,
+           sum(coalesce(s.targets, 0)) OVER (PARTITION BY s.game_id, s.team) AS team_targets,
+           sum(coalesce(s.carries, 0)) OVER (PARTITION BY s.game_id, s.team) AS team_carries,
+           {qcol} AS questionable
     FROM read_parquet({files!r}, union_by_name=true) s
     JOIN read_csv_auto('{GAMES_CSV}') g ON g.game_id = s.game_id
+    {qjoin}
     WHERE s.position IN ('QB', 'RB', 'WR', 'TE', 'FB', 'K') AND s.season_type IN ('REG', 'POST')
       AND g.spread_line IS NOT NULL AND g.total_line IS NOT NULL
-    ORDER BY g.gameday, s.game_id
+    ORDER BY g.gameday, s.game_id, s.team
     """
     con = duckdb.connect()
     res = con.execute(q)
@@ -175,20 +204,51 @@ def project(hist: list[tuple], season: int, implied: float, decay: float, alpha:
     return out
 
 
-def history_projections(rows: list[dict]) -> list[dict]:
-    """For every player-game, the raw weighted averages under each decay (no fitting, no look-ahead)."""
+def _hist_entry(r: dict) -> tuple:
+    st = {k: float(r[k]) for k in STATS + list(USAGE)}
+    st.update(props_news.shares(r))
+    return (r["season"], st, r["implied"])
+
+
+def load_out_reports(last_season: int) -> dict[tuple, set[str]]:
+    """(season, week, team) -> players listed Out or Doubtful on that week's nflverse injury report."""
+    inj = [str(p) for y in range(FIRST_SEASON, last_season + 1) if (p := injuries_file(y, y == last_season)) is not None]
+    if not inj:
+        return {}
+    out: dict[tuple, set[str]] = defaultdict(set)
+    for gid, season, week, team in duckdb.connect().execute(f"""
+        SELECT gsis_id, CAST(season AS INTEGER), CAST(week AS INTEGER), team FROM read_parquet({inj!r}, union_by_name=true)
+        WHERE report_status IN ('Out', 'Doubtful') AND gsis_id IS NOT NULL""").fetchall():
+        out[(season, week, team)].add(gid)
+    return out
+
+
+def history_projections(rows: list[dict], out_reports: dict | None = None) -> list[dict]:
+    """For every player-game: weighted averages under each decay and the injury/role news it had (no look-ahead:
+    only games before it, plus who was missing from this game, which the inactive list shows before kickoff)."""
     hist: dict[str, list[tuple]] = defaultdict(list)
+    teams = props_news.TeamState()
     out = []
-    for r in rows:
-        h = hist[r["player_id"]]
-        rec = {"row": r, "by_decay": {}}
-        for d in DECAYS + (1.0,):          # 1.0 = plain average, the comparison baseline only
-            got = _weighted(h, r["season"], d)
-            if got:
-                rec["by_decay"][d] = got
-        if rec["by_decay"]:
-            out.append(rec)
-        h.append((r["season"], {k: float(r[k]) for k in STATS + list(USAGE)}, r["implied"]))
+    for _, grp in groupby(rows, key=lambda r: (r["game_id"], r["team"])):
+        grp = list(grp)
+        team, season = grp[0]["team"], grp[0]["season"]
+        played = {r["player_id"] for r in grp}
+        regs = teams.regulars(team)
+        reported = (out_reports or {}).get((season, grp[0]["week"], team), set())
+        boost, _ = props_news.vacated(regs, (regs - played) | (regs & reported), hist, season)
+        for r in grp:
+            h = hist[r["player_id"]]
+            rec = {"row": r, "by_decay": {},
+                   "news": props_news.features(r["player_id"], hist, season, boost, bool(r.get("questionable")))}
+            for d in DECAYS + (1.0,):          # 1.0 = plain average, the comparison baseline only
+                got = _weighted(h, season, d)
+                if got:
+                    rec["by_decay"][d] = got
+            if rec["by_decay"]:
+                out.append(rec)
+        for r in grp:
+            hist[r["player_id"]].append(_hist_entry(r))
+        teams.record(team, played)
     return out
 
 
@@ -252,18 +312,27 @@ class Distribution:
 
 # ---------------------------------------------------------------- held-out test
 
+def _score():
+    return {"n": 0, "mae": 0.0, "brier": 0.0, "nb": 0}
+
+
+def _finish(sc: dict) -> dict:
+    return {"player_games": sc["n"], "mae": round(sc["mae"] / sc["n"], 3) if sc["n"] else None,
+            "brier": round(sc["brier"] / sc["nb"], 4) if sc["nb"] else None}
+
+
 def backtest(first_test: int = 2023, last: int | None = None) -> dict:
+    """Held-out seasons. Compares three versions read through the same kind of distribution: a plain recent
+    average, the base model (recent games + game context), and the base model with injury and role news.
+    Lines for the probability check come from the base model's median, so all three face the same lines."""
     last = last or datetime.now().year
     rows = load_rows(last)
-    recs = history_projections(rows)
+    recs = history_projections(rows, load_out_reports(last))
     report = {}
     for stat in STATS:
         kind = KIND[stat]
-        n = 0
-        mae_model = mae_base = 0.0
-        rel = defaultdict(lambda: [0.0, 0, 0])     # bucket -> [sum p, count, overs]
-        brier = brier_base = 0.0
-        nb = 0
+        sc = {k: _score() for k in ("plain", "base", "news", "base_when_news", "news_when_news")}
+        rel = defaultdict(lambda: [0.0, 0, 0])
         params = {}
         for season in range(first_test, last + 1):
             train = [r for r in recs if FIRST_SEASON < r["row"]["season"] < season]
@@ -271,44 +340,48 @@ def backtest(first_test: int = 2023, last: int | None = None) -> dict:
             if not train or not test:
                 continue
             d, a = fit_stat(train, stat)
-            params[season] = {"decay": d, "alpha": a}
             pool = [r for r in train if d in r["by_decay"] and ROLE[stat](r["by_decay"][d][0])]
-            dist = Distribution([(_proj_one(r, stat, d, a), float(r["row"][stat])) for r in pool], kind)
-            # baseline: plain average of the last 8 games, no context, distribution read the same way
-            base_pairs = [(_plain(r, stat), float(r["row"][stat])) for r in pool if _plain(r, stat) is not None]
-            base_dist = Distribution(base_pairs, kind)
+            nparams = props_news.fit([(_proj_one(r, stat, d, a), r["news"], float(r["row"][stat])) for r in pool], stat)
+            params[season] = {"decay": d, "alpha": a, "teammate_out_rate": nparams[0], "role_power": nparams[1], "questionable": nparams[2]}
+            base_dist = Distribution([(_proj_one(r, stat, d, a), float(r["row"][stat])) for r in pool], kind)
+            news_dist = Distribution([(_proj_one(r, stat, d, a) * props_news.factor(r["news"], stat, nparams), float(r["row"][stat]))
+                                      for r in pool], kind)
+            plain_dist = Distribution([(_plain(r, stat), float(r["row"][stat])) for r in pool if _plain(r, stat) is not None], kind)
             for r in test:
                 if d not in r["by_decay"] or not ROLE[stat](r["by_decay"][d][0]):
                     continue
-                proj = _proj_one(r, stat, d, a)
+                base = _proj_one(r, stat, d, a)
+                f = props_news.factor(r["news"], stat, nparams)
                 actual = float(r["row"][stat])
-                med = dist.median(proj)
-                n += 1
-                mae_model += abs(actual - med)
                 bp = _plain(r, stat)
-                mae_base += abs(actual - base_dist.median(bp)) if bp is not None else abs(actual - med)
-                # honesty check at three lines a book might post: the model's own median and a step either side
+                med = base_dist.median(base)
                 step = 0.5 if kind == "count" else max(5.0, round(med * 0.15))
-                for line in (med - step, med, med + step):
-                    line = math.floor(line) + 0.5
-                    p = dist.p_over(proj, line)
-                    hit = 1 if actual > line else 0
-                    b = min(9, int(p * 10))
-                    rel[b][0] += p
-                    rel[b][1] += 1
-                    rel[b][2] += hit
-                    brier += (p - hit) ** 2
-                    pb = base_dist.p_over(bp, line) if bp is not None else p
-                    brier_base += (pb - hit) ** 2
-                    nb += 1
-        if n == 0:
+                lines = [math.floor(x) + 0.5 for x in (med - step, med, med + step)]
+                versions = {"plain": (plain_dist, bp if bp is not None else base), "base": (base_dist, base), "news": (news_dist, base * f)}
+                touched = abs(f - 1) > 0.05
+                for name, (dist, proj) in versions.items():
+                    keys = [name] + ([f"{name}_when_news"] if touched and name != "plain" else [])
+                    m = dist.median(proj)
+                    for k in keys:
+                        sc[k]["n"] += 1
+                        sc[k]["mae"] += abs(actual - m)
+                    for line in lines:
+                        p = dist.p_over(proj, line)
+                        hit = 1 if actual > line else 0
+                        for k in keys:
+                            sc[k]["brier"] += (p - hit) ** 2
+                            sc[k]["nb"] += 1
+                        if name == "news":
+                            b = min(9, int(p * 10))
+                            rel[b][0] += p
+                            rel[b][1] += 1
+                            rel[b][2] += hit
+        if sc["base"]["n"] == 0:
             continue
-        report[stat] = {
-            "player_games": n, "mae_model": round(mae_model / n, 2), "mae_plain_average": round(mae_base / n, 2),
-            "brier_model": round(brier / nb, 4), "brier_plain_average": round(brier_base / nb, 4), "params": params,
-            "calibration": [{"said": round(v[0] / v[1], 3), "happened": round(v[2] / v[1], 3), "n": v[1]}
-                            for b, v in sorted(rel.items()) if v[1] >= 30],
-        }
+        report[stat] = {k: _finish(v) for k, v in sc.items()}
+        report[stat]["params"] = params
+        report[stat]["calibration"] = [{"said": round(v[0] / v[1], 3), "happened": round(v[2] / v[1], 3), "n": v[1]}
+                                       for b, v in sorted(rel.items()) if v[1] >= 30]
     return report
 
 
@@ -320,28 +393,62 @@ def _plain(rec: dict, stat: str) -> float | None:
 
 # ---------------------------------------------------------------- live model and forward test
 
+# stats where injury and role news improved the held-out probability score (docs/research/06-props-model.md);
+# on the others it did not help, so it stays off there
+NEWS_STATS = ("receptions", "rushing_yards", "carries", "attempts", "passing_tds", "tds", "fg_made")
+
+
+class Injuries:
+    """Today's ESPN NFL injury report, keyed for the props model."""
+
+    def __init__(self, players: list):
+        self.status: dict[tuple[str, str], str] = {}
+        for p in players:
+            team = TEAM_NAMES.get(p.team)
+            if team:
+                self.status[(norm_name(p.name), team)] = p.status
+
+    @classmethod
+    def fetch(cls) -> "Injuries":
+        from engine.picks import news
+        return cls(news.fetch("NFL"))      # raises SourceError if ESPN is down: never priced without the report
+
+    def of(self, name: str, team: str) -> str:
+        return self.status.get((norm_name(name), team), "")
+
+
 class Model:
     """Fitted on every finished season before `season`; projects upcoming games from all games so far."""
 
     def __init__(self, season: int):
         rows = load_rows(season)
-        recs = history_projections(rows)
+        recs = history_projections(rows, load_out_reports(season))
         train = [r for r in recs if FIRST_SEASON < r["row"]["season"] < season]
         self.season = season
-        self.params, self.dists = {}, {}
+        self.params, self.dists, self.news_params = {}, {}, {}
         for stat in STATS:
             d, a = fit_stat(train, stat)
             pool = [r for r in train if d in r["by_decay"] and ROLE[stat](r["by_decay"][d][0])]
             self.params[stat] = (d, a)
-            self.dists[stat] = Distribution([(_proj_one(r, stat, d, a), float(r["row"][stat])) for r in pool], KIND[stat])
+            npar = props_news.fit([(_proj_one(r, stat, d, a), r["news"], float(r["row"][stat])) for r in pool], stat) \
+                if stat in NEWS_STATS else props_news.NO_NEWS
+            self.news_params[stat] = npar
+            self.dists[stat] = Distribution([(_proj_one(r, stat, d, a) * props_news.factor(r["news"], stat, npar), float(r["row"][stat]))
+                                             for r in pool], KIND[stat])
         self.hist: dict[str, list[tuple]] = defaultdict(list)
+        self.teams = props_news.TeamState()
         self.players: dict[tuple[str, str], str] = {}     # (normalized name, team) -> player_id
+        self.names: dict[str, str] = {}
         self.last_week: dict[str, tuple] = {}
-        for r in rows:
-            self.hist[r["player_id"]].append((r["season"], {k: float(r[k]) for k in STATS + list(USAGE)}, r["implied"]))
-            if r["season"] == season:
-                self.players[(norm_name(r["name"]), r["team"])] = r["player_id"]
-                self.last_week[r["player_id"]] = (r["week"], r["team"], r["name"])
+        for _, grp in groupby(rows, key=lambda r: (r["game_id"], r["team"])):
+            grp = list(grp)
+            for r in grp:
+                self.hist[r["player_id"]].append(_hist_entry(r))
+                self.names[r["player_id"]] = r["name"]
+                if r["season"] == season:
+                    self.players[(norm_name(r["name"]), r["team"])] = r["player_id"]
+                    self.last_week[r["player_id"]] = (r["week"], r["team"], r["name"])
+            self.teams.record(grp[0]["team"], {r["player_id"] for r in grp})
         self.through_week = max((r["week"] for r in rows if r["season"] == season), default=0)
 
     def find(self, name: str, teams: tuple[str, str]) -> str | None:
@@ -349,7 +456,12 @@ class Model:
         hits = [pid for t in teams if (pid := self.players.get((n, t)))]
         return hits[0] if len(hits) == 1 else None
 
-    def price(self, pid: str, stat: str, line: float, implied: float) -> dict | None:
+    def team_out(self, team: str, injuries: "Injuries | None") -> set[str]:
+        if injuries is None:
+            return set()
+        return {p for p in self.teams.regulars(team) if injuries.of(self.names.get(p, ""), team) in props_news.OUT_STATUSES}
+
+    def price(self, pid: str, stat: str, line: float, implied: float, injuries: "Injuries | None" = None) -> dict | None:
         d, a = self.params[stat]
         got = _weighted(self.hist[pid], self.season, d)
         if got is None:
@@ -357,9 +469,23 @@ class Model:
         avg, avg_imp, _ = got
         if not ROLE[stat](avg):
             return None
-        proj = avg[stat] * (implied / avg_imp if avg_imp > 0 else 1.0) ** a
+        team = self.last_week.get(pid, (0, "", ""))[1]
+        own = injuries.of(self.names.get(pid, ""), team) if injuries else ""
+        if own in props_news.OUT_STATUSES:
+            return {"skip": f"{self.names.get(pid)} is listed {own}"}
+        out = self.team_out(team, injuries)
+        boost, named = props_news.vacated(self.teams.regulars(team), out, self.hist, self.season)
+        news = props_news.features(pid, self.hist, self.season, boost, own == "Questionable")
+        npar = self.news_params[stat]
+        base = avg[stat] * (implied / avg_imp if avg_imp > 0 else 1.0) ** a
+        proj = base * props_news.factor(news, stat, npar)
+        ls, rs = props_news.long_share(self.hist[pid], self.season), props_news.recent_share(self.hist[pid])
+        u = props_news.USAGE_OF.get(stat)
+        note = props_news.describe(news, stat, npar, [self.names.get(p, p) for p, _ in named],
+                                   rs[props_news.SHARE_KEY[u]] if u and rs else None, ls[props_news.SHARE_KEY[u]] if u and ls else None)
         dist = self.dists[stat]
-        return {"projection": round(proj, 2), "median": dist.median(proj), "p_over": round(dist.p_over(proj, line), 4)}
+        return {"projection": round(proj, 2), "base_projection": round(base, 2), "median": dist.median(proj),
+                "p_over": round(dist.p_over(proj, line), 4), "news": note}
 
 
 SCHEMA = """
@@ -368,6 +494,7 @@ CREATE TABLE IF NOT EXISTS prop_evals (
   stat VARCHAR, line DOUBLE, over_price DOUBLE, under_price DOUBLE, market_p_over DOUBLE, model_p_over DOUBLE,
   model_median DOUBLE, projection DOUBLE, season INTEGER, through_week INTEGER,
   outcome DOUBLE, graded_utc TIMESTAMP);
+ALTER TABLE prop_evals ADD COLUMN IF NOT EXISTS news VARCHAR;
 """
 
 
@@ -401,10 +528,10 @@ def evaluate_logged(con, model: Model, now: datetime, only_latest: bool = True) 
     rows = con.execute("""
         SELECT ts_utc, start_utc, away, home, description, line, price_a, price_b FROM derivative_snapshots
         WHERE source='Pinnacle' AND sport='NFL' AND market='prop' AND ts_utc = ?""", [ts]).fetchall()
-    return _evaluate(con, model, rows, now)
+    return _evaluate(con, model, rows, now, Injuries.fetch())
 
 
-def _evaluate(con, model: Model, rows, now: datetime) -> list[dict]:
+def _evaluate(con, model: Model, rows, now: datetime, injuries: "Injuries | None" = None) -> list[dict]:
     out, implied_cache = [], {}
     for ts, start, away, home, desc, line, po, pu in rows:
         if start and datetime.fromisoformat(start.replace("Z", "+00:00")) <= now:
@@ -428,18 +555,20 @@ def _evaluate(con, model: Model, rows, now: datetime) -> list[dict]:
         if imp is None:
             continue
         implied = imp[1] if team == teams[1] else imp[0]     # imp = (away, home)
-        got = model.price(pid, stat, line, implied)
-        if got is None:
+        got = model.price(pid, stat, line, implied, injuries)
+        if got is None or "skip" in got:
             continue
         mp = no_vig(po, pu)[0]
         rec = {"ts_utc": ts, "start_utc": start, "away": away, "home": home, "player": player, "player_id": pid, "team": team,
                "stat": stat, "label": label, "line": line, "over_price": po, "under_price": pu, "market_p_over": round(mp, 4),
-               "model_p_over": got["p_over"], "model_median": got["median"], "projection": got["projection"]}
+               "model_p_over": got["p_over"], "model_median": got["median"], "projection": got["projection"], "news": got["news"]}
         out.append(rec)
         con.execute("DELETE FROM prop_evals WHERE ts_utc = ? AND player_id = ? AND stat = ? AND line = ?", [ts, pid, stat, line])
-        con.execute("INSERT INTO prop_evals VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NULL,NULL)",
+        con.execute("""INSERT INTO prop_evals (ts_utc, start_utc, away, home, player, player_id, team, stat, line, over_price,
+                       under_price, market_p_over, model_p_over, model_median, projection, season, through_week, news)
+                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                     [ts, start, away, home, player, pid, team, stat, line, po, pu, rec["market_p_over"], rec["model_p_over"],
-                     rec["model_median"], rec["projection"], model.season, model.through_week])
+                     rec["model_median"], rec["projection"], model.season, model.through_week, rec["news"]])
     return out
 
 
@@ -450,8 +579,9 @@ def backfill(con, model: Model) -> int:
         SELECT ts_utc, start_utc, away, home, description, line, price_a, price_b FROM derivative_snapshots
         WHERE source='Pinnacle' AND sport='NFL' AND market='prop' ORDER BY ts_utc""").fetchall()
     n = 0
+    inj = Injuries.fetch()      # today's report; fine for same-day reads
     for ts in sorted({r[0] for r in rows}):
-        n += len(_evaluate(con, model, [r for r in rows if r[0] == ts], ts.replace(tzinfo=timezone.utc)))
+        n += len(_evaluate(con, model, [r for r in rows if r[0] == ts], ts.replace(tzinfo=timezone.utc), inj))
     return n
 
 
@@ -540,8 +670,10 @@ def write_sheet(rows: list[dict], sc: dict, pc: dict, model: Model, now: datetim
     out = [f"# NFL props: model against Pinnacle ({local:%a %b %-d, %-I:%M %p} MT)", "",
            f"**{gate_line(sc, pc)}**", "",
            "These are not bets. The model projects each player from his recent games and his team's expected points "
-           f"(stats through week {model.through_week}). It does not know about injuries, role changes or who is "
-           "inactive, so a big disagreement is more often news the model missed than a mistake by Pinnacle. "
+           f"(stats through week {model.through_week}), with today's ESPN injury report: teammates listed Out or Doubtful "
+           "hand their share to the rest, a role that changed in the last two games counts, and Questionable players are "
+           "trimmed. Players listed Out or Doubtful themselves are not priced. It still cannot see a coach's plan, a "
+           "new signing or late inactives, so a big disagreement can still be news it missed. "
            "Every prop is graded after the game to find out whether the model knows anything Pinnacle does not.", ""]
     lean = []
     for r in rows:
@@ -552,15 +684,15 @@ def write_sheet(rows: list[dict], sc: dict, pc: dict, model: Model, now: datetim
     lean.sort(key=lambda x: -x[0])
     out += ["## Where the model disagrees with Pinnacle's price by 5% or more", ""]
     if lean:
-        out += ["| Kick (MT) | Player | Prop | Pinnacle price | Model chance | Pinnacle chance (no vig) | Model median |", "|---|---|---|---|---|---|---|"]
+        out += ["| Kick (MT) | Player | Prop | Pinnacle price | Model chance | Pinnacle chance (no vig) | Model median | News the model used |", "|---|---|---|---|---|---|---|---|"]
         for gap, side, p, price, r in lean[:40]:
             kick = datetime.fromisoformat(r["start_utc"].replace("Z", "+00:00")).astimezone(tz)
             mp = r["market_p_over"] if side == "Over" else 1 - r["market_p_over"]
             med = r["model_median"]
             out.append(f"| {kick:%a %-I:%M %p} | {r['player']} | {side} {r['line']:g} {r['label'].lower()} | {int(price):+d} | "
-                       f"{p:.0%} | {mp:.0%} | {med:.0f} |" if KIND[r["stat"]] == "yards" else
+                       f"{p:.0%} | {mp:.0%} | {med:.0f} | {r.get('news') or ''} |" if KIND[r["stat"]] == "yards" else
                        f"| {kick:%a %-I:%M %p} | {r['player']} | {side} {r['line']:g} {r['label'].lower()} | {int(price):+d} | "
-                       f"{p:.0%} | {mp:.0%} | {med:g} |")
+                       f"{p:.0%} | {mp:.0%} | {med:g} | {r.get('news') or ''} |")
     else:
         out.append("None.")
     out += ["", f"{len(rows)} props priced; {len(lean)} disagreements at 5% or more.", ""]
