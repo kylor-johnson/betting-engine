@@ -193,35 +193,41 @@ def cmd_slate(args) -> int:
     """Build the slate sheet: every number for every game, from live prices."""
     from engine.picks import slate
 
-    sheet = slate.build_nfl(days_ahead=args.days)
+    sheet = slate.build(args.sport, days_ahead=args.days)
     path = slate.save(sheet)
     flagged = [(g["game"], s["pick"], s["value"]) for g in sheet["games"] for m in g["markets"]
                for s in m.get("sides", []) if s["numbers_say_bet"]]
     print(f"Slate sheet: {path}")
-    print(f"{len(sheet['games'])} games. The numbers flag {len(flagged)} side(s) for a second look:")
+    print(f"{args.sport}: {len(sheet['games'])} games priced. The numbers flag {len(flagged)} side(s) for a second look:")
     for game, pick, val in flagged:
         print(f"  {pick}  ({game})  {100 * val:+.1f}% per $1")
     for pr in sheet["problems"]:
-        print(f"  PROBLEM: {pr}")
+        print(f"  NOTE: {pr}")
     return 0
 
 
 def cmd_agent(args) -> int:
-    from engine.picks import agent
+    from engine.picks import agent, slate
 
-    code, lines = agent.run(args.reason, send=not args.no_send, skip_research=args.skip_research)
-    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%SZ")
-    for line in lines:
-        print(f"{stamp} {line}")
-    return code
+    sports = list(slate.SPORTS) if args.sport == "all" else [args.sport]
+    worst = 0
+    for sport in sports:
+        code, lines = agent.run(args.reason, send=not args.no_send, skip_research=args.skip_research, sport=sport)
+        stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%SZ")
+        for line in lines:
+            print(f"{stamp} {line}")
+        worst = max(worst, code)
+    return worst
 
 
 def cmd_injuries(args) -> int:
     from engine.picks import news
 
-    players = news.fetch()
+    players = news.fetch(args.sport)
     for p in sorted(players, key=lambda p: (p.team, p.pos != "QB", p.name)):
-        if not args.all and p.pos != "QB":
+        if not args.all and args.sport == "NFL" and p.pos != "QB":
+            continue
+        if args.sport != "NFL" and p.status == "Active":
             continue
         if args.team and args.team.lower() not in p.team.lower():
             continue
@@ -235,22 +241,22 @@ def cmd_card(args) -> int:
     """Render the card from the latest slate sheet and the decisions file."""
     import json as _json
 
-    from engine.picks import card
+    from engine.picks import agent, card
 
     cfg = config.load_config()
-    sheet_path = DATA / "slates" / "NFL_latest.json"
+    sheet_path = DATA / "slates" / f"{args.sport}_latest.json"
     if not sheet_path.exists():
-        print("No slate sheet yet. Run `engine slate` first.", file=sys.stderr)
+        print(f"No {args.sport} slate sheet yet. Run `engine slate --sport {args.sport}` first.", file=sys.stderr)
         return 2
     sheet = _json.loads(sheet_path.read_text())
     day = args.date or datetime.now(config.display_tz(cfg)).strftime("%Y-%m-%d")
-    dpath = ROOT / "docs" / "cards" / "decisions" / f"{day}-nfl.yaml"
+    dpath = agent.decisions_path(day, args.sport)
     if not dpath.exists():
         print(f"No decisions file at {dpath.relative_to(ROOT)}.", file=sys.stderr)
         return 2
     decisions, note = card.load_decisions(dpath)
     text, rows = card.build(sheet, decisions, note, cfg)
-    out = ROOT / "docs" / "cards" / f"{day}.md"
+    out = agent.card_path(day, args.sport)
     out.write_text(text)
     print(f"Card: {out.relative_to(ROOT)}  ({sum(r['status'] == 'Bet' for r in rows)} bets, "
           f"{sum(r['status'] == 'Conditional' for r in rows)} conditional, {sum(r['status'] == 'Pass' for r in rows)} passed)")
@@ -278,19 +284,23 @@ def main(argv=None) -> int:
     a = sub.add_parser("book", help="how Wagerhouse compares with the market so far")
     a.set_defaults(func=cmd_book)
     a = sub.add_parser("slate", help="build the slate sheet: fair lines and edges for every NFL game")
-    a.add_argument("--days", type=int, default=8)
+    a.add_argument("--days", type=int, default=None)
+    a.add_argument("--sport", choices=["NFL", "College", "NBA"], default="NFL")
     a.set_defaults(func=cmd_slate)
     a = sub.add_parser("agent", help="research run: numbers, Claude research and decisions, card, pick alerts")
     a.add_argument("--reason", default="manual run")
+    a.add_argument("--sport", choices=["NFL", "College", "NBA", "all"], default="all")
     a.add_argument("--no-send", action="store_true", help="print alerts instead of sending them")
     a.add_argument("--skip-research", action="store_true", help="re-price the existing decisions without a new research run")
     a.set_defaults(func=cmd_agent)
     a = sub.add_parser("injuries", help="current NFL injury statuses (quarterbacks by default)")
     a.add_argument("--all", action="store_true", help="every position, not only quarterbacks")
     a.add_argument("--team", help="filter by team name")
+    a.add_argument("--sport", choices=["NFL", "NBA"], default="NFL")
     a.set_defaults(func=cmd_injuries)
     a = sub.add_parser("card", help="render the card from the slate sheet and the decisions file")
     a.add_argument("--date", help="card date, e.g. 2026-11-22 (default: today, Mountain)")
+    a.add_argument("--sport", choices=["NFL", "College", "NBA"], default="NFL")
     a.set_defaults(func=cmd_card)
     a = sub.add_parser("telegram-setup", help="find the chat id and send a test message")
     a.set_defaults(func=cmd_telegram_setup)

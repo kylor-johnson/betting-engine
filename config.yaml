@@ -45,6 +45,8 @@ picks:
   min_value: 0.02            # a bet needs at least +2% expected return at the book's current number
   max_units: 1               # cap until the engine has 100 graded picks
   conditional_units: 0.5
+  max_flagged: 12            # at most this many sides per sport go to research (strongest first)
+  nba_back_to_back: -1.2     # points for the second night of a back-to-back
 
 # Research agent (a headless Claude run on this Mac)
 agent:
@@ -53,3 +55,8 @@ agent:
   timeout_minutes: 25
   run_on_news: true          # start a run when a quarterback's status changes or the book posts new NFL games
   cooldown_minutes: 90       # never more often than this
+  summary_message: true      # send a short Telegram summary after every research run, even with no bets
+  # Scheduled research runs, Mountain time. Each runs every sport your book has games posted for.
+  schedule:
+    sunday: ["08:15", "15:15", "18:45", "20:45"]
+    other: ["08:15", "15:15"]

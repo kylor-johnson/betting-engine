@@ -9,7 +9,9 @@ from datetime import datetime
 
 from engine.odds.espn import SourceError
 
-URL = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/injuries"
+URLS = {"NFL": "https://site.api.espn.com/apis/site/v2/sports/football/nfl/injuries",
+        "NBA": "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/injuries"}
+URL = URLS["NFL"]
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS injury_status (
   player_id VARCHAR PRIMARY KEY, team VARCHAR, name VARCHAR, pos VARCHAR, status VARCHAR,
@@ -33,9 +35,11 @@ class Player:
     comment: str
 
 
-def fetch() -> list[Player]:
+def fetch(sport: str = "NFL") -> list[Player]:
+    if sport not in URLS:
+        raise SourceError(f"there is no machine-readable injury feed for {sport}; search for the team's report instead")
     try:
-        with urllib.request.urlopen(urllib.request.Request(URL, headers={"User-Agent": "Mozilla/5.0"}), timeout=60) as r:
+        with urllib.request.urlopen(urllib.request.Request(URLS[sport], headers={"User-Agent": "Mozilla/5.0"}), timeout=60) as r:
             data = json.load(r)
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as e:
         raise SourceError(f"ESPN NFL injury feed failed: {type(e).__name__}") from None

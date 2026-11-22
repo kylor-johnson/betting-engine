@@ -20,6 +20,18 @@ def due(cfg: dict, now: datetime, last_ok: datetime | None) -> bool:
     return last_ok is None or (now - last_ok) > timedelta(minutes=45)
 
 
+def scheduled_slot(cfg: dict, now: datetime) -> datetime | None:
+    """The scheduled research time that fell in the last 30 minutes, if any (as UTC)."""
+    sched = (cfg.get("agent") or {}).get("schedule") or {}
+    local = now.astimezone(config.display_tz(cfg))
+    for hhmm in sched.get("sunday" if local.weekday() == 6 else "other", []):
+        h, m = (int(x) for x in str(hhmm).split(":"))
+        slot = local.replace(hour=h, minute=m, second=0, microsecond=0)
+        if timedelta(0) <= local - slot < timedelta(minutes=30):
+            return slot.astimezone(timezone.utc)
+    return None
+
+
 def _deliver(con, env: dict, alerts: list[rules.Alert], now: datetime, out: list[str]) -> None:
     for a in alerts:
         if con.execute("SELECT 1 FROM alerts_sent WHERE key=?", [a.key]).fetchone():
@@ -43,8 +55,17 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
     out: list[str] = []
     try:
         last_ok = snap.last_ok_poll(con)
+        if send_alerts and not force:
+            slot = scheduled_slot(cfg, now)
+            if slot is not None:
+                from engine.picks import agent
+                agent.SCHEMA and con.execute(agent.SCHEMA)
+                last_run = con.execute("SELECT max(ts_utc) FROM agent_runs").fetchone()[0]
+                if last_run is None or last_run.replace(tzinfo=timezone.utc) < slot:
+                    agent.spawn(f"scheduled {slot.astimezone(config.display_tz(cfg)):%a %-I:%M %p} run", "all")
+                    out.append("Started the scheduled research run for all sports.")
         if not force and not due(cfg, now, last_ok):
-            return 0, ["Nothing read: outside the scheduled hours, or a read already ran in the last 45 minutes."]
+            return 0, out + ["Nothing read: outside the scheduled hours, or a read already ran in the last 45 minutes."]
         gap = rules.missed_reads(last_ok, now, cfg["missed_read_alert_hours"] + 12)
         if gap and send_alerts:
             _deliver(con, env, [rules.Alert(f"gap|{last_ok.isoformat()}", "gap", gap)], now, out)
@@ -126,7 +147,7 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
             from engine.picks import agent
             acfg = cfg.get("agent") or {}
             if acfg.get("run_on_news", True) and agent.cooled_down(con, now, acfg.get("cooldown_minutes", 90)):
-                agent.spawn("; ".join(triggers)[:300])
+                agent.spawn("; ".join(triggers)[:300], "NFL")
                 out.append(f"Started a research run: {'; '.join(triggers)}")
         con.execute("INSERT INTO polls VALUES (?,?,?,?,?)",
                     [now.replace(tzinfo=None), True, len(wh_now), len(mk_now), "; ".join(problems)[:500] or None])

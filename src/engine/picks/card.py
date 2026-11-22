@@ -84,8 +84,12 @@ def build(sheet: dict, decisions: dict, note: str, cfg: dict, strict: bool = Tru
                 (picks if d["status"] != "Pass" else passes).append(rec)
                 rows.append(rec)
 
+    if not sheet["games"]:
+        why = "; ".join(sheet.get("problems") or ["your book has no games posted for this sport right now"])
+        return f"# {sheet.get('sport', '')} card\n\nBuilt {built:%a %b %-d, %-I:%M %p} Mountain. Nothing to price: {why}\n", []
     first = min(datetime.fromisoformat(g["start_utc"]) for g in sheet["games"]).astimezone(tz)
-    out = [f"# NFL card for {first:%A %b %-d, %Y}", "",
+    label = {"NFL": "NFL", "College": "College football", "NBA": "NBA"}.get(sheet.get("sport", "NFL"), sheet.get("sport", ""))
+    out = [f"# {label} card for {first:%A %b %-d, %Y}", "",
            f"Built {built:%a %b %-d, %-I:%M %p} Mountain from Wagerhouse, Pinnacle and DraftKings prices at that minute. "
            f"Unit ${unit}; cap {pc['max_units']} unit a bet until the engine has 100 graded picks.", ""]
     if note:
@@ -132,7 +136,10 @@ def build(sheet: dict, decisions: dict, note: str, cfg: dict, strict: bool = Tru
                    f"{_fmt(sp['model_line'])} | {_fmt(sp.get('pinnacle_line'))} | {_fmt(sp['fair_line'])} | {_fmt(sp.get('book_line'))} | "
                    f"{_fmt(sp.get('draftkings_open'))} → {_fmt(sp.get('draftkings_line'))} |")
     out += ["", "Totals are not picked from ratings alone in this version. A total needs a specific, sourced reason "
-            "(wind, a quarterback change) entered as an adjustment.", ""]
+            "(wind, a quarterback change, a star ruled out) entered as an adjustment.", ""]
+    if sheet.get("settings", {}).get("history_note"):
+        out += [sheet["settings"]["history_note"], ""]
+    auto = [f"- {a['game']}: {a['team']} {float(a['points']):+g} points. {a['reason']}" for g in sheet["games"] for a in g.get("adjustments", []) if a.get("source") == "schedule"]
     adj = sheet.get("adjustments_used") or []
     out += ["## Adjustments used", ""]
     if adj:
@@ -140,7 +147,8 @@ def build(sheet: dict, decisions: dict, note: str, cfg: dict, strict: bool = Tru
             who = f"{a['team']} " if a["market"] == "spread" else "total "
             out.append(f"- {a['game']}: {who}{float(a['points']):+g} points. {a['reason']} ([source]({a['source']}), added {a['added']})")
     else:
-        out.append("None.")
+        out.append("None entered by hand.")
+    out += auto
     notes = [f"- {g['game']}: {n}" for g in sheet["games"] for n in g["notes"]]
     if notes:
         out += ["", "## Notes", ""] + notes

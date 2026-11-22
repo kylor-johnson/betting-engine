@@ -105,3 +105,16 @@ class Landing:
             if self.value(fair, cand, side, price) >= min_value:
                 return False, cand
         return False, None
+
+
+def bell_rows(kind: str, sd: float, lo: float, hi: float, n: int = 199) -> list[tuple[float, float]]:
+    """Synthetic landing rows for a sport with no key numbers (basketball): results scatter
+    around the closing line like a bell curve with spread `sd`."""
+    from statistics import NormalDist
+    q = [NormalDist(0, sd).inv_cdf((i + 0.5) / n) for i in range(n)]
+    rows, line = [], lo
+    while line <= hi:
+        for z in q:
+            rows.append((line, float(round((-line if kind == "spread" else line) + z))))
+        line += 0.5
+    return rows

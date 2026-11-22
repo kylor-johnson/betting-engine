@@ -38,8 +38,12 @@ def today_mt(cfg) -> str:
     return datetime.now(config.display_tz(cfg)).strftime("%Y-%m-%d")
 
 
-def decisions_path(day: str) -> Path:
-    return config.ROOT / "docs" / "cards" / "decisions" / f"{day}-nfl.yaml"
+def decisions_path(day: str, sport: str = "NFL") -> Path:
+    return config.ROOT / "docs" / "cards" / "decisions" / f"{day}-{sport.lower()}.yaml"
+
+
+def card_path(day: str, sport: str) -> Path:
+    return config.ROOT / "docs" / "cards" / f"{day}-{sport.lower()}.md"
 
 
 def find_claude(cfg) -> str:
@@ -49,10 +53,11 @@ def find_claude(cfg) -> str:
     return path
 
 
-def run_claude(cfg, reason: str, day: str) -> tuple[bool, str]:
+def run_claude(cfg, reason: str, day: str, sport: str) -> tuple[bool, str]:
     claude = find_claude(cfg)
     now_mt = datetime.now(config.display_tz(cfg)).strftime("%Y-%m-%d %H:%M MT")
     prompt = PROMPT_FILE.read_text().replace("{{REASON}}", reason).replace("{{DAY}}", day).replace("{{NOW}}", now_mt)
+    prompt = prompt.replace("{{SPORT}}", sport).replace("{{sport}}", sport.lower())
     env = dict(os.environ)
     env["UV_PROJECT_ENVIRONMENT"] = str(config.ROOT / ".venv.nosync")
     env["PATH"] = f"{Path(claude).parent}:/opt/homebrew/bin:/usr/bin:/bin:" + env.get("PATH", "")
@@ -64,7 +69,7 @@ def run_claude(cfg, reason: str, day: str) -> tuple[bool, str]:
                              timeout=(cfg.get("agent") or {}).get("timeout_minutes", 25) * 60)
     except subprocess.TimeoutExpired:
         return False, "the research run timed out"
-    (LOG_DIR / f"agent_{datetime.now():%Y-%m-%d_%H%M}.log").write_text(
+    (LOG_DIR / f"agent_{sport.lower()}_{datetime.now():%Y-%m-%d_%H%M}.log").write_text(
         f"reason: {reason}\nexit: {res.returncode}\n--- output\n{res.stdout}\n--- errors\n{res.stderr}\n")
     if res.returncode != 0:
         return False, f"the research run exited with code {res.returncode}: {(res.stderr or res.stdout).strip()[-300:]}"
@@ -99,16 +104,16 @@ def changes(prev: dict[str, dict], rows: list[dict]) -> list[str]:
     return out
 
 
-def finalize(cfg, env, day: str, send: bool = True) -> tuple[list[str], Path]:
+def finalize(cfg, env, day: str, sport: str = "NFL", send: bool = True, reason: str = "") -> tuple[list[str], Path]:
     """Fresh prices, render the card, alert on changes, log picks."""
-    sheet = slate.build_nfl(days_ahead=(cfg.get("agent") or {}).get("days_ahead", 8))
+    sheet = slate.build(sport)
     slate.save(sheet)
-    dpath = decisions_path(day)
+    dpath = decisions_path(day, sport)
     if not dpath.exists():
         raise SourceError(f"the research run left no decisions file at {dpath.relative_to(config.ROOT)}")
     decisions, note = card.load_decisions(dpath)
     text, rows = card.build(sheet, decisions, note, cfg, strict=False)
-    out = config.ROOT / "docs" / "cards" / f"{day}.md"
+    out = card_path(day, sport)
     out.write_text(text)
     now = datetime.now(timezone.utc)
     ts = now.replace(tzinfo=None)
@@ -143,51 +148,74 @@ def finalize(cfg, env, day: str, send: bool = True) -> tuple[list[str], Path]:
         con.close()
     sent = []
     for a in alerts:
-        msg = f"{a}\nCard: docs/cards/{day}.md"
+        msg = f"{sport}: {a}\nCard: docs/cards/{out.name}"
+        if send:
+            telegram.send(env, msg)
+        sent.append(msg)
+    if (cfg.get("agent") or {}).get("summary_message", True):
+        live = [r for r in rows if r["status"] != "Pass"]
+        passed = [r for r in rows if r["status"] == "Pass"]
+        lines = [f"{sport} research run finished ({reason or 'run'}). {len(sheet['games'])} games priced: "
+                 f"{sum(r['status'] == 'Bet' for r in rows)} bet, {sum(r['status'] == 'Conditional' for r in rows)} conditional, {len(passed)} looked at and passed."]
+        for r in live:
+            lines.append(f"• {r['status'].upper()}: {r['pick']} ({int(r['price']):+d}), {r['units']:g}u, don't bet past {r['dont_bet_past'] or 'this number'}")
+        for r in passed[:6]:
+            why = r.get("downgraded") or " ".join(str(r["decision"].get("why_pass", "")).split())
+            lines.append(f"• Passed {r['pick']}: {why[:170]}")
+        if not rows:
+            lines.append("Nothing cleared the numbers, so there was nothing to research.")
+        lines.append(f"Full card: docs/cards/{out.name}")
+        msg = "\n".join(lines)
         if send:
             telegram.send(env, msg)
         sent.append(msg)
     return sent, out
 
 
-def run(reason: str, send: bool = True, skip_research: bool = False) -> tuple[int, list[str]]:
+def run(reason: str, send: bool = True, skip_research: bool = False, sport: str = "NFL") -> tuple[int, list[str]]:
     cfg, env = config.load_config(), config.load_env()
     day = today_mt(cfg)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     lines: list[str] = []
     con = snap.connect(config.DB)
     con.execute(SCHEMA)
+    # mark the start so the scheduler and the cooldown see a run in progress
+    con.execute("INSERT INTO agent_runs VALUES (?,?,?,?)", [now, f"{sport}: {reason}", None, "started"])
     con.close()
 
     def record(ok: bool, note: str):
         c = snap.connect(config.DB)
         try:
-            c.execute("INSERT INTO agent_runs VALUES (?,?,?,?)", [now, reason, ok, note[:500]])
+            c.execute("INSERT INTO agent_runs VALUES (?,?,?,?)", [now, f"{sport}: {reason}", ok, note[:500]])
         finally:
             c.close()
 
     try:
-        sheet = slate.build_nfl(days_ahead=(cfg.get("agent") or {}).get("days_ahead", 8))
+        sheet = slate.build(sport)
         slate.save(sheet)
+        flagged = sum(1 for g in sheet["games"] for m in g["markets"] for s in m.get("sides", []) if s["numbers_say_bet"])
+        if not sheet["games"]:
+            record(True, "no games posted")
+            return 0, [f"{sport}: your book has no games posted; nothing to do."]
         if not skip_research:
-            ok, note = run_claude(cfg, reason, day)
+            ok, note = run_claude(cfg, reason, day, sport)
             if not ok:
                 raise SourceError(note)
             lines.append(note)
-        sent, path = finalize(cfg, env, day, send)
-        lines.append(f"Card: {path.relative_to(config.ROOT)}. {len(sent)} alert(s).")
+        sent, path = finalize(cfg, env, day, sport, send, reason)
+        lines.append(f"{sport} card: {path.relative_to(config.ROOT)}. {flagged} side(s) flagged by the numbers. {len(sent)} message(s).")
         lines += sent
-        record(True, f"{len(sent)} alerts")
+        record(True, f"{len(sent)} messages")
         return 0, lines
     except Exception as e:
         msg = str(e) if isinstance(e, SourceError) else f"{type(e).__name__}: {e}"
         record(False, msg)
         if send:
             try:
-                telegram.send(env, f"Research run FAILED ({reason}): {msg[:600]}")
+                telegram.send(env, f"{sport} research run FAILED ({reason}): {msg[:600]}")
             except SourceError:
                 pass
-        return 1, lines + [f"Research run FAILED: {msg}"]
+        return 1, lines + [f"{sport} research run FAILED: {msg}"]
 
 
 def cooled_down(con, now: datetime, minutes: int) -> bool:
@@ -196,11 +224,11 @@ def cooled_down(con, now: datetime, minutes: int) -> bool:
     return last is None or (now.replace(tzinfo=None) - last) > timedelta(minutes=minutes)
 
 
-def spawn(reason: str) -> None:
+def spawn(reason: str, sport: str = "NFL") -> None:
     """Start a research run in the background (used by the hourly read when news lands)."""
     env = dict(os.environ)
     env["UV_PROJECT_ENVIRONMENT"] = str(config.ROOT / ".venv.nosync")
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     log = open(LOG_DIR / "agent.log", "a")
-    subprocess.Popen(["/opt/homebrew/bin/uv", "run", "--project", str(config.ROOT), "engine", "agent", "--reason", reason],
+    subprocess.Popen(["/opt/homebrew/bin/uv", "run", "--project", str(config.ROOT), "engine", "agent", "--sport", sport, "--reason", reason],
                      cwd=str(Path.home()), env=env, stdout=log, stderr=log, start_new_session=True)

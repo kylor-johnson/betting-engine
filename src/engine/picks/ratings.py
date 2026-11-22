@@ -55,3 +55,31 @@ def market_ratings(rows: list[dict], season: int, before_date: str, hfa: float, 
             if tw:
                 tend[t] = sum(w * (d - tend[o]) for o, d, w in by[t]) / (tw + 0.25)
     return spread, tend, avg_total, len(past)
+
+
+def fit(games: list[dict], hfa: float, decay: float = 0.9, min_games: int = 40):
+    """Generic version. Each game: home, away, home_margin (the closing line's expected home margin),
+    total, weeks_ago, neutral. Returns (spread ratings, total tendencies, average total, games used)."""
+    if len(games) < min_games:
+        raise ValueError(f"only {len(games)} games with closing lines; too few for ratings")
+    sg, tg = [], []
+    for g in games:
+        w = decay ** max(0, int(g["weeks_ago"]))
+        sg.append((g["home"], g["away"], float(g["home_margin"]) - (0.0 if g.get("neutral") else hfa), w))
+        if g.get("total") is not None:
+            tg.append((g["home"], g["away"], float(g["total"]), w))
+    spread = solve(sg)
+    if not tg:
+        return spread, {t: 0.0 for t in spread}, None, len(games)
+    avg_total = sum(t[2] * t[3] for t in tg) / sum(t[3] for t in tg)
+    tend = {t: 0.0 for t in spread}
+    by = defaultdict(list)
+    for h, a, tot, w in tg:
+        by[h].append((a, tot - avg_total, w))
+        by[a].append((h, tot - avg_total, w))
+    for _ in range(400):
+        for t in tend:
+            tw = sum(w for _, _, w in by[t])
+            if tw:
+                tend[t] = sum(w * (d - tend[o]) for o, d, w in by[t]) / (tw + 0.25)
+    return spread, tend, avg_total, len(games)
