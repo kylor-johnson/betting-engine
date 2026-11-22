@@ -220,6 +220,26 @@ def cmd_agent(args) -> int:
     return worst
 
 
+def cmd_totals_test(args) -> int:
+    """Walk-forward test: does the pace-and-efficiency totals model add anything to the market's total?"""
+    import csv
+    import io
+
+    from engine.picks import sources, totals
+
+    rows = sources.nfl_games(DATA / "raw" / "nflverse_games.csv")
+    closes = {r["game_id"]: (float(r["total_line"]), float(r["total"])) for r in rows
+              if r["total_line"] not in ("", None) and r["total"] not in ("", None) and r["game_type"] == "REG"}
+    year = max(int(r["season"]) for r in rows if r["total"] not in ("", None))
+    res = totals.backtest(list(range(year - 4, year + 1)), year, closes)
+    print(f"{res['games']} games, weeks 5 and later, {year - 4} to {year}.")
+    print(f"Average miss: market {res['mae_close']:.2f} points, model {res['mae_model']:.2f}.")
+    print(f"Best blend puts {100 * res['best_market_weight']:.0f}% on the market.")
+    for gap, (w, n) in res["bets"].items():
+        print(f"Betting the model's side when it disagreed by {gap}+ points: {w}-{n - w} ({100 * w / n:.1f}%; break-even is 52.4%).")
+    return 0
+
+
 def cmd_board(args) -> int:
     """Rebuild the picks page and open it in the browser."""
     import subprocess
@@ -306,6 +326,8 @@ def main(argv=None) -> int:
     a.add_argument("--no-send", action="store_true", help="print alerts instead of sending them")
     a.add_argument("--skip-research", action="store_true", help="re-price the existing decisions without a new research run")
     a.set_defaults(func=cmd_agent)
+    a = sub.add_parser("totals-test", help="test the NFL totals model against the market's closing totals")
+    a.set_defaults(func=cmd_totals_test)
     a = sub.add_parser("board", help="rebuild the picks page (board.html) and open it")
     a.add_argument("--no-open", action="store_true")
     a.set_defaults(func=cmd_board)

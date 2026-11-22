@@ -138,6 +138,15 @@ def build(sport: str = "NFL", now: datetime | None = None, days_ahead: int | Non
     for e in no_sharp[:8]:
         problems.append(f"No Pinnacle price for {e.away['displayName']} at {e.home['displayName']}: no fair line, no pick possible.")
 
+    eff = None
+    if sport == "NFL":
+        try:
+            from engine.picks import totals
+            eff = totals.current(now)
+        except (SourceError, ValueError) as ex:
+            problems.append(f"Pace-and-efficiency numbers unavailable: {ex}")
+    to_nflverse = {v: k for k, v in history.NFLVERSE_TO_ESPN.items()}
+
     games = []
     for e in listed:
         home, away = e.home["displayName"], e.away["displayName"]
@@ -239,6 +248,12 @@ def build(sport: str = "NFL", now: datetime | None = None, days_ahead: int | Non
                               "dont_bet_past": None if lim is None else f"{side.title()} {lim:g}", "limit_line": lim,
                               "model_agrees": model_edge > 0})
             mt["sides"] = sides
+        if eff is not None:
+            hn, an = to_nflverse.get(e.home["abbreviation"], e.home["abbreviation"]), to_nflverse.get(e.away["abbreviation"], e.away["abbreviation"])
+            et = eff.total(hn, an)
+            # shown for context only: in testing this number added nothing on top of the market's total
+            mt["efficiency_total_for_context_only"] = None if et is None else round(et, 1)
+            g["luck"] = {"home": eff.luck.get(hn), "away": eff.luck.get(an)}
         g["markets"].append(mt)
         games.append(g)
 
