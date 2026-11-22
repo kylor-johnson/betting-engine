@@ -26,3 +26,6 @@ Steps:
 8. Finish with three lines: how many Bets, Conditionals and Passes; any adjustment you added or changed; anything you could not verify.
 
 Rules of conduct: write plainly, no hype. Never state an injury or a number you did not read in the sheet, the feed or a page you opened. Do not run any command other than `uv run engine ...`. Do not edit code, config or the spec. Do not send messages; the code sends alerts after you finish.
+
+
+**Props.** `docs/cards/<date>-nfl-props.md` shows the props model against Pinnacle. It is testing only (decision 0006): never issue a prop as a Bet or Conditional and never mention props in a pick until its first line says PASSED.

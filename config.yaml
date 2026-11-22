@@ -63,6 +63,13 @@ models:
     min_points: 1.0            # smaller adjustments are shown, not used
     max_status: Conditional    # weaker since 2024 (74-62 on Unders, size already partly priced), so half a unit at most
 
+  props:                       # docs/research/06-props-model.md, decision 0006
+    enabled: true              # price and grade Pinnacle's NFL props every read (testing only)
+    min_graded: 300            # before any prop can be a pick: this many graded props...
+    edge: 0.05                 # ...and the model's 5%+ disagreements with the price must have won money,
+                               # and blending the model into Pinnacle must lower the error (best weight above 0)
+    max_status: Conditional    # even then, half a unit, and only at Wagerhouse at or better than Pinnacle's line
+
 # Research agent (a headless Claude run on this Mac)
 agent:
   claude_path: /Users/kylorjohnson/.nvm/versions/node/v25.2.1/bin/claude

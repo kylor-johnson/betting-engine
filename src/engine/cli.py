@@ -307,6 +307,40 @@ def cmd_model_test(args) -> int:
     return 0
 
 
+def cmd_props(args) -> int:
+    """Price the latest Pinnacle NFL props with the props model, grade finished ones, write the testing sheet."""
+    import duckdb
+
+    from engine.models import props
+
+    now = datetime.now(timezone.utc)
+    cfg = config.load_config()
+    pc = (cfg.get("models") or {}).get("props") or {}
+    m = props.Model(now.year if now.month >= 3 else now.year - 1)
+    con = duckdb.connect(str(config.DB))
+    rows = props.evaluate_logged(con, m, now)
+    graded = props.grade(con, m.season)
+    sc = props.scorecard(con, pc.get("edge", 0.05))
+    path = props.write_sheet(rows, sc, pc, m, now)
+    con.close()
+    print(f"Props sheet: {path}")
+    print(f"Priced {len(rows)} props from the latest Pinnacle read (stats through week {m.through_week}); graded {graded} new.")
+    print(props.gate_line(sc, pc))
+    return 0
+
+
+def cmd_props_test(args) -> int:
+    """Held-out test of the props model (2023 on): accuracy against a plain average and honesty of its probabilities."""
+    from engine.models import props
+
+    r = props.backtest(2023)
+    for stat, v in r.items():
+        cal = max(abs(c["said"] - c["happened"]) for c in v["calibration"]) if v["calibration"] else None
+        print(f"{stat}: {v['player_games']} player-games. Typical miss {v['mae_model']} vs {v['mae_plain_average']} for a plain average; "
+              f"probability score {v['brier_model']} vs {v['brier_plain_average']} (lower is better); worst calibration gap {cal:.3f}.")
+    return 0
+
+
 def cmd_board(args) -> int:
     """Rebuild the picks page and open it in the browser."""
     import subprocess
@@ -421,6 +455,10 @@ def main(argv=None) -> int:
     a = sub.add_parser("model-test", help="walk-forward test of a candidate model: wind or first-half")
     a.add_argument("model", choices=["wind", "first-half"])
     a.set_defaults(func=cmd_model_test)
+    a = sub.add_parser("props", help="props model vs Pinnacle's NFL props: price, grade, write the testing sheet")
+    a.set_defaults(func=cmd_props)
+    a = sub.add_parser("props-test", help="held-out test of the props model")
+    a.set_defaults(func=cmd_props_test)
     a = sub.add_parser("board", help="rebuild the picks page (board.html) and open it")
     a.add_argument("--no-open", action="store_true")
     a.set_defaults(func=cmd_board)

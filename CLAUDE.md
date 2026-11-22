@@ -59,7 +59,7 @@ The goal is an agent that does the handicapping on a schedule and alerts Kylor w
 - **Statuses:** Bet, Conditional (with the exact condition), Pass (with why, and the number that would change it).
 - **Sizing:** 1 unit per Bet, 0.5 for a Conditional, until the engine has 100 graded picks. Then revisit 0.5 to 3 units by edge.
 - **Totals** are not picked from ratings alone. The wind totals model (`models.wind_totals`, decision 0005) is computed in code and can make an Under a Conditional; anything else needs a specific sourced adjustment (quarterback, star out).
-- **Models earn their way in** one market at a time by beating the market on seasons they never saw (decision 0005, `engine model-test`). Failed so far: full-game sides, pace totals, matchup power number, first-half habit.
+- **Models earn their way in** one market at a time by beating the market on seasons they never saw (decision 0005, `engine model-test`). Failed so far: full-game sides, pace totals, matchup power number, first-half habit. Props model: built, priced and graded against Pinnacle every read, testing only until it passes decision 0006's gate (`engine props`).
 - **Betting splits** are logged and shown, never a reason.
 - **Get the early number.** The point is to be the one holding +10 before it becomes +6.5: numbers ready Sunday night for openers, injury and availability news checked hourly 7am to 5pm Mountain, and an alert within the hour when news lands and the book has not moved.
 - **Grading.** Every engine pick is logged at issue and graded on result and against Pinnacle's close, next to Kylor's own record. After 100 picks, if they have not beaten the close on average, the report says so.
@@ -79,7 +79,7 @@ NFL first, then college football with preseason priors. The model is blended wit
 
 ## Phase 5: Own props model
 
-Only if Phase 3 shows props at Wagerhouse are worth it.
+Built early at Kylor's request (2026-11-22): `src/engine/models/props.py`, decision 0006. Picks only after the forward test against Pinnacle passes.
 
 ## Rules the engine enforces as checks
 
