@@ -96,7 +96,7 @@ def decide(tmp_path, items):
 
 
 def test_card_uses_sheet_numbers_and_sizes_from_config(tmp_path):
-    d, note = decide(tmp_path, [{"game": "Jets at Chargers", "market": "spread", "side": "home", "status": "Bet", "reasons": REASONS}])
+    d, note = decide(tmp_path, [{"game": "Jets at Chargers", "market": "spread", "side": "home", "status": "Bet", "reasons": REASONS, "summary": "s"}])
     text, rows = card.build(SHEET, d, note, CFG)
     assert "Chargers -2.5 (-110)" in text and "1u / $25" in text and "Sunday Nov 22" in text
     assert rows[0]["dollars"] == 25
@@ -105,7 +105,7 @@ def test_card_uses_sheet_numbers_and_sizes_from_config(tmp_path):
 def test_a_bet_the_numbers_do_not_support_is_refused(tmp_path):
     d, note = decide(tmp_path, [
         {"game": "Jets at Chargers", "market": "spread", "side": "home", "status": "Pass", "why_pass": "x"},
-        {"game": "Jets at Chargers", "market": "spread", "side": "away", "status": "Bet", "reasons": REASONS}])
+        {"game": "Jets at Chargers", "market": "spread", "side": "away", "status": "Bet", "reasons": REASONS, "summary": "s"}])
     with pytest.raises(SourceError, match="refused"):
         card.build(SHEET, d, note, CFG)
 
@@ -120,7 +120,9 @@ def test_flagged_side_without_a_decision_fails_loudly(tmp_path):
     {"game": "g", "market": "spread", "side": "home", "status": "Bet", "reasons": REASONS, "stake": 75},
     {"game": "g", "market": "spread", "side": "home", "status": "Bet", "reasons": REASONS, "line": -2.5},
     {"game": "g", "market": "spread", "side": "home", "status": "Bet", "reasons": {"price": "only this"}},
-    {"game": "g", "market": "spread", "side": "home", "status": "Conditional", "reasons": REASONS},
+    {"game": "g", "market": "spread", "side": "home", "status": "Conditional", "reasons": REASONS, "summary": "s"},
+    {"game": "g", "market": "spread", "side": "home", "status": "Bet", "reasons": REASONS},
+    {"game": "g", "market": "spread", "side": "home", "status": "Conditional", "reasons": REASONS, "summary": "s", "condition": "word " * 40},
     {"game": "g", "market": "spread", "side": "home", "status": "Pass"},
     {"game": "g", "market": "spread", "side": "home", "status": "Lock"},
 ])

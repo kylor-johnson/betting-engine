@@ -76,32 +76,71 @@ def run_claude(cfg, reason: str, day: str, sport: str) -> tuple[bool, str]:
     return True, (res.stdout or "").strip()[-600:]
 
 
-def changes(prev: dict[str, dict], rows: list[dict]) -> list[str]:
-    """Alert lines for what changed since the last card. prev: pick_key -> {status, pick, ...}."""
+def _when(kick, tz) -> str:
+    local = kick.astimezone(tz)
+    today = datetime.now(tz).date()
+    day = "today" if local.date() == today else "tomorrow" if (local.date() - today).days == 1 else f"{local:%a %b %-d}"
+    return f"{day} {local:%-I:%M %p}"
+
+
+def _limit(r: dict) -> str:
+    """The number part of the don't-bet-past limit: 'Thunder +2.5' -> '+2.5'."""
+    lim = r.get("dont_bet_past") or r["pick"]
+    return lim.rsplit(" ", 1)[-1]
+
+
+def _why(d: dict) -> str:
+    text = (d.get("summary") or (d.get("reasons") or {}).get("situation") or "").strip()
+    return " ".join(str(text).split())
+
+
+def message(r: dict, kind: str, tz, sport: str, next_check: str = "") -> str:
+    """One pick message. The first line is always the instruction."""
+    d = r["decision"]
+    bet = f"{r['pick']} ({int(r['price']):+d})"
+    game = f"{r['game']}, {_when(r['kick'], tz)}"
+    if kind in ("bet", "now_bet"):
+        head = "BET NOW" if kind == "bet" else "BET NOW (the condition was met)"
+        return (f"{sport} · {head}\n{bet}\n{game}\nStake: ${r['dollars']:g}\n"
+                f"Check your book first. Skip it if the number is worse than {_limit(r)}.\nWhy: {_why(d)}")
+    if kind in ("wait", "now_wait"):
+        head = "WAIT, DO NOT BET YET" if kind == "wait" else "HOLD OFF: this is no longer a bet until the condition below is met"
+        cond = " ".join(str(d["condition"]).split())
+        follow = f"\nI will message again{next_check} with BET NOW or CANCELLED." if True else ""
+        return (f"{sport} · {head}\n{bet}\n{game}\nBet ${r['dollars']:g} ONLY IF: {cond}\n"
+                f"Even then, skip it if your book is worse than {_limit(r)}.{follow}\nWhy: {_why(d)}")
+    why = r.get("downgraded") or " ".join(str(d.get("why_pass", "")).split())
+    return f"{sport} · CANCELLED, DO NOT BET\n{r['pick']}\n{r['game']}\n{why}"
+
+
+def changes(prev: dict[str, dict], rows: list[dict], tz=None, sport: str = "", next_check: str = "") -> list[str]:
+    """Messages for what changed since the last card. prev: pick_key -> {status, pick}."""
+    from zoneinfo import ZoneInfo
+    tz = tz or ZoneInfo("America/Denver")
     out = []
     for r in rows:
         key = f"{r['event_id']}|{r['market']}|{r['side']}"
         old = prev.get(key, {}).get("status")
         new = r["status"]
         live_old, live_new = old in ("Bet", "Conditional"), new in ("Bet", "Conditional")
-        head = f"{r['pick']} ({int(r['price']):+d}) | {r['game']}"
         if live_new and not live_old:
-            lines = [f"NEW {new.upper()}: {head}",
-                     f"{r['units']:g}u (${r['dollars']:g}). Don't bet past: {r['dont_bet_past'] or 'this number'}. "
-                     f"Edge {r['edge_points']:+.1f} pts, {100 * r['value']:+.1f}%."]
-            d = r["decision"]
-            if new == "Conditional":
-                lines.append(f"Only if: {d['condition']}")
-            lines.append(f"Why: {' '.join(str(d['reasons']['matchup']).split())}")
-            out.append("\n".join(lines))
+            out.append(message(r, "bet" if new == "Bet" else "wait", tz, sport, next_check))
         elif live_old and live_new and old != new:
-            out.append(f"{'CONDITIONAL IS NOW A BET' if new == 'Bet' else 'BET IS NOW CONDITIONAL'}: {head}\n"
-                       f"Don't bet past: {r['dont_bet_past'] or 'this number'}."
-                       + (f"\nOnly if: {r['decision']['condition']}" if new == "Conditional" else ""))
+            out.append(message(r, "now_bet" if new == "Bet" else "now_wait", tz, sport, next_check))
         elif live_old and not live_new:
-            why = r.get("downgraded") or " ".join(str(r["decision"].get("why_pass", "")).split())
-            out.append(f"WITHDRAWN: {prev[key].get('pick', r['pick'])} | {r['game']}\n{why}")
+            out.append(message(r, "cancel", tz, sport))
     return out
+
+
+def next_check_text(cfg, now_local) -> str:
+    """' at the 3:15 PM check' for the next scheduled research run today, if there is one."""
+    sched = (cfg.get("agent") or {}).get("schedule") or {}
+    for hhmm in sched.get("sunday" if now_local.weekday() == 6 else "other", []):
+        h, m = (int(x) for x in str(hhmm).split(":"))
+        slot = now_local.replace(hour=h, minute=m, second=0, microsecond=0)
+        if slot > now_local:
+            return f" after the {slot:%-I:%M %p} check"
+    return " after the next check"
 
 
 def finalize(cfg, env, day: str, sport: str = "NFL", send: bool = True, reason: str = "") -> tuple[list[str], Path]:
@@ -122,7 +161,8 @@ def finalize(cfg, env, day: str, sport: str = "NFL", send: bool = True, reason: 
         con.execute(SCHEMA)
         prev = {r[0]: {"status": r[1], "pick": r[2]} for r in con.execute(
             "SELECT pick_key, status, pick FROM engine_picks WHERE kickoff_utc > ?", [ts]).fetchall()}
-        alerts = changes(prev, rows)
+        tz = config.display_tz(cfg)
+        alerts = changes(prev, rows, tz, sport, next_check_text(cfg, datetime.now(tz)))
         pin = {g["event_id"]: g["markets"][0].get("pinnacle_line") for g in sheet["games"]}
         for r in rows:
             key = f"{r['event_id']}|{r['market']}|{r['side']}"
@@ -148,23 +188,24 @@ def finalize(cfg, env, day: str, sport: str = "NFL", send: bool = True, reason: 
         con.close()
     sent = []
     for a in alerts:
-        msg = f"{sport}: {a}\nCard: docs/cards/{out.name}"
+        msg = f"{a}\nDetails: docs/cards/{out.name}"
         if send:
             telegram.send(env, msg)
         sent.append(msg)
-    if (cfg.get("agent") or {}).get("summary_message", True):
-        live = [r for r in rows if r["status"] != "Pass"]
+    # a short "nothing to do" note only when this run produced no pick message
+    if not alerts and (cfg.get("agent") or {}).get("summary_message", True):
+        waiting = [r for r in rows if r["status"] == "Conditional"]
+        bets = [r for r in rows if r["status"] == "Bet"]
         passed = [r for r in rows if r["status"] == "Pass"]
-        lines = [f"{sport} research run finished ({reason or 'run'}). {len(sheet['games'])} games priced: "
-                 f"{sum(r['status'] == 'Bet' for r in rows)} bet, {sum(r['status'] == 'Conditional' for r in rows)} conditional, {len(passed)} looked at and passed."]
-        for r in live:
-            lines.append(f"• {r['status'].upper()}: {r['pick']} ({int(r['price']):+d}), {r['units']:g}u, don't bet past {r['dont_bet_past'] or 'this number'}")
-        for r in passed[:6]:
-            why = r.get("downgraded") or " ".join(str(r["decision"].get("why_pass", "")).split())
-            lines.append(f"• Passed {r['pick']}: {why[:170]}")
-        if not rows:
-            lines.append("Nothing cleared the numbers, so there was nothing to research.")
-        lines.append(f"Full card: docs/cards/{out.name}")
+        if bets or waiting:
+            lines = [f"{sport} · NOTHING NEW. Checked again ({len(sheet['games'])} games)."]
+            lines += [f"Still a bet: {r['pick']} ({int(r['price']):+d}), skip if worse than {_limit(r)}." for r in bets]
+            lines += [f"Still waiting: {r['pick']}. Only if: {' '.join(str(r['decision']['condition']).split())}" for r in waiting]
+        else:
+            lines = [f"{sport} · NO BETS. Checked {len(sheet['games'])} games; nothing is worth a bet right now."]
+            if passed:
+                lines.append("Came close but had no real reason behind them: " + ", ".join(r["pick"] for r in passed[:6]) + ".")
+        lines.append(f"Details: docs/cards/{out.name}")
         msg = "\n".join(lines)
         if send:
             telegram.send(env, msg)

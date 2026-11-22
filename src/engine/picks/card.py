@@ -37,6 +37,12 @@ def load_decisions(path) -> dict:
                 raise SourceError(f"{d['status']} on {d['game']} needs reasons: {missing}")
             if d["status"] == "Conditional" and not str(d.get("condition", "")).strip():
                 raise SourceError(f"Conditional on {d['game']} needs the exact condition")
+            if not str(d.get("summary", "")).strip():
+                raise SourceError(f"{d['status']} on {d['game']} needs a one-sentence 'summary' of why it is a bet")
+            if len(str(d["summary"]).split()) > 45:
+                raise SourceError(f"'summary' on {d['game']} is too long; one plain sentence")
+            if d["status"] == "Conditional" and len(str(d["condition"]).split()) > 30:
+                raise SourceError(f"'condition' on {d['game']} is too long; one short checkable sentence")
         elif not str(d.get("why_pass", "")).strip():
             raise SourceError(f"Pass on {d['game']} needs 'why_pass'")
         out[(d["game"], d["market"], d["side"])] = d
@@ -105,8 +111,9 @@ def build(sheet: dict, decisions: dict, note: str, cfg: dict, strict: bool = Tru
         for r in picks:
             d = r["decision"]
             out += [f"**{r['pick']}** ({r['status']})", ""]
+            out.append(f"- In one line: {' '.join(str(d['summary']).split())}")
             if d["status"] == "Conditional":
-                out.append(f"- Condition: {d['condition']}")
+                out.append(f"- Bet only if: {' '.join(str(d['condition']).split())}")
             out += [f"- Price: {d['reasons']['price']}", f"- Matchup: {d['reasons']['matchup']}",
                     f"- Situation: {d['reasons']['situation']}", f"- What kills it: {d['reasons']['kills_it']}", ""]
     else:
