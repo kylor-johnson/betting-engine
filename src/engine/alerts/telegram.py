@@ -38,4 +38,7 @@ def send(env: dict, text: str) -> None:
         raise SourceError("Telegram bot token is missing from .env")
     if not chat:
         raise SourceError("Telegram chat id is missing: message the bot once, then run `engine telegram-setup`")
-    _call(token, "sendMessage", {"chat_id": chat, "text": text[:4000], "disable_web_page_preview": "true"})
+    import html as _html
+    head, _, rest = text[:3900].partition("\n")
+    body = f"<b>{_html.escape(head)}</b>" + ("\n" + _html.escape(rest) if rest else "")
+    _call(token, "sendMessage", {"chat_id": chat, "text": body, "parse_mode": "HTML", "disable_web_page_preview": "true"})

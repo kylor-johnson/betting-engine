@@ -220,6 +220,19 @@ def cmd_agent(args) -> int:
     return worst
 
 
+def cmd_board(args) -> int:
+    """Rebuild the picks page and open it in the browser."""
+    import subprocess
+
+    from engine.picks import board
+
+    path = board.build()
+    print(f"Board: {path}")
+    if not args.no_open:
+        subprocess.run(["open", str(path)], check=False)
+    return 0
+
+
 def cmd_injuries(args) -> int:
     from engine.picks import news
 
@@ -293,6 +306,9 @@ def main(argv=None) -> int:
     a.add_argument("--no-send", action="store_true", help="print alerts instead of sending them")
     a.add_argument("--skip-research", action="store_true", help="re-price the existing decisions without a new research run")
     a.set_defaults(func=cmd_agent)
+    a = sub.add_parser("board", help="rebuild the picks page (board.html) and open it")
+    a.add_argument("--no-open", action="store_true")
+    a.set_defaults(func=cmd_board)
     a = sub.add_parser("injuries", help="current NFL injury statuses (quarterbacks by default)")
     a.add_argument("--all", action="store_true", help="every position, not only quarterbacks")
     a.add_argument("--team", help="filter by team name")

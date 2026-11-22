@@ -186,9 +186,14 @@ def finalize(cfg, env, day: str, sport: str = "NFL", send: bool = True, reason: 
                     con.execute("INSERT INTO watchlist VALUES (?,?,?,?,?,?,?,?)", [nid, ts, team, "spread", target, -115.0, f"engine {day}", True])
     finally:
         con.close()
+    try:
+        from engine.picks import board
+        board.build()
+    except Exception as e:      # the page is a convenience; a pick alert must not be lost over it
+        alerts.append(f"Board page could not be rebuilt: {type(e).__name__}: {e}")
     sent = []
     for a in alerts:
-        msg = f"{a}\nDetails: docs/cards/{out.name}"
+        msg = a
         if send:
             telegram.send(env, msg)
         sent.append(msg)
@@ -205,7 +210,6 @@ def finalize(cfg, env, day: str, sport: str = "NFL", send: bool = True, reason: 
             lines = [f"{sport} · NO BETS. Checked {len(sheet['games'])} games; nothing is worth a bet right now."]
             if passed:
                 lines.append("Came close but had no real reason behind them: " + ", ".join(r["pick"] for r in passed[:6]) + ".")
-        lines.append(f"Details: docs/cards/{out.name}")
         msg = "\n".join(lines)
         if send:
             telegram.send(env, msg)

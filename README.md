@@ -17,6 +17,7 @@ uv run engine telegram-setup                  # after sending your bot any messa
 
 | Command | What it does |
 |---|---|
+| `uv run engine board` | Opens the picks page (`board.html`) in your browser: what to bet now, what is waiting, what came close and every game's numbers. Rebuilt after every research run |
 | `uv run engine agent` | The research run: builds the numbers, has Claude research and decide, writes the card to `docs/cards/`, sends pick alerts |
 | `uv run engine agent --no-send` | Same, but prints the alerts |
 | `uv run engine agent --skip-research` | Re-prices the existing decisions at current numbers without new research |
