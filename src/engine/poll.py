@@ -105,6 +105,13 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
             out.append(f"Logged {len(drows)} period, team-total and prop rows.")
         except Exception as e:
             problems.append(f"Period/team-total/prop logging failed: {type(e).__name__}: {e}")
+        rw_new, rw_first = [], False
+        try:   # reporter news (Rotoworld posts each beat-writer and insider item minutes after the tweet)
+            from engine.picks import player_news
+            rw_new, rw_first = player_news.update(con, "NFL", now)
+            out.append(f"Rotoworld NFL: {len(rw_new)} new post(s).")
+        except SourceError as e:
+            problems.append(str(e))
         try:   # props model: price this read's Pinnacle props and grade finished ones (forward test, decision 0006)
             if ((cfg.get("models") or {}).get("props") or {}).get("enabled"):
                 from engine.models import props
@@ -160,6 +167,11 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
                 triggers.append(f"quarterback news: {c.player.team} {c.player.name} {c.old_status or 'not listed'} to {c.player.status}")
             if first:
                 out.append("Injury feed: first read stored as the baseline.")
+            if not rw_first:
+                from engine.picks import player_news
+                for k, text, trig in player_news.nfl_qb_hits(con, rw_new, now):
+                    alerts.insert(0, rules.Alert(k, "news", text))
+                    triggers.append(trig)
         except SourceError as e:
             problems.append(str(e))
         if not first_ever and new_by_sport.get("NFL"):

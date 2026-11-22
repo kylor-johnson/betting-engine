@@ -402,6 +402,7 @@ class Injuries:
     """Today's ESPN NFL injury report, keyed for the props model."""
 
     def __init__(self, players: list):
+        self.by_name_override: dict[str, str] = {}
         self.status: dict[tuple[str, str], str] = {}
         for p in players:
             team = TEAM_NAMES.get(p.team)
@@ -409,12 +410,28 @@ class Injuries:
                 self.status[(norm_name(p.name), team)] = p.status
 
     @classmethod
-    def fetch(cls) -> "Injuries":
+    def fetch(cls, con=None, now: datetime | None = None) -> "Injuries":
+        """ESPN's report, then reporter news on top: a Rotoworld post from the last 36 hours that says playing,
+        not playing or questionable replaces ESPN's status for that player (reporters are usually ahead)."""
         from engine.picks import news
-        return cls(news.fetch("NFL"))      # raises SourceError if ESPN is down: never priced without the report
+        inj = cls(news.fetch("NFL"))      # raises SourceError if ESPN is down: never priced without the report
+        if con is not None:
+            from engine.picks import player_news
+            for name, (sig, _, _) in player_news.latest_signals(con, "NFL", now or datetime.now(timezone.utc)).items():
+                mapped = {"not playing": "Out", "playing": "", "uncertain": "Questionable"}[sig]
+                hit = [k for k in inj.status if k[0] == name] or []
+                for k in hit:
+                    inj.status[k] = mapped
+                inj.by_name_override[name] = mapped
+        return inj
+
+
 
     def of(self, name: str, team: str) -> str:
-        return self.status.get((norm_name(name), team), "")
+        n = norm_name(name)
+        if n in self.by_name_override:
+            return self.by_name_override[n]
+        return self.status.get((n, team), "")
 
 
 class Model:
@@ -528,7 +545,7 @@ def evaluate_logged(con, model: Model, now: datetime, only_latest: bool = True) 
     rows = con.execute("""
         SELECT ts_utc, start_utc, away, home, description, line, price_a, price_b FROM derivative_snapshots
         WHERE source='Pinnacle' AND sport='NFL' AND market='prop' AND ts_utc = ?""", [ts]).fetchall()
-    return _evaluate(con, model, rows, now, Injuries.fetch())
+    return _evaluate(con, model, rows, now, Injuries.fetch(con, now))
 
 
 def _evaluate(con, model: Model, rows, now: datetime, injuries: "Injuries | None" = None) -> list[dict]:
@@ -579,7 +596,7 @@ def backfill(con, model: Model) -> int:
         SELECT ts_utc, start_utc, away, home, description, line, price_a, price_b FROM derivative_snapshots
         WHERE source='Pinnacle' AND sport='NFL' AND market='prop' ORDER BY ts_utc""").fetchall()
     n = 0
-    inj = Injuries.fetch()      # today's report; fine for same-day reads
+    inj = Injuries.fetch(con)      # today's report and reporter news; fine for same-day reads
     for ts in sorted({r[0] for r in rows}):
         n += len(_evaluate(con, model, [r for r in rows if r[0] == ts], ts.replace(tzinfo=timezone.utc), inj))
     return n

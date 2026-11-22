@@ -34,9 +34,14 @@ CREATE TABLE IF NOT EXISTS nba_injury_changes (
   ts_utc TIMESTAMP, key VARCHAR, team VARCHAR, name VARCHAR, old_status VARCHAR, new_status VARCHAR,
   minutes DOUBLE, points DOUBLE, alerted BOOLEAN, comment VARCHAR);
 CREATE TABLE IF NOT EXISTS nba_watch_reads (ts_utc TIMESTAMP, reason VARCHAR);
+CREATE TABLE IF NOT EXISTS nba_official_status (name VARCHAR PRIMARY KEY, status VARCHAR, report VARCHAR, seen_utc TIMESTAMP);
 """
+OFFICIAL_INDEX = "https://official.nba.com/nba-injury-report-{y}-{y2:02d}-season/"
+OFFICIAL_PDF = "https://ak-static.cms.nba.com/referee/injury/Injury-Report_{d}_{hm}.pdf"
+ROW = re.compile(r"([A-Z][A-Za-z\.'\- ]*?(?:\s+(?:II|III|IV|Jr\.|Sr\.))?)\s*,\s*([A-Za-z\.'\-]+(?:\s[A-Za-z\.'\-]+)?)\s{2,}"
+                 r"(Out|Doubtful|Questionable|Probable|Available)\b")
 OFF = "Available (off the report)"
-LEVEL = {"Out": 3, "Suspension": 3, "Injured Reserve": 3, "Doubtful": 2, "Questionable": 1, "Day-To-Day": 1,
+LEVEL = {"Available": 0, "Out": 3, "Suspension": 3, "Injured Reserve": 3, "Doubtful": 2, "Questionable": 1, "Day-To-Day": 1,
          "Game Time Decision": 1, "Probable": 0, OFF: 0}
 
 
@@ -46,6 +51,94 @@ def _get(url: str, what: str) -> dict:
             return json.load(r)
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as e:
         raise SourceError(f"{what} failed: {type(e).__name__}") from None
+
+
+NBA_TEAMS = ("Atlanta Hawks", "Boston Celtics", "Brooklyn Nets", "Charlotte Hornets", "Chicago Bulls", "Cleveland Cavaliers",
+             "Dallas Mavericks", "Denver Nuggets", "Detroit Pistons", "Golden State Warriors", "Houston Rockets", "Indiana Pacers",
+             "LA Clippers", "Los Angeles Clippers", "Los Angeles Lakers", "Memphis Grizzlies", "Miami Heat", "Milwaukee Bucks",
+             "Minnesota Timberwolves", "New Orleans Pelicans", "New York Knicks", "Oklahoma City Thunder", "Orlando Magic",
+             "Philadelphia 76ers", "Phoenix Suns", "Portland Trail Blazers", "Sacramento Kings", "San Antonio Spurs",
+             "Toronto Raptors", "Utah Jazz", "Washington Wizards")
+TEAM_RE = re.compile("|".join(r"\s+".join(map(re.escape, t.split())) for t in NBA_TEAMS))
+
+
+def official_pdf_text(data: bytes) -> str:
+    import io
+
+    from pypdf import PdfReader
+    try:
+        r = PdfReader(io.BytesIO(data))
+        return "\n".join(pg.extract_text(extraction_mode="layout") or "" for pg in r.pages)
+    except Exception as e:     # a broken PDF is a source failure, said out loud
+        raise SourceError(f"official NBA injury report PDF could not be read ({type(e).__name__})") from None
+
+
+def parse_official(text: str) -> dict[str, str]:
+    """normalized 'First Last' -> status. The PDF lists 'Last, First'; a player listed for two games keeps the first."""
+    from engine.models.props import norm_name
+    out: dict[str, str] = {}
+    for line in text.splitlines():
+        line = TEAM_RE.sub("   ", line)            # the team column sometimes lands on the same line as a player
+        line = re.sub(r"\b\d{2}/\d{2}/\d{4}\b|\b\d{1,2}:\d{2}\s*\(ET\)|\b[A-Z]{2,3}@[A-Z]{2,3}\b", "   ", line)
+        line = re.sub(r"\s{2,}(?=[,])", "", line)
+        for last, first, status in ROW.findall(re.sub(r"(?<=\S) {2}(?=\S)", "  ", line)):
+            last = " ".join(last.split())
+            first = " ".join(first.split())
+            key = norm_name(f"{first} {last}")
+            out.setdefault(key, status)
+    return out
+
+
+def latest_official(now: datetime) -> tuple[str, dict[str, str]]:
+    """The newest official report: from the season index page, else stepping back 15 minutes at a time (Eastern)."""
+    from zoneinfo import ZoneInfo
+    et = now.astimezone(ZoneInfo("America/New_York"))
+    y = et.year if et.month >= 8 else et.year - 1
+    url = None
+    try:
+        with urllib.request.urlopen(urllib.request.Request(OFFICIAL_INDEX.format(y=y, y2=(y + 1) % 100),
+                                                           headers={"User-Agent": "Mozilla/5.0"}), timeout=45) as r:
+            links = re.findall(r"https://ak-static\.cms\.nba\.com/referee/injury/Injury-Report_[0-9_\-]+[AP]M\.pdf", r.read().decode("utf-8", "replace"))
+        url = links[-1] if links else None
+    except (urllib.error.URLError, TimeoutError):
+        url = None
+    tries = [url] if url else []
+    t = et.replace(minute=et.minute - et.minute % 15, second=0, microsecond=0)
+    for _ in range(12):
+        tries.append(OFFICIAL_PDF.format(d=f"{t:%Y-%m-%d}", hm=t.strftime("%I_%M%p")))
+        t -= timedelta(minutes=15)
+    for u in tries:
+        try:
+            with urllib.request.urlopen(urllib.request.Request(u, headers={"User-Agent": "Mozilla/5.0"}), timeout=45) as r:
+                data = r.read()
+        except (urllib.error.URLError, TimeoutError):
+            continue
+        if data[:4] == b"%PDF":
+            got = parse_official(official_pdf_text(data))
+            if not got:
+                raise SourceError(f"official NBA injury report had no player rows ({u.rsplit('/', 1)[-1]})")
+            return u, got
+    raise SourceError("official NBA injury report not found (index page and the last three hours of report times)")
+
+
+def check_official(con, now: datetime, url: str, statuses: dict[str, str], persist: bool = True) -> tuple[list[tuple], bool]:
+    """(name, old, new) changes since the last stored official report. Off the report = available."""
+    con.execute(SCHEMA)
+    prev = dict(con.execute("SELECT name, status FROM nba_official_status").fetchall())
+    first = not prev
+    changes = []
+    if not first:
+        for n, st in statuses.items():
+            if prev.get(n, "Available") != st:
+                changes.append((n, prev.get(n), st))
+        for n, st in prev.items():
+            if n not in statuses and st != "Available":
+                changes.append((n, st, OFF))
+    if persist:
+        con.execute("DELETE FROM nba_official_status")
+        con.executemany("INSERT INTO nba_official_status VALUES (?,?,?,?)",
+                        [(n, st, url.rsplit("/", 1)[-1], now.replace(tzinfo=None)) for n, st in statuses.items()])
+    return changes, first
 
 
 @dataclass
@@ -216,11 +309,62 @@ def lines_text(con, team: str, events: list, env: dict) -> str:
     return out
 
 
+@dataclass
+class Hit:
+    player: str
+    team: str            # anything espn.team_names understands (full name or abbreviation)
+    direction: str       # "out" or "in"
+    text: str
+    reason: str
+
+    def key(self, now: datetime) -> str:
+        # one message per player per direction per day, whichever source is first
+        from engine.models.props import norm_name
+        return f"nbaplay|{norm_name(self.player)}|{self.direction}|{now.astimezone(config.display_tz(config.load_config())):%Y-%m-%d}"
+
+
+def reporter_hits(posts: list, report: list[Listed], impact: dict[str, dict], playing: set[str], min_minutes: float,
+                  now: datetime, max_age_minutes: int = 90, star_minutes: float = 28, official: dict | None = None) -> list[Hit]:
+    """'Playing' matters when ESPN has him Out/Doubtful, or Questionable/Day-To-Day for a 28+ minute player;
+    'not playing' matters whenever ESPN does not already have him Out/Doubtful."""
+    """Rotoworld posts where a reporter says playing / not playing and ESPN's table does not show it yet."""
+    from engine.models.props import norm_name
+    from engine.picks import player_news
+    by_name = {norm_name(v["name"]): v for v in impact.values()}
+    espn_status = {norm_name(p.name): p.status for p in report}
+    listed_by = "ESPN"
+    if official:
+        espn_status = {n: ("Available (official report)" if st == "Available" else st) for n, st in official.items()}
+        listed_by = "the official report"
+    out = []
+    for p in posts:
+        sig = p.signal
+        if sig not in ("playing", "not playing") or (now - p.posted) > timedelta(minutes=max_age_minutes):
+            continue
+        n = norm_name(p.player)
+        imp = by_name.get(n)
+        if not imp or imp["games"] < 3 or imp["minutes"] < min_minutes or espn.norm(imp["team"]) not in playing:
+            continue
+        espn_now = espn_status.get(n, OFF)
+        level = 0 if espn_now.startswith("Available") else LEVEL.get(espn_now, 1)
+        star = imp["minutes"] >= star_minutes
+        if (sig == "playing" and (level >= 2 or (level == 1 and star))) or (sig == "not playing" and level <= 1):
+            who = (f"{p.team} {p.player} ({imp['minutes']:.0f} min, {imp['points']:.0f} pts, {imp['rebounds']:.0f} reb, "
+                   f"{imp['assists']:.0f} ast a game{', last season' if imp.get('last_season') else ''})")
+            espn_txt = f"not on {listed_by}" if espn_now == OFF else f"{listed_by} still lists {espn_now}"
+            if p.kind == "other" and not p.source_time:
+                continue      # unattributed items do not alert on their own
+            text = f"{who}\nReporter says {sig.upper()}; {espn_txt}.\n\"{p.headline}\"\n{player_news.credit(p, now)}"
+            out.append(Hit(p.player, imp["team"], "out" if sig == "not playing" else "in", text,
+                           f"{p.player} reported {sig} ({p.source_label}), {listed_by}: {espn_now}"))
+    return out
+
+
 def run(force: bool = False, send: bool = True) -> tuple[int, list[str]]:
     import duckdb
 
     from engine.alerts import rules
-    from engine.picks import agent
+    from engine.picks import agent, player_news
     from engine.poll import _deliver
 
     cfg, env = config.load_config(), config.load_env()
@@ -237,38 +381,83 @@ def run(force: bool = False, send: bool = True) -> tuple[int, list[str]]:
         playing |= espn.team_names(e.home) | espn.team_names(e.away)
     report = parse_report(_get(REPORT_URL, "ESPN NBA injury report"))
     impact = impact_with_last_season(_get(STATS_URL, "ESPN NBA player stats"))
+    min_minutes = w.get("min_minutes", 22)
     con = duckdb.connect(str(config.DB))
+    lines: list[str] = []
     try:
         changes, first = check(con, now, report, impact, persist=send)
+        # reporters first: Rotoworld posts every beat-writer and insider item minutes after the tweet
+        try:
+            if send:
+                posts, first_news = player_news.update(con, "NBA", now)
+            else:
+                seen = player_news.last_seen(con, "NBA")
+                posts, first_news = [p for p in player_news.fetch("NBA", seen) if seen is None or p.posted > seen], seen is None
+        except SourceError as e:
+            posts, first_news = [], False
+            lines.append(f"PROBLEM: {e}")
         if first:
-            return 0, ["NBA injury report stored as the baseline; changes are reported from the next run."]
-        hits = [c for c in changes if c.crosses() and c.matters(w.get("min_minutes", 22)) and espn.norm(c.player.team) in playing]
+            lines.append("NBA injury report stored as the baseline; changes are reported from the next run.")
+        if first_news:
+            lines.append("Rotoworld NBA news stored as the baseline; new posts are reported from the next run.")
+            posts = []
+        official, off_url, off_changes, off_first = {}, "", [], True
+        try:
+            off_url, official = latest_official(now)
+            off_changes, off_first = check_official(con, now, off_url, official, persist=send)
+        except SourceError as e:
+            lines.append(f"PROBLEM: {e}")
+        espn_hits = [c for c in changes if c.crosses() and c.matters(min_minutes) and espn.norm(c.player.team) in playing]
         ts = now.replace(tzinfo=None)
         for c in (changes if send else []):
             con.execute("INSERT INTO nba_injury_changes VALUES (?,?,?,?,?,?,?,?,?,?)",
                         [ts, c.player.key, c.player.team, c.player.name, c.old_status, c.new_status,
-                         (c.impact or {}).get("minutes"), (c.impact or {}).get("points"), c in hits, c.player.comment])
-        lines = [f"NBA injury report: {len(changes)} change(s), {len(hits)} that matter for tonight's or tomorrow's games."]
-        if not hits:
+                         (c.impact or {}).get("minutes"), (c.impact or {}).get("points"), c in espn_hits, c.player.comment])
+        hits = reporter_hits(posts, report, impact, playing, min_minutes, now, star_minutes=w.get("star_minutes", 28), official=official)
+        from engine.models.props import norm_name
+        by_name = {norm_name(v["name"]): v for v in impact.values()}
+        for name, old, new in ([] if off_first else off_changes):
+            imp = by_name.get(name)
+            o, nw = LEVEL.get(old or "Available", 1), LEVEL.get(new, 1)
+            if not imp or imp["games"] < 3 or imp["minutes"] < min_minutes or espn.norm(imp["team"]) not in playing or (o >= 2) == (nw >= 2):
+                continue
+            stamp = off_url.rsplit("_", 2)[-2:] if off_url else ""
+            when = f"{stamp[0].replace('_', ':')} {stamp[1][:2]} ET" if len(stamp) == 2 else ""
+            who = (f"{imp['team']} {imp['name']} ({imp['minutes']:.0f} min, {imp['points']:.0f} pts, {imp['rebounds']:.0f} reb, "
+                   f"{imp['assists']:.0f} ast a game{', last season' if imp.get('last_season') else ''})")
+            hits.append(Hit(imp["name"], imp["team"], "out" if nw >= 2 else "in",
+                            f"{who}\n{old or 'not on the report'} → {new}\n(official NBA injury report{', ' + when if when else ''})",
+                            f"{imp['name']} {old or 'not listed'} to {new} (official report)"))
+        hits += [Hit(c.player.name, c.player.team, "out" if LEVEL.get(c.new_status, 1) >= 2 else "in",
+                     c.text() + "\n(ESPN injury report)", f"{c.player.name} {c.old_status or 'not listed'} to {c.new_status}")
+                 for c in espn_hits]
+        fresh, keys = [], set()
+        for h in hits:
+            k = h.key(now)
+            if k in keys or con.execute("SELECT 1 FROM alerts_sent WHERE key = ?", [k]).fetchone():
+                continue
+            keys.add(k)
+            fresh.append(h)
+        lines.append(f"NBA: {len(off_changes)} official-report change(s), {len(changes)} ESPN change(s), {len(posts)} new reporter post(s); "
+                     f"{len(fresh)} new item(s) that matter for tonight's or tomorrow's games.")
+        if not fresh:
             return 0, lines
-        alerts = []
         can_read = book_reads_today(con, cfg, now) < w.get("max_book_reads_per_day", 12)
         if can_read and send:
-            con.execute("INSERT INTO nba_watch_reads VALUES (?,?)", [ts, "; ".join(c.player.name for c in hits)[:300]])
-        for c in hits:
-            extra = ""
+            con.execute("INSERT INTO nba_watch_reads VALUES (?,?)", [ts, "; ".join(h.player for h in fresh)[:300]])
+        alerts = []
+        for h in fresh:
             if can_read:
                 try:
-                    extra = lines_text(con, c.player.team, events, env)
+                    extra = lines_text(con, h.team, events, env)
                 except SourceError as e:
                     extra = f"\nLines could not be read: {e}"
             else:
                 extra = "\nDaily cap on extra Wagerhouse reads reached; the next hourly read will check the line."
-            alerts.append(rules.Alert(f"nbanews|{c.player.key}|{c.old_status}|{c.new_status}|{now:%Y-%m-%d}", "news",
-                                      "NBA NEWS, checking now (not a bet yet): " + c.text() + extra))
+            alerts.append(rules.Alert(h.key(now), "news", "NBA NEWS, checking now (not a bet yet): " + h.text + extra))
         if send:
             _deliver(con, env, alerts, now, lines)
-            reason = "NBA news: " + "; ".join(f"{c.player.name} {c.old_status or 'not listed'} to {c.new_status}" for c in hits)
+            reason = "NBA news: " + "; ".join(h.reason for h in fresh)
             if agent.cooled_down(con, now, w.get("cooldown_minutes", 20), sport="NBA"):
                 agent.spawn(reason[:300], "NBA")
                 lines.append(f"Started an NBA research run: {reason}")

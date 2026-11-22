@@ -78,6 +78,7 @@ nba_watch:
   start_hour: 9                # Mountain; NBA reports update through the afternoon and up to tip-off
   end_hour: 21
   min_minutes: 22              # a player matters if he averages this many minutes (3+ games this season)
+  star_minutes: 28             # a Questionable -> playing report matters only for players with this many minutes
   max_book_reads_per_day: 12   # extra Wagerhouse reads the watcher may make in a day
   cooldown_minutes: 20         # at most one NBA research run started by news in this window
 

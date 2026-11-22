@@ -352,6 +352,29 @@ def cmd_nba_watch(args) -> int:
     return code
 
 
+def cmd_reporters(args) -> int:
+    """Which listed reporters (ops/reporters.yaml) actually reached the engine through Rotoworld lately."""
+    import duckdb
+
+    from engine.picks import player_news
+
+    con = duckdb.connect(str(config.DB))
+    now = datetime.now(timezone.utc)
+    for sport in ("NFL", "NBA"):
+        try:
+            player_news.update(con, sport, now)
+        except Exception as e:
+            print(f"{sport}: Rotoworld read failed: {e}")
+        c = player_news.coverage(con, sport, now, args.days)
+        print(f"{sport}: {c['posts']} relayed posts in {args.days} days; by source: {c['by_kind']}. "
+              f"{c['listed_seen']} of {c['listed']} listed reporters seen.")
+        if c["top"]:
+            print("  most relayed: " + ", ".join(f"{n} ({k})" for n, k in c["top"]))
+        print(f"  not seen yet ({len(c['never_seen'])}): " + ", ".join(c["never_seen"][:40]) + (" ..." if len(c["never_seen"]) > 40 else ""))
+    con.close()
+    return 0
+
+
 def cmd_board(args) -> int:
     """Rebuild the picks page and open it in the browser."""
     import subprocess
@@ -474,6 +497,9 @@ def main(argv=None) -> int:
     a.add_argument("--force", action="store_true", help="run outside the watch hours")
     a.add_argument("--dry-run", action="store_true", help="print, do not message or start a research run")
     a.set_defaults(func=cmd_nba_watch)
+    a = sub.add_parser("reporters", help="which listed reporters reached the engine through Rotoworld lately")
+    a.add_argument("--days", type=int, default=7)
+    a.set_defaults(func=cmd_reporters)
     a = sub.add_parser("board", help="rebuild the picks page (board.html) and open it")
     a.add_argument("--no-open", action="store_true")
     a.set_defaults(func=cmd_board)

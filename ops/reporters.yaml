@@ -1,0 +1,168 @@
+# Reporters whose posts count as trusted availability news.
+# The engine cannot read X directly (paid API; pages need a login). It sees these reporters' posts when
+# Rotoworld relays them (the post links the original X post), and it tags each relayed post with the name below.
+# NFL team beat writers: Unabated, "Best NFL Twitter follows" (https://unabated.com/post/best-nfl-twitter-follows).
+# NBA team beat writers: "NBA Beat Writers for Every Team 26-27" (https://fiddlespicks.substack.com/p/nba-beat-writers-for-every-team-26),
+#   a third-party list; verify names if one looks wrong.
+# National insiders added by hand.
+NFL:
+  - {team: National, name: "Jeremy Fowler", handle: jfowlerespn, kind: insider}
+  - {team: National, name: "Mike Garafolo", handle: mikegarafolo, kind: insider}
+  - {team: "New York Giants", name: "Jordan Raanan", handle: jordanraanan, kind: beat}
+  - {team: National, name: "Tom Pelissero", handle: tompelissero, kind: insider}
+  - {team: "Arizona Cardinals", name: "Bo Brack", handle: bobrack, kind: beat}
+  - {team: "Arizona Cardinals", name: "Johnny Venerable", handle: johnnyvenerable, kind: beat}
+  - {team: "Arizona Cardinals", name: "Craig Grialou", handle: craigazsports, kind: beat}
+  - {team: "Atlanta Falcons", name: "Marc Raimondi", handle: marcraimondi, kind: beat}
+  - {team: "Atlanta Falcons", name: "Zach Klein", handle: zachkleinwsb, kind: beat}
+  - {team: "Atlanta Falcons", name: "Daniel Flick", handle: dorlandoajc, kind: beat}
+  - {team: "Baltimore Ravens", name: "Jeff Zrebiec", handle: jeffzrebiec, kind: beat}
+  - {team: "Baltimore Ravens", name: "Jamison Hensley", handle: jamisonhensley, kind: beat}
+  - {team: "Baltimore Ravens", name: "Jonas Shaffer", handle: jonas_shaffer, kind: beat}
+  - {team: "Buffalo Bills", name: "Joe Buscaglia", handle: joebuscaglia, kind: beat}
+  - {team: "Buffalo Bills", name: "Matt Parrino", handle: mattparrino, kind: beat}
+  - {team: "Buffalo Bills", name: "Jay Skurski", handle: jayskurski, kind: beat}
+  - {team: "Carolina Panthers", name: "Joe Person", handle: josephperson, kind: beat}
+  - {team: "Carolina Panthers", name: "Sheena Quick", handle: sheena_marie3, kind: beat}
+  - {team: "Chicago Bears", name: "Adam Jahns", handle: adamjahns, kind: beat}
+  - {team: "Chicago Bears", name: "Kevin Fishbain", handle: kfishbain, kind: beat}
+  - {team: "Cincinnati Bengals", name: "Ben Baby", handle: ben_baby, kind: beat}
+  - {team: "Cincinnati Bengals", name: "Paul Dehner Jr.", handle: pauldehnerjr, kind: beat}
+  - {team: "Cleveland Browns", name: "Mary Kay Cabot", handle: marykaycabot, kind: beat}
+  - {team: "Cleveland Browns", name: "Zac Jackson", handle: akronjackson, kind: beat}
+  - {team: "Dallas Cowboys", name: "Todd Archer", handle: toddarcher, kind: beat}
+  - {team: "Dallas Cowboys", name: "Tim Cowlishaw", handle: timcowlishaw, kind: beat}
+  - {team: "Dallas Cowboys", name: "David Moore", handle: davidmooredmn, kind: beat}
+  - {team: "Dallas Cowboys", name: "Calvin Watkins", handle: calvinwatkins, kind: beat}
+  - {team: "Denver Broncos", name: "Mike Klis", handle: mikeklis, kind: beat}
+  - {team: "Denver Broncos", name: "Troy Renck", handle: troyrenck, kind: beat}
+  - {team: "Denver Broncos", name: "Andrew Mason", handle: masedenver, kind: beat}
+  - {team: "Denver Broncos", name: "Chris Tomasson", handle: christomasson, kind: beat}
+  - {team: "Detroit Lions", name: "Dave Birkett", handle: davebirkett, kind: beat}
+  - {team: "Detroit Lions", name: "Justin Rogers", handle: justin_rogers, kind: beat}
+  - {team: "Green Bay Packers", name: "Tom Silverstein", handle: tomsilverstein, kind: beat}
+  - {team: "Green Bay Packers", name: "Rob Demovsky", handle: robdemovsky, kind: beat}
+  - {team: "Green Bay Packers", name: "Matt Schneidman", handle: mattschneidman, kind: beat}
+  - {team: "Houston Texans", name: "Jonathan M. Alexander", handle: jonmalexander, kind: beat}
+  - {team: "Indianapolis Colts", name: "Mike Chappell", handle: mchappell51, kind: beat}
+  - {team: "Indianapolis Colts", name: "Stephen Holder", handle: holderstephen, kind: beat}
+  - {team: "Jacksonville Jaguars", name: "Hays Carlyon", handle: hayscarlyon, kind: beat}
+  - {team: "Jacksonville Jaguars", name: "Demetrius Harvey", handle: demetrius82, kind: beat}
+  - {team: "Jacksonville Jaguars", name: "John Shipley", handle: _john_shipley, kind: beat}
+  - {team: "Kansas City Chiefs", name: "Matt Derrick", handle: mattderrick, kind: beat}
+  - {team: "Kansas City Chiefs", name: "Nate Taylor", handle: bynatetaylor, kind: beat}
+  - {team: "Kansas City Chiefs", name: "Ed Easton Jr.", handle: edeastonjr, kind: beat}
+  - {team: "Las Vegas Raiders", name: "Sam Gordon", handle: bysamgordon, kind: beat}
+  - {team: "Las Vegas Raiders", name: "Sam Warren", handle: samwarren83, kind: beat}
+  - {team: "Los Angeles Chargers", name: "Kris Rhim", handle: krisrhim1, kind: beat}
+  - {team: "Los Angeles Chargers", name: "Daniel Popper", handle: danielrpopper, kind: beat}
+  - {team: "Los Angeles Rams", name: "Jourdan Rodrigue", handle: jourdanrodrigue, kind: beat}
+  - {team: "Los Angeles Rams", name: "Gary Klein", handle: latimesklein, kind: beat}
+  - {team: "Miami Dolphins", name: "David Furones", handle: davidfurones_, kind: beat}
+  - {team: "Miami Dolphins", name: "Joe Schad", handle: schadjoe, kind: beat}
+  - {team: "Minnesota Vikings", name: "Arif Hasan", handle: arifhasannfl, kind: beat}
+  - {team: "Minnesota Vikings", name: "Lindsey Young", handle: lindseymnsports, kind: beat}
+  - {team: "New England Patriots", name: "Mike Reiss", handle: mikereiss, kind: beat}
+  - {team: "New England Patriots", name: "Phil Perry", handle: philaperry, kind: beat}
+  - {team: "New Orleans Saints", name: "Mike Triplett", handle: miketriplett, kind: beat}
+  - {team: "New Orleans Saints", name: "Katherine Terrell", handle: kat_terrell, kind: beat}
+  - {team: "New Orleans Saints", name: "Luke Johnson", handle: bylukejohnson, kind: beat}
+  - {team: "New York Giants", name: "Paul Schwartz", handle: nypost_schwartz, kind: beat}
+  - {team: "New York Giants", name: "Dan Duggan", handle: dduggan21, kind: beat}
+  - {team: "New York Giants", name: "Ryan Dunleavey", handle: rydunleavy, kind: beat}
+  - {team: "New York Jets", name: "Rich Cimini", handle: richcimini, kind: beat}
+  - {team: "New York Jets", name: "Brian Costello", handle: briancoz, kind: beat}
+  - {team: "Philadelphia Eagles", name: "Zach Berman", handle: zberm, kind: beat}
+  - {team: "Philadelphia Eagles", name: "Jeff McLane", handle: jeff_mclane, kind: beat}
+  - {team: "Philadelphia Eagles", name: "Jimmy Kempski", handle: jimmykempski, kind: beat}
+  - {team: "Philadelphia Eagles", name: "Brooks Kubena", handle: bkubena, kind: beat}
+  - {team: "Pittsburgh Steelers", name: "Mark Kaboly", handle: markkaboly, kind: beat}
+  - {team: "Pittsburgh Steelers", name: "Dale Lolley", handle: dlolley_pgh, kind: beat}
+  - {team: "San Francisco 49ers", name: "Vic Tafur", handle: victafur, kind: beat}
+  - {team: "San Francisco 49ers", name: "Eric Branch", handle: eric_branch, kind: beat}
+  - {team: "San Francisco 49ers", name: "David Lombardi", handle: lombardihimself, kind: beat}
+  - {team: "San Francisco 49ers", name: "Grant Cohn", handle: grantcohn, kind: beat}
+  - {team: "Seattle Seahawks", name: "Bob Condotta", handle: bcondotta, kind: beat}
+  - {team: "Seattle Seahawks", name: "Gregg Bell", handle: gbellseattle, kind: beat}
+  - {team: "Tampa Bay Buccaneers", name: "Greg Auman", handle: gregauman, kind: beat}
+  - {team: "Tampa Bay Buccaneers", name: "Rick Stroud", handle: nflstroud, kind: beat}
+  - {team: "Tampa Bay Buccaneers", name: "PewterReport", handle: pewterreport, kind: beat}
+  - {team: "Tennessee Titans", name: "Jim Wyatt", handle: jwyattsports, kind: beat}
+  - {team: "Tennessee Titans", name: "Terry McCormack", handle: terrymc13, kind: beat}
+  - {team: "Tennessee Titans", name: "Turron Davenport", handle: tdavenport_nfl, kind: beat}
+  - {team: "Washington Commanders", name: "Ben Standig", handle: benstandig, kind: beat}
+  - {team: "Washington Commanders", name: "John Keim", handle: john_keim, kind: beat}
+  - {team: "Washington Commanders", name: "Tashan Reed", handle: tashanreed, kind: beat}
+  - {team: "National", name: "Adam Schefter", handle: adamschefter, kind: insider}
+  - {team: "National", name: "Ian Rappaport", handle: rapsheet, kind: insider}
+NBA:
+  - {team: "New York Knicks", name: "James Edwards III", handle: jledwardsiii, kind: beat}
+  - {team: "Toronto Raptors", name: "Blake Murphy", handle: blakemurphyodc, kind: beat}
+  - {team: "Los Angeles Lakers", name: "Ky Carlin", handle: ky_carlin, kind: beat}
+  - {team: National, name: "Shams Charania", handle: shamscharania, kind: insider}
+  - {team: National, name: "Chris Haynes", handle: chrisbhaynes, kind: insider}
+  - {team: National, name: "Marc Stein", handle: thesteinline, kind: insider}
+  - {team: National, name: "Jake Fischer", handle: jakelfischer, kind: insider}
+  - {team: National, name: "Brian Windhorst", handle: windhorstespn, kind: insider}
+  - {team: National, name: "Underdog NBA", handle: underdognba, kind: insider}
+  - {team: National, name: "Underdog NBA", handle: underdog__nba, kind: insider}
+  - {team: National, name: "FantasyLabs NBA", handle: fantasylabsnba, kind: insider}
+  - {team: "Atlanta Hawks", name: "Kevin Chouinard", handle: klchouinard, kind: beat}
+  - {team: "Atlanta Hawks", name: "Lauren L. Williams", handle: williamslaurenl, kind: beat}
+  - {team: "Boston Celtics", name: "Jay King", handle: byjayking, kind: beat}
+  - {team: "Boston Celtics", name: "John Karalis", handle: john_karalis, kind: beat}
+  - {team: "Brooklyn Nets", name: "Erik Slater", handle: erikslater_, kind: beat}
+  - {team: "Brooklyn Nets", name: "Brian Lewis", handle: nypost_lewis, kind: beat}
+  - {team: "Charlotte Hornets", name: "Rod Boone", handle: rodboone, kind: beat}
+  - {team: "Charlotte Hornets", name: "James Plowright", handle: british_buzz, kind: beat}
+  - {team: "Chicago Bulls", name: "K.C. Johnson", handle: kcjhoop, kind: beat}
+  - {team: "Chicago Bulls", name: "Joel Lorenzi", handle: joelxlorenzi, kind: beat}
+  - {team: "Cleveland Cavaliers", name: "Chris Fedor", handle: chrisfedor, kind: beat}
+  - {team: "Cleveland Cavaliers", name: "Tony Pesta", handle: tony_pesta, kind: beat}
+  - {team: "Detroit Pistons", name: "Omari Sankofa II", handle: omarisankofa, kind: beat}
+  - {team: "Detroit Pistons", name: "Coty Davis", handle: cotydavis_24, kind: beat}
+  - {team: "Indiana Pacers", name: "Dustin Dopirak", handle: dustindopirak, kind: beat}
+  - {team: "Indiana Pacers", name: "Scott Agness", handle: scottagness, kind: beat}
+  - {team: "Miami Heat", name: "Anthony Chiang", handle: anthony_chiang, kind: beat}
+  - {team: "Miami Heat", name: "Ira Winderman", handle: iraheatbeat, kind: beat}
+  - {team: "Milwaukee Bucks", name: "eric_nehm", handle: eric_nehm, kind: beat}
+  - {team: "Milwaukee Bucks", name: "Frank Madden", handle: fmaddennba, kind: beat}
+  - {team: "New York Knicks", name: "Ian Begley", handle: ianbegley, kind: beat}
+  - {team: "New York Knicks", name: "Steve Popper", handle: stevepopper, kind: beat}
+  - {team: "Orlando Magic", name: "Jason Beede", handle: therealbeede, kind: beat}
+  - {team: "Philadelphia 76ers", name: "Keith Pompey", handle: pompeyonsixers, kind: beat}
+  - {team: "Philadelphia 76ers", name: "Kyle Neubeck", handle: kyleneubeck, kind: beat}
+  - {team: "Toronto Raptors", name: "Josh Lewenberg", handle: jlew1050, kind: beat}
+  - {team: "Toronto Raptors", name: "Michael Grange", handle: michaelgrange, kind: beat}
+  - {team: "Washington Wizards", name: "Josh Robbins", handle: joshuabrobbins, kind: beat}
+  - {team: "Washington Wizards", name: "Bijan Todd", handle: bijan_todd, kind: beat}
+  - {team: "Dallas Mavericks", name: "Grant Afseth", handle: grantafseth, kind: beat}
+  - {team: "Dallas Mavericks", name: "Mike Curtis", handle: mikeacurtis2, kind: beat}
+  - {team: "Denver Nuggets", name: "Bennett Durando", handle: bennettdurando, kind: beat}
+  - {team: "Denver Nuggets", name: "Rachel Strand", handle: milehighrachel, kind: beat}
+  - {team: "Golden State Warriors", name: "Anthony Slater", handle: anthonyvslater, kind: beat}
+  - {team: "Golden State Warriors", name: "Luca Evans", handle: bylucaevans, kind: beat}
+  - {team: "Houston Rockets", name: "Lachard Binkley", handle: binkleyhoops, kind: beat}
+  - {team: "Houston Rockets", name: "Will Guillory", handle: willguillory, kind: beat}
+  - {team: "Los Angeles Clippers", name: "Joey Linn", handle: joeylinn_, kind: beat}
+  - {team: "Los Angeles Clippers", name: "Law Murray", handle: lawmurraythenu, kind: beat}
+  - {team: "Los Angeles Clippers", name: "Tomer Azarly", handle: tomerazarly, kind: beat}
+  - {team: "Los Angeles Lakers", name: "Mike Trudell", handle: lakersreporter, kind: beat}
+  - {team: "Los Angeles Lakers", name: "Jovan Buha", handle: jovanbuha, kind: beat}
+  - {team: "Memphis Grizzlies", name: "Damichael Cole", handle: damichaelc, kind: beat}
+  - {team: "Memphis Grizzlies", name: "Drew Hill", handle: drewhill_dm, kind: beat}
+  - {team: "Minnesota Timberwolves", name: "Jon Krawczynski", handle: jonkrawczynski, kind: beat}
+  - {team: "Minnesota Timberwolves", name: "Sarah Todd", handle: nbasarah, kind: beat}
+  - {team: "New Orleans Pelicans", name: "Jim Eichenhofer", handle: jim_eichenhofer, kind: beat}
+  - {team: "New Orleans Pelicans", name: "Chris Dodson", handle: doingitdodson, kind: beat}
+  - {team: "Oklahoma City Thunder", name: "Brandon Rahbar", handle: brandonrahbar, kind: beat}
+  - {team: "Oklahoma City Thunder", name: "Rylan Stiles", handle: rylan_stiles, kind: beat}
+  - {team: "Phoenix Suns", name: "Duane Rankin", handle: duanerankin, kind: beat}
+  - {team: "Phoenix Suns", name: "Kellan Olson", handle: kellanolson, kind: beat}
+  - {team: "Portland Trail Blazers", name: "Jason Quick", handle: jwquick, kind: beat}
+  - {team: "Portland Trail Blazers", name: "Joe Freeman", handle: blazerfreeman, kind: beat}
+  - {team: "Sacramento Kings", name: "James Ham", handle: james_hamnba, kind: beat}
+  - {team: "Sacramento Kings", name: "Sean Cunningham", handle: seancunningham, kind: beat}
+  - {team: "San Antonio Spurs", name: "Jeff McDonald", handle: jmcdonald_saen, kind: beat}
+  - {team: "San Antonio Spurs", name: "Hector Ledesma", handle: hectorledesmatv, kind: beat}
+  - {team: "Utah Jazz", name: "Shreyas Laddha", handle: shre98, kind: beat}
