@@ -61,8 +61,8 @@ def run_claude(cfg, reason: str, day: str, sport: str) -> tuple[bool, str]:
     env = dict(os.environ)
     env["UV_PROJECT_ENVIRONMENT"] = str(config.ROOT / ".venv.nosync")
     env["PATH"] = f"{Path(claude).parent}:/opt/homebrew/bin:/usr/bin:/bin:" + env.get("PATH", "")
-    cmd = [claude, "-p", prompt, "--permission-mode", "acceptEdits", "--allowedTools",
-           "Read", "Write", "Edit", "Glob", "Grep", "WebSearch", "WebFetch", "Bash(uv run engine:*)"]
+    cmd = [claude, "-p", prompt, "--permission-mode", "default", "--allowedTools",
+           "Read", "Write(docs/cards/decisions/**)", "Edit(docs/cards/decisions/**)", "Edit(adjustments.yaml)", "Glob", "Grep", "WebSearch", "WebFetch", "Bash(uv run engine:*)"]
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     try:
         res = subprocess.run(cmd, cwd=str(config.ROOT), env=env, capture_output=True, text=True,

@@ -95,6 +95,7 @@ def build(sport: str = "NFL", now: datetime | None = None, days_ahead: int | Non
         raise ValueError(sport)
     cfg, env = config.load_config(), config.load_env()
     pc = cfg["picks"]
+    use_model = bool(pc.get("use_model_leg", False))
     now = now or datetime.now(timezone.utc)
     days_ahead = days_ahead or DAYS_AHEAD[sport]
     hfa = pc["home_field"][sport]
@@ -195,7 +196,10 @@ def build(sport: str = "NFL", now: datetime | None = None, days_ahead: int | Non
         if s and s.home_spread is not None and s.home_spread_price and s.away_spread_price and model is not None:
             p_home = no_vig(s.home_spread_price, s.away_spread_price)[0]
             sharp_fair = land_spread.fair_from_price(s.home_spread, p_home)
-            fair = pc["market_weight"] * sharp_fair + (1 - pc["market_weight"]) * model
+            if use_model:
+                fair = pc["market_weight"] * sharp_fair + (1 - pc["market_weight"]) * model
+            else:   # the model leg is a lagged copy of the market (docs/research/04-evaluation.md): Pinnacle plus sourced adjustments only
+                fair = sharp_fair - adj_pts
             m.update(pinnacle_line=s.home_spread, pinnacle_home_price=s.home_spread_price,
                      pinnacle_away_price=s.away_spread_price, pinnacle_fair=round(sharp_fair, 2), fair_line=round(fair, 2))
         if dkc and dkc.home_spread is not None:
@@ -216,7 +220,7 @@ def build(sport: str = "NFL", now: datetime | None = None, days_ahead: int | Non
                 model_edge = (b.home_spread - model) * sign
                 sides.append({"side": side, "pick": f"{team} {show(b.home_spread):+g}", "price": price, "value": round(val, 4),
                               "edge_points": round((b.home_spread - fair) * sign, 2), "win": round(win, 3), "push": round(push, 3),
-                              "numbers_say_bet": bool(is_bet and model_edge > 0),
+                              "numbers_say_bet": bool(is_bet and (model_edge > 0 or not use_model)),
                               "dont_bet_past": None if lim is None else f"{team} {show(lim):+g}", "limit_line": lim,
                               "model_agrees": model_edge > 0})
             m["sides"] = sides
@@ -232,7 +236,10 @@ def build(sport: str = "NFL", now: datetime | None = None, days_ahead: int | Non
         if s and s.total is not None and s.over_price and s.under_price and model_t is not None:
             p_over = no_vig(s.over_price, s.under_price)[0]
             sharp_t = land_total.fair_from_price(s.total, p_over)
-            fair_t = pc["market_weight"] * sharp_t + (1 - pc["market_weight"]) * model_t
+            if use_model:
+                fair_t = pc["market_weight"] * sharp_t + (1 - pc["market_weight"]) * model_t
+            else:
+                fair_t = sharp_t + adj_t
             mt.update(pinnacle_line=s.total, pinnacle_fair=round(sharp_t, 2), fair_line=round(fair_t, 2))
         if dkc and dkc.total is not None:
             mt["draftkings_line"], mt["draftkings_open"] = dkc.total, dk.open.total
@@ -251,7 +258,7 @@ def build(sport: str = "NFL", now: datetime | None = None, days_ahead: int | Non
                 sides.append({"side": side, "pick": f"{side.title()} {b.total:g}", "price": price, "value": round(val, 4),
                               "edge_points": round((fair_t - b.total) * sign, 2), "win": round(win, 3), "push": round(push, 3),
                               # no real totals model yet: a total needs a specific sourced adjustment (wind, QB, a star out)
-                              "numbers_say_bet": bool(is_bet and model_edge > 0 and adj_t != 0),
+                              "numbers_say_bet": bool(is_bet and (not use_model or (model_edge > 0 and adj_t != 0))),
                               "dont_bet_past": None if lim is None else f"{side.title()} {lim:g}", "limit_line": lim,
                               "model_agrees": model_edge > 0})
             mt["sides"] = sides

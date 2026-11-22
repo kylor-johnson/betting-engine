@@ -42,6 +42,7 @@ opener_messages: [NFL]     # sports that get a "your book posted new games" mess
 # Picks engine
 picks:
   home_field: {NFL: 1.7, College: 2.5, NBA: 2.2}
+  use_model_leg: false       # off: fair = Pinnacle plus sourced adjustments (test A, docs/research/04-evaluation.md); on: the old 55/45 blend
   market_weight: 0.55        # fair line = 55% Pinnacle (vig removed) + 45% our model (Peabody's blend)
   min_value: 0.02            # a bet needs at least +2% expected return at the book's current number
   max_units: 1               # cap until the engine has 100 graded picks
