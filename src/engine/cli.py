@@ -280,6 +280,33 @@ def cmd_spread_test(args) -> int:
     return 0
 
 
+def cmd_model_test(args) -> int:
+    """Walk-forward tests of the candidate models on seasons they never saw (docs/research/05-model-first-picks.md)."""
+    import json
+
+    if args.model == "wind":
+        from engine.models import wind_totals
+        r = wind_totals.run(forecast_check=True)
+        b, k = r["fit_all_before_2019"]
+        print(f"{r['games_with_weather']} outdoor games with weather. Fitted on 2010-2018: {b:+.3f} points per mph above {k:g} mph.")
+        h = r["held_out"]
+        print(f"Held out 2019 on ({h['games']} games): average squared miss, close {h['mse_close']}, close plus wind {h['mse_model']}.")
+        for x in h["records"]:
+            print(f"  Unders where the model is {x['threshold']:g}+ below the close: {x['won']}-{x['lost']} ({100 * (x['win_rate'] or 0):.1f}%; break-even 52.4%), {x['units_at_110']:+} units")
+        for s in h["per_season"]:
+            x = s["under_1"]
+            print(f"  {s['season']}: {x['won']}-{x['lost']}")
+        if "forecast_vs_reanalysis" in r:
+            f = r["forecast_vs_reanalysis"]
+            print(f"Day-before forecast vs actual wind, {f['games']} games since 2024: off by {f['mean_abs_gap_mph']} mph on average, correlation {f['correlation']}.")
+            for x in r["held_out_with_forecast"]["records"]:
+                print(f"  Using the forecast, {x['threshold']:g}+: {x['won']}-{x['lost']}, {x['units_at_110']:+} units")
+    elif args.model == "first-half":
+        from engine.models import first_half
+        print(json.dumps(first_half.run(), indent=1))
+    return 0
+
+
 def cmd_board(args) -> int:
     """Rebuild the picks page and open it in the browser."""
     import subprocess
@@ -391,6 +418,9 @@ def main(argv=None) -> int:
     a.set_defaults(func=cmd_matchup)
     a = sub.add_parser("spread-test", help="test the engine's own NFL power number against closing spreads")
     a.set_defaults(func=cmd_spread_test)
+    a = sub.add_parser("model-test", help="walk-forward test of a candidate model: wind or first-half")
+    a.add_argument("model", choices=["wind", "first-half"])
+    a.set_defaults(func=cmd_model_test)
     a = sub.add_parser("board", help="rebuild the picks page (board.html) and open it")
     a.add_argument("--no-open", action="store_true")
     a.set_defaults(func=cmd_board)

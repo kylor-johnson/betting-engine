@@ -155,6 +155,7 @@ def build(sport: str = "NFL", now: datetime | None = None, days_ahead: int | Non
         except (SourceError, ValueError) as ex:
             problems.append(f"Matchup numbers unavailable: {ex}")
 
+    wind_cfg = (cfg.get("models") or {}).get("wind_totals") or {}
     games = []
     for e in listed:
         home, away = e.home["displayName"], e.away["displayName"]
@@ -229,6 +230,7 @@ def build(sport: str = "NFL", now: datetime | None = None, days_ahead: int | Non
         # ---- total
         rating_total = (hist.avg_total + hist.total_tendency[hk] + hist.total_tendency[ak]) if rated and hist.avg_total is not None else None
         adj_t = sum(float(a["points"]) for a in my_adj if a["market"] == "total")
+        wind = wind_adjustment(sport, e, now, wind_cfg, problems)
         model_t = None if rating_total is None else rating_total + adj_t
         mt = {"market": "total", "rating_line": None if rating_total is None else round(rating_total, 2),
               "adjustment_points": adj_t, "model_line": None if model_t is None else round(model_t, 2), "fair_line": None}
@@ -240,7 +242,12 @@ def build(sport: str = "NFL", now: datetime | None = None, days_ahead: int | Non
                 fair_t = pc["market_weight"] * sharp_t + (1 - pc["market_weight"]) * model_t
             else:
                 fair_t = sharp_t + adj_t
+            fair_t_no_model = fair_t
+            if wind and wind["used"]:
+                fair_t += wind["points"]
             mt.update(pinnacle_line=s.total, pinnacle_fair=round(sharp_t, 2), fair_line=round(fair_t, 2))
+        if wind:
+            mt["wind_model"] = wind
         if dkc and dkc.total is not None:
             mt["draftkings_line"], mt["draftkings_open"] = dkc.total, dk.open.total
         if b.total is not None:
@@ -252,6 +259,7 @@ def build(sport: str = "NFL", now: datetime | None = None, days_ahead: int | Non
                     continue
                 val = land_total.value(fair_t, b.total, side, price)
                 is_bet, lim = land_total.limit(fair_t, b.total, side, price, pc["min_value"])
+                bet_without_model, _ = land_total.limit(fair_t_no_model, b.total, side, price, pc["min_value"])
                 win, push, _ = land_total.probs(fair_t, b.total, side)
                 sign = 1 if side == "over" else -1
                 model_edge = (model_t - b.total) * sign
@@ -261,6 +269,9 @@ def build(sport: str = "NFL", now: datetime | None = None, days_ahead: int | Non
                               "numbers_say_bet": bool(is_bet and (not use_model or (model_edge > 0 and adj_t != 0))),
                               "dont_bet_past": None if lim is None else f"{side.title()} {lim:g}", "limit_line": lim,
                               "model_agrees": model_edge > 0})
+                if wind and wind["used"] and is_bet and not bet_without_model:
+                    sides[-1].update(model="wind", max_status=wind_cfg.get("max_status", "Conditional"),
+                                     model_says=f"Wind model: {wind['wind_mph']:g} mph forecast at kickoff, total {wind['points']:+.1f} points.")
             mt["sides"] = sides
         if eff is not None:
             hn, an = to_nflverse.get(e.home["abbreviation"], e.home["abbreviation"]), to_nflverse.get(e.away["abbreviation"], e.away["abbreviation"])
@@ -293,6 +304,27 @@ def build(sport: str = "NFL", now: datetime | None = None, days_ahead: int | Non
             "settings": {"home_field": hfa, "market_weight": pc["market_weight"], "min_value": pc["min_value"],
                          "games_behind_ratings": hist.games_used, "games_not_posted_at_book": not_posted, "history_note": hist.note},
             "problems": problems, "games": games, "adjustments_used": adjustments}
+
+
+def wind_adjustment(sport: str, e, now: datetime, wc: dict, problems: list[str]) -> dict | None:
+    """The wind totals model (docs/decisions/0005): forecast wind at an open-air NFL stadium, turned into points."""
+    if sport != "NFL" or not wc.get("enabled") or e.neutral:
+        return None
+    from engine.models import weather, wind_totals
+    st = weather.HOME_STADIUM.get(e.home.get("abbreviation"))
+    if st is None:
+        return None
+    try:
+        fc = weather.forecast_at(st, e.start)
+    except SourceError as ex:
+        problems.append(f"Wind forecast unavailable for {e.away['displayName']} at {e.home['displayName']}: {ex}")
+        return None
+    lead = (e.start - now).total_seconds() / 3600
+    wind = max(0.0, fc["wind_mph"] - float(wc.get("forecast_bias_mph", 0)))
+    pts = float(wc.get("scale", 1.0)) * wind_totals.adjustment(wind, float(wc["slope"]), float(wc["knot"]))
+    used = lead <= float(wc.get("max_lead_hours", 60)) and pts <= -float(wc.get("min_points", 1.0))
+    return {"wind_mph": fc["wind_mph"], "temp_f": fc["temp_f"], "precip_mm": fc["precip_mm"], "points": round(pts, 2),
+            "used": used, "hours_to_kickoff": round(lead, 1), "source": "Open-Meteo forecast"}
 
 
 def build_nfl(now: datetime | None = None, days_ahead: int = 8) -> dict:

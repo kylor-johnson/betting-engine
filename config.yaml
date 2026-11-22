@@ -50,6 +50,19 @@ picks:
   max_flagged: 12            # at most this many sides per sport go to research (strongest first)
   nba_back_to_back: -1.2     # points for the second night of a back-to-back
 
+# Models that passed a walk-forward test on seasons they never saw (docs/decisions/0005).
+# Each one moves the fair line in code; none is typed by the agent.
+models:
+  wind_totals:                 # docs/research/05-model-first-picks.md
+    enabled: true
+    slope: -0.319              # points of total per mph above the knot (fitted on 2010-2025)
+    scale: 0.5                 # use half the fitted size: full size made squared error worse on 2024-2026
+    knot: 6.0                  # mph (stadium reanalysis wind, first three hours of the game)
+    forecast_bias_mph: 0.75    # day-before forecasts ran this much windier than the reanalysis (2024-2026)
+    max_lead_hours: 60         # further out than this the forecast is shown, not used
+    min_points: 1.0            # smaller adjustments are shown, not used
+    max_status: Conditional    # weaker since 2024 (74-62 on Unders, size already partly priced), so half a unit at most
+
 # Research agent (a headless Claude run on this Mac)
 agent:
   claude_path: /Users/kylorjohnson/.nvm/versions/node/v25.2.1/bin/claude

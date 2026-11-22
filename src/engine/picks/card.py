@@ -80,6 +80,10 @@ def build(sheet: dict, decisions: dict, note: str, cfg: dict, strict: bool = Tru
                         downgraded = (f"Value gone: your book is now {s['pick']} ({int(s['price']):+d}), "
                                       f"which no longer clears the bar. Would be a bet again at {s['dont_bet_past'] or 'no nearby number'}.")
                         d = {**d, "status": "Pass", "why_pass": downgraded}
+                if d["status"] == "Bet" and s.get("max_status") == "Conditional":
+                    if strict:
+                        raise SourceError(f"refused: Bet on {s['pick']} ({g['game']}); the {s.get('model')} model allows a Conditional at most")
+                    d = {**d, "status": "Conditional", "condition": d.get("condition") or "Forecast still windy two hours before kickoff."}
                 units = {"Bet": pc["max_units"], "Conditional": pc["conditional_units"], "Pass": 0}[d["status"]]
                 rec = {"game": g["game"], "kick": kick, "market": m["market"], "pick": s["pick"], "price": s["price"],
                        "status": d["status"], "units": units, "dollars": units * unit, "value": s["value"],
@@ -142,8 +146,16 @@ def build(sheet: dict, decisions: dict, note: str, cfg: dict, strict: bool = Tru
         out.append(f"| {g['game']} | {_fmt(sp['rating_line'])} | {_fmt(sp['public_systems_line'])} | {_fmt(-sp['adjustment_points']) if sp['adjustment_points'] else '0'} | "
                    f"{_fmt(sp['model_line'])} | {_fmt(sp.get('pinnacle_line'))} | {_fmt(sp['fair_line'])} | {_fmt(sp.get('book_line'))} | "
                    f"{_fmt(sp.get('draftkings_open'))} → {_fmt(sp.get('draftkings_line'))} |")
-    out += ["", "Totals are not picked from ratings alone in this version. A total needs a specific, sourced reason "
-            "(wind, a quarterback change, a star ruled out) entered as an adjustment.", ""]
+    winds = [(g["game"], m["wind_model"]) for g in sheet["games"] for m in g["markets"] if m.get("wind_model")]
+    if winds:
+        out += ["", "## Wind model (open-air stadiums)", "",
+                "Forecast wind over the first three hours, and what the tested wind model takes off the total. "
+                "It is used only within 60 hours of kickoff and at 1 point or more; it can make a Conditional, not a Bet.", "",
+                "| Game | Wind (mph) | Temp (F) | Rain (mm) | Total change | Used |", "|---|---|---|---|---|---|"]
+        for game, w in winds:
+            out.append(f"| {game} | {w['wind_mph']:g} | {_fmt(w['temp_f'], False)} | {_fmt(w['precip_mm'], False)} | {w['points']:+.1f} | {'yes' if w['used'] else 'no'} |")
+    out += ["", "Totals are picked only from a tested model (wind) or a specific, sourced reason "
+            "(a quarterback change, a star ruled out) entered as an adjustment.", ""]
     if sheet.get("settings", {}).get("history_note"):
         out += [sheet["settings"]["history_note"], ""]
     auto = [f"- {a['game']}: {a['team']} {float(a['points']):+g} points. {a['reason']}" for g in sheet["games"] for a in g.get("adjustments", []) if a.get("source") == "schedule"]
