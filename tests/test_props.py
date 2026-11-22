@@ -54,7 +54,7 @@ def _graded(rows):
     con = duckdb.connect()
     con.execute(props.SCHEMA)
     for i, (mp, qp, outcome) in enumerate(rows):
-        con.execute("INSERT INTO prop_evals VALUES (?, 'S', 'A', 'H', 'P', ?, 'T', 'receptions', 4.5, -110, -110, ?, ?, 4, 4, 2026, 11, ?, ?, NULL)",
+        con.execute("INSERT INTO prop_evals VALUES (?, 'S', 'A', 'H', 'P', ?, 'T', 'receptions', 4.5, -110, -110, ?, ?, 4, 4, 2026, 11, ?, ?, NULL, 'NFL')",
                     [datetime(2026, 11, 22), f"p{i}", mp, qp, outcome, datetime(2026, 11, 23)])
     return con
 

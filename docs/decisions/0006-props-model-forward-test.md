@@ -8,3 +8,5 @@ Date: 2026-11-22. Kylor asked for the player props model next.
 - The props sheet (`docs/cards/<date>-nfl-props.md`) says "testing, not bets" at the top until then. Props are never sent by Telegram while testing.
 
 **Why.** The locked rule says a model drives picks only after it beats the market out of sample. No free history of prop lines exists, so the held-out test can only show that the model is accurate and honest about its probabilities. It shows both (`docs/research/06-props-model.md`). Beating the market has to be shown from now on.
+
+**Amended 2026-11-22: NBA.** The NBA props model (`src/engine/models/nba_props.py`, `docs/research/08-nba-props-model.md`) runs under the same rule with its own scorecard: 300 graded NBA props, a blend with Pinnacle that lowers error, and 5%+ disagreements that won money. The scorecard also reports Overs and Unders separately and the model's average lean, because the first live comparison leaned Under on every stat. A lean that only wins on one side for a while is still checked against the full rule.

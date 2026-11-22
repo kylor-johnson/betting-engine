@@ -316,6 +316,19 @@ def cmd_props(args) -> int:
     now = datetime.now(timezone.utc)
     cfg = config.load_config()
     pc = (cfg.get("models") or {}).get("props") or {}
+    if args.sport == "NBA":
+        from engine.models import nba_props
+        con = duckdb.connect(str(config.DB))
+        m = nba_props.NbaModel(now)
+        rows = nba_props.evaluate_logged(con, m, now)
+        graded = nba_props.grade(con)
+        sc = props.scorecard(con, pc.get("edge", 0.05), sport="NBA")
+        path = props.write_sheet(rows, sc, pc, m, now, sport="NBA", about=nba_props.ABOUT, kinds=nba_props.KIND)
+        con.close()
+        print(f"Props sheet: {path}")
+        print(f"Priced {len(rows)} NBA props from the latest Pinnacle read (box scores through {m.through}); graded {graded} new.")
+        print(props.gate_line(sc, pc))
+        return 0
     m = props.Model(now.year if now.month >= 3 else now.year - 1)
     con = duckdb.connect(str(config.DB))
     rows = props.evaluate_logged(con, m, now)
@@ -326,6 +339,26 @@ def cmd_props(args) -> int:
     print(f"Props sheet: {path}")
     print(f"Priced {len(rows)} props from the latest Pinnacle read (stats through week {m.through_week}); graded {graded} new.")
     print(props.gate_line(sc, pc))
+    return 0
+
+
+def cmd_nba_history(args) -> int:
+    """Download (or top up) NBA box scores and closing lines from ESPN, for the NBA props model."""
+    from engine.models import nba_data
+
+    n = nba_data.download()
+    print(f"Fetched {n} new NBA games; {len(nba_data.load())} on disk.")
+    return 0
+
+
+def cmd_nba_props_test(args) -> int:
+    """Held-out test of the NBA props model, with and without the minutes/injury terms."""
+    from engine.models import nba_props
+
+    for stat, v in nba_props.backtest().items():
+        print(f"{stat}: {v['base']['player_games']} player-games. Probability score: plain average {v['plain']['brier']}, "
+              f"base {v['base']['brier']}, with news {v['news']['brier']}; on games news changed ({v['news_when_news']['player_games']}): "
+              f"{v['base_when_news']['brier']} -> {v['news_when_news']['brier']}. Latest fit: {list(v['params'].values())[-1] if v['params'] else ''}")
     return 0
 
 
@@ -489,8 +522,13 @@ def main(argv=None) -> int:
     a = sub.add_parser("model-test", help="walk-forward test of a candidate model: wind or first-half")
     a.add_argument("model", choices=["wind", "first-half"])
     a.set_defaults(func=cmd_model_test)
-    a = sub.add_parser("props", help="props model vs Pinnacle's NFL props: price, grade, write the testing sheet")
+    a = sub.add_parser("props", help="props model vs Pinnacle's props: price, grade, write the testing sheet")
+    a.add_argument("--sport", choices=["NFL", "NBA"], default="NFL")
     a.set_defaults(func=cmd_props)
+    a = sub.add_parser("nba-history", help="download or top up NBA box scores and closing lines (ESPN)")
+    a.set_defaults(func=cmd_nba_history)
+    a = sub.add_parser("nba-props-test", help="held-out test of the NBA props model")
+    a.set_defaults(func=cmd_nba_props_test)
     a = sub.add_parser("props-test", help="held-out test of the props model")
     a.set_defaults(func=cmd_props_test)
     a = sub.add_parser("nba-watch", help="NBA injury watcher (launchd runs it every 10 minutes)")

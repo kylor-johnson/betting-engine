@@ -512,18 +512,19 @@ CREATE TABLE IF NOT EXISTS prop_evals (
   model_median DOUBLE, projection DOUBLE, season INTEGER, through_week INTEGER,
   outcome DOUBLE, graded_utc TIMESTAMP);
 ALTER TABLE prop_evals ADD COLUMN IF NOT EXISTS news VARCHAR;
+ALTER TABLE prop_evals ADD COLUMN IF NOT EXISTS sport VARCHAR;
 """
 
 
-def game_implied(away: str, home: str, at, con) -> tuple[float, float] | None:
+def game_implied(away: str, home: str, at, con, sport: str = "NFL") -> tuple[float, float] | None:
     """(away, home) implied points from Pinnacle's game line logged at or before `at` (home_spread < 0 = home favored)."""
     if not _has(con, "line_snapshots"):
         return None
     row = con.execute("""
         SELECT home_spread, total FROM line_snapshots
-        WHERE lower(source) = 'pinnacle' AND sport = 'NFL' AND home_spread IS NOT NULL AND total IS NOT NULL
+        WHERE lower(source) = 'pinnacle' AND sport = ? AND home_spread IS NOT NULL AND total IS NOT NULL
           AND lower(home) = lower(?) AND lower(away) = lower(?) AND ts_utc <= ?
-        ORDER BY ts_utc DESC LIMIT 1""", [home, away, at]).fetchone()
+        ORDER BY ts_utc DESC LIMIT 1""", [sport, home, away, at]).fetchone()
     if row is None:
         return None
     hs, tot = row
@@ -582,8 +583,8 @@ def _evaluate(con, model: Model, rows, now: datetime, injuries: "Injuries | None
         out.append(rec)
         con.execute("DELETE FROM prop_evals WHERE ts_utc = ? AND player_id = ? AND stat = ? AND line = ?", [ts, pid, stat, line])
         con.execute("""INSERT INTO prop_evals (ts_utc, start_utc, away, home, player, player_id, team, stat, line, over_price,
-                       under_price, market_p_over, model_p_over, model_median, projection, season, through_week, news)
-                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                       under_price, market_p_over, model_p_over, model_median, projection, season, through_week, news, sport)
+                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'NFL')""",
                     [ts, start, away, home, player, pid, team, stat, line, po, pu, rec["market_p_over"], rec["model_p_over"],
                      rec["model_median"], rec["projection"], model.season, model.through_week, rec["news"]])
     return out
@@ -606,7 +607,7 @@ def grade(con, season: int) -> int:
     """Fill in outcomes from nflverse player stats once the game's stats are posted. A player with no stats row
     for that game did not play: the prop is void and stays ungraded."""
     con.execute(SCHEMA)
-    open_rows = con.execute("SELECT DISTINCT player_id, stat, start_utc FROM prop_evals WHERE outcome IS NULL").fetchall()
+    open_rows = con.execute("SELECT DISTINCT player_id, stat, start_utc FROM prop_evals WHERE outcome IS NULL AND coalesce(sport, 'NFL') = 'NFL'").fetchall()
     if not open_rows:
         return 0
     f = stats_file(season, True)
@@ -633,13 +634,13 @@ def grade(con, season: int) -> int:
     return n
 
 
-def scorecard(con, edge: float = 0.05) -> dict:
+def scorecard(con, edge: float = 0.05, sport: str = "NFL") -> dict:
     """Model against Pinnacle on graded props, using each prop's last read before kickoff."""
     con.execute(SCHEMA)
     rows = con.execute("""
         SELECT line, over_price, under_price, market_p_over, model_p_over, outcome FROM (
           SELECT *, row_number() OVER (PARTITION BY player_id, stat, start_utc ORDER BY ts_utc DESC) AS rn
-          FROM prop_evals WHERE outcome IS NOT NULL) WHERE rn = 1 AND outcome <> line""").fetchall()
+          FROM prop_evals WHERE outcome IS NOT NULL AND coalesce(sport, 'NFL') = ?) WHERE rn = 1 AND outcome <> line""", [sport]).fetchall()
     n = len(rows)
     if n == 0:
         return {"graded": 0}
@@ -651,13 +652,20 @@ def scorecard(con, edge: float = 0.05) -> dict:
     res["best_weight_on_model"] = best[1]
     w = lo = 0
     units = 0.0
+    by_side = {"over": [0, 0, 0.0], "under": [0, 0, 0.0]}
     for l, po, pu, m, q, o in rows:
         for side, p, price in (("over", q, po), ("under", 1 - q, pu)):
             if p - implied_prob(price) >= edge:
                 won = (o > l) if side == "over" else (o < l)
-                w, lo = w + won, lo + (not won)
-                units += (100 / -price if price < 0 else price / 100) if won else -1
-    res["model_edge_bets"] = {"edge": edge, "won": w, "lost": lo, "units": round(units, 1)}
+                u = (100 / -price if price < 0 else price / 100) if won else -1
+                w, lo, units = w + won, lo + (not won), units + u
+                by_side[side][0] += won
+                by_side[side][1] += not won
+                by_side[side][2] += u
+    res["model_edge_bets"] = {"edge": edge, "won": w, "lost": lo, "units": round(units, 1),
+                              "by_side": {k: {"won": a, "lost": b, "units": round(c, 1)} for k, (a, b, c) in by_side.items()}}
+    # does the model lean one way against the market? (a lean that loses is a bias, not an edge)
+    res["avg_lean_to_over"] = round(sum(q - m for _, _, _, m, q, _ in rows) / n, 4)
     return res
 
 
@@ -670,8 +678,11 @@ def gate_line(sc: dict, pc: dict) -> str:
     e = sc["model_edge_bets"]
     ok = sc["best_weight_on_model"] > 0 and e["units"] > 0
     verdict = "PASSED: props may be Conditionals" if ok else "NOT PASSED: props stay testing only"
+    bs = e.get("by_side", {})
+    sides = "; ".join(f"{k}s {v['won']}-{v['lost']} ({v['units']:+} u)" for k, v in bs.items() if v["won"] + v["lost"])
     return (f"{verdict}. {n} graded; error with Pinnacle alone {sc['logloss_pinnacle']}, model {sc['logloss_model']}, "
-            f"best weight on the model {sc['best_weight_on_model']:.0%}; the model's {e['edge']:.0%}+ disagreements went {e['won']}-{e['lost']} ({e['units']:+} units).")
+            f"best weight on the model {sc['best_weight_on_model']:.0%}; the model's {e['edge']:.0%}+ disagreements went {e['won']}-{e['lost']} "
+            f"({e['units']:+} units{'; ' + sides if sides else ''}).")
 
 
 def passes_gate(sc: dict, pc: dict) -> bool:
@@ -679,19 +690,21 @@ def passes_gate(sc: dict, pc: dict) -> bool:
             and sc["model_edge_bets"]["units"] > 0)
 
 
-def write_sheet(rows: list[dict], sc: dict, pc: dict, model: Model, now: datetime) -> Path:
+def write_sheet(rows: list[dict], sc: dict, pc: dict, model, now: datetime, sport: str = "NFL",
+                about: str | None = None, kinds: dict | None = None) -> Path:
     from zoneinfo import ZoneInfo
     tz = ZoneInfo("America/Denver")
     local = now.astimezone(tz)
     edge = pc.get("edge", 0.05)
-    out = [f"# NFL props: model against Pinnacle ({local:%a %b %-d, %-I:%M %p} MT)", "",
-           f"**{gate_line(sc, pc)}**", "",
-           "These are not bets. The model projects each player from his recent games and his team's expected points "
-           f"(stats through week {model.through_week}), with today's ESPN injury report: teammates listed Out or Doubtful "
+    kinds = kinds or KIND
+    about = about or ("These are not bets. The model projects each player from his recent games and his team's expected points "
+           f"(stats through week {model.through_week}), with today's injury report and reporter news: teammates listed Out or Doubtful "
            "hand their share to the rest, a role that changed in the last two games counts, and Questionable players are "
            "trimmed. Players listed Out or Doubtful themselves are not priced. It still cannot see a coach's plan, a "
            "new signing or late inactives, so a big disagreement can still be news it missed. "
-           "Every prop is graded after the game to find out whether the model knows anything Pinnacle does not.", ""]
+           "Every prop is graded after the game to find out whether the model knows anything Pinnacle does not.")
+    out = [f"# {sport} props: model against Pinnacle ({local:%a %b %-d, %-I:%M %p} MT)", "",
+           f"**{gate_line(sc, pc)}**", "", about, ""]
     lean = []
     for r in rows:
         for side, p, price in (("Over", r["model_p_over"], r["over_price"]), ("Under", 1 - r["model_p_over"], r["under_price"])):
@@ -707,7 +720,7 @@ def write_sheet(rows: list[dict], sc: dict, pc: dict, model: Model, now: datetim
             mp = r["market_p_over"] if side == "Over" else 1 - r["market_p_over"]
             med = r["model_median"]
             out.append(f"| {kick:%a %-I:%M %p} | {r['player']} | {side} {r['line']:g} {r['label'].lower()} | {int(price):+d} | "
-                       f"{p:.0%} | {mp:.0%} | {med:.0f} | {r.get('news') or ''} |" if KIND[r["stat"]] == "yards" else
+                       f"{p:.0%} | {mp:.0%} | {med:.0f} | {r.get('news') or ''} |" if kinds[r["stat"]] == "yards" else
                        f"| {kick:%a %-I:%M %p} | {r['player']} | {side} {r['line']:g} {r['label'].lower()} | {int(price):+d} | "
                        f"{p:.0%} | {mp:.0%} | {med:g} | {r.get('news') or ''} |")
     else:
@@ -715,6 +728,6 @@ def write_sheet(rows: list[dict], sc: dict, pc: dict, model: Model, now: datetim
     out += ["", f"{len(rows)} props priced; {len(lean)} disagreements at 5% or more.", ""]
     d = config.ROOT / "docs" / "cards"
     d.mkdir(parents=True, exist_ok=True)
-    path = d / f"{local:%Y-%m-%d}-nfl-props.md"
+    path = d / f"{local:%Y-%m-%d}-{sport.lower()}-props.md"
     path.write_text("\n".join(out))
     return path

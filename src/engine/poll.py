@@ -121,6 +121,15 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
                 out.append(f"Props model priced {len(priced)} Pinnacle props, graded {graded}.")
         except Exception as e:
             problems.append(f"Props model failed: {type(e).__name__}: {e}")
+        try:   # NBA props model: same forward test, its own scorecard (decision 0006)
+            if ((cfg.get("models") or {}).get("props") or {}).get("nba_enabled"):
+                from engine.models import nba_props
+                nm = nba_props.NbaModel(now)
+                priced = nba_props.evaluate_logged(con, nm, now)
+                graded = nba_props.grade(con)
+                out.append(f"NBA props model priced {len(priced)} Pinnacle props, graded {graded}.")
+        except Exception as e:
+            problems.append(f"NBA props model failed: {type(e).__name__}: {e}")
         try:   # grade finished engine picks as games end; a failure is reported, never silent
             from engine.picks import grade
             for gl in grade.run(cfg, con):

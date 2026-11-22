@@ -65,6 +65,7 @@ models:
 
   props:                       # docs/research/06-props-model.md, decision 0006
     enabled: true              # price and grade Pinnacle's NFL props every read (testing only)
+    nba_enabled: true          # same for NBA props (src/engine/models/nba_props.py), its own scorecard and gate
     min_graded: 300            # before any prop can be a pick: this many graded props...
     edge: 0.05                 # ...and the model's 5%+ disagreements with the price must have won money,
                                # and blending the model into Pinnacle must lower the error (best weight above 0)
