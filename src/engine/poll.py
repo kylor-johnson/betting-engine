@@ -105,6 +105,13 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
             out.append(f"Logged {len(drows)} period, team-total and prop rows.")
         except Exception as e:
             problems.append(f"Period/team-total/prop logging failed: {type(e).__name__}: {e}")
+        try:   # grade finished engine picks as games end; a failure is reported, never silent
+            from engine.picks import grade
+            for gl in grade.run(cfg, con):
+                if gl.startswith(("GRADED", "NOT GRADED")):
+                    out.append(gl)
+        except Exception as e:
+            problems.append(f"Pick grading failed: {type(e).__name__}: {e}")
         entries = [dict(zip(("id", "team", "market", "target", "worst_price"), r)) for r in con.execute(
             "SELECT id, team, market, target, worst_price FROM watchlist WHERE active").fetchall()]
         for eid, w in wh_now.items():

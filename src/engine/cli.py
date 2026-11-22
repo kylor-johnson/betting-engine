@@ -328,6 +328,23 @@ def cmd_card(args) -> int:
     return 0
 
 
+def cmd_grade(args) -> int:
+    from engine.odds import snapshots as snap
+    from engine.picks import grade
+
+    cfg = config.load_config()
+    con = snap.connect(config.DB)
+    try:
+        for line in grade.run(cfg, con):
+            print(line)
+        print("--")
+        for line in grade.summary(con, cfg):
+            print(line)
+    finally:
+        con.close()
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="engine")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -378,6 +395,8 @@ def main(argv=None) -> int:
     a.add_argument("--date", help="card date, e.g. 2026-11-22 (default: today, Mountain)")
     a.add_argument("--sport", choices=["NFL", "College", "NBA"], default="NFL")
     a.set_defaults(func=cmd_card)
+    a = sub.add_parser("grade", help="grade the engine's own picks on result and against Pinnacle's close")
+    a.set_defaults(func=cmd_grade)
     a = sub.add_parser("telegram-setup", help="find the chat id and send a test message")
     a.set_defaults(func=cmd_telegram_setup)
     a = sub.add_parser("watch", help='watchlist: add "Kansas State +10", list, remove 3')
