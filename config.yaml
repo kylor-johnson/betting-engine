@@ -44,3 +44,11 @@ picks:
   min_value: 0.02            # a bet needs at least +2% expected return at the book's current number
   max_units: 1               # cap until the engine has 100 graded picks
   conditional_units: 0.5
+
+# Research agent (a headless Claude run on this Mac)
+agent:
+  claude_path: /Users/kylorjohnson/.nvm/versions/node/v25.2.1/bin/claude
+  days_ahead: 8              # how far ahead the slate looks
+  timeout_minutes: 25
+  run_on_news: true          # start a run when a quarterback's status changes or the book posts new NFL games
+  cooldown_minutes: 90       # never more often than this

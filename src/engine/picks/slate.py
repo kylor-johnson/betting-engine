@@ -74,8 +74,9 @@ def build_nfl(now: datetime | None = None, days_ahead: int = 3) -> dict:
     rows = sources.nfl_games(config.DATA / "raw" / "nflverse_games.csv")
     season = max(int(r["season"]) for r in rows if r["spread_line"] not in ("", None))
     today = now.astimezone(config.display_tz(cfg)).strftime("%Y-%m-%d")
-    week_start = (now - timedelta(days=4)).strftime("%Y-%m-%d")      # exclude this week's own lines
-    spread_r, total_t, avg_total, n_rated = ratings.market_ratings(rows, season, week_start, hfa)
+    # only games already played: their lines are true closing lines, and this week's news is not in them
+    played = [r for r in rows if r["result"] not in ("", None)]
+    spread_r, total_t, avg_total, n_rated = ratings.market_ratings(played, season, "9999-12-31", hfa)
     hist = [r for r in rows if int(r["season"]) >= 2015 and r["result"] not in ("", None) and r["spread_line"] not in ("", None)]
     land_spread = Landing([(-float(r["spread_line"]), float(r["result"])) for r in hist], "spread", window=1.0)
     land_total = Landing([(float(r["total_line"]), float(r["total"])) for r in hist if r["total_line"] not in ("", None)], "total", window=3.0)
@@ -165,7 +166,7 @@ def build_nfl(now: datetime | None = None, days_ahead: int = 3) -> dict:
                 sides.append({"side": side, "pick": f"{team} {show(b.home_spread):+g}", "price": price, "value": round(val, 4),
                               "edge_points": round(edge_pts, 2), "win": round(win, 3), "push": round(push, 3),
                               "numbers_say_bet": bool(is_bet and model_edge > 0),
-                              "dont_bet_past": None if lim is None else f"{team} {show(lim):+g}",
+                              "dont_bet_past": None if lim is None else f"{team} {show(lim):+g}", "limit_line": lim,
                               "model_agrees": model_edge > 0})
             m["sides"] = sides
         elif fair is not None:
@@ -202,7 +203,7 @@ def build_nfl(now: datetime | None = None, days_ahead: int = 3) -> dict:
                               "edge_points": round(edge_pts, 2), "win": round(win, 3), "push": round(push, 3),
                               # v1 has no real totals model: a total needs a specific sourced adjustment (wind, QB)
                               "numbers_say_bet": bool(is_bet and model_edge > 0 and adj_t != 0),
-                              "dont_bet_past": None if lim is None else f"{side.title()} {lim:g}",
+                              "dont_bet_past": None if lim is None else f"{side.title()} {lim:g}", "limit_line": lim,
                               "model_agrees": model_edge > 0})
             mt["sides"] = sides
         g["markets"].append(mt)

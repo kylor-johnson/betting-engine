@@ -17,6 +17,12 @@ uv run engine telegram-setup                  # after sending your bot any messa
 
 | Command | What it does |
 |---|---|
+| `uv run engine agent` | The research run: builds the numbers, has Claude research and decide, writes the card to `docs/cards/`, sends pick alerts |
+| `uv run engine agent --no-send` | Same, but prints the alerts |
+| `uv run engine agent --skip-research` | Re-prices the existing decisions at current numbers without new research |
+| `uv run engine slate` | Just the numbers: fair line and edge for every NFL game in the next 8 days |
+| `uv run engine card` | Renders today's card from the latest slate sheet and `docs/cards/decisions/<date>-nfl.yaml` |
+| `uv run engine injuries` | Current NFL quarterback statuses (`--all` for every position, `--team Vikings`) |
 | `uv run engine poll --force` | Read Wagerhouse and market lines now, store them, send any alerts |
 | `uv run engine poll --force --no-send` | Same, but print alerts instead of sending |
 | `uv run engine poll` | What the scheduled job runs: reads only in the hours listed in `config.yaml` |
@@ -31,14 +37,23 @@ uv run engine telegram-setup                  # after sending your bot any messa
 | `uv run engine bet add "Kansas State +10 -110 25" --note "why"` | Log a bet by hand with a reason (graded bets arrive from the account automatically) |
 | `uv run pytest` | Run the tests |
 
+## How a pick gets made
+
+1. Code builds the slate sheet: your book, Pinnacle and DraftKings prices; a fair line from market ratings, public rating systems and Pinnacle; the edge; the "don't bet past" number.
+2. Claude researches the sides the numbers flag (injuries, weather, why the line moved) and writes status and reasons to a decisions file. It may add sourced entries to `adjustments.yaml`. It cannot write a line, price or stake.
+3. Code re-prices at fresh numbers, renders the card, and sends a Telegram alert only for what changed: a new Bet or Conditional, a status change, or a pick whose value is gone.
+
+Research runs happen on a schedule (Sunday 8:15am, 6:45pm and 8:45pm; Monday and Tuesday 8:15am; Wednesday to Friday 3:15pm; Saturday 8:15am, all Mountain) and whenever the hourly read sees a quarterback's status change or new NFL games at your book, at most once every 90 minutes.
+
 ## Running on a schedule (launchd)
 
-Two jobs: line reads every 30 minutes (the command itself only reads in scheduled hours), and the weekly report Tuesday 9:00.
+Three jobs: line and news reads every 30 minutes (the command itself only reads in scheduled hours), research runs on the schedule above, and the weekly report Tuesday 9:00.
 
 ```sh
 cp ops/launchd/*.plist ~/Library/LaunchAgents/
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.kylor.betting-engine.poll.plist
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.kylor.betting-engine.weekly.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.kylor.betting-engine.agent.plist
 launchctl kickstart gui/$(id -u)/com.kylor.betting-engine.poll    # run once now
 tail -5 ~/Library/Logs/betting-engine/poll.log ~/Library/Logs/betting-engine/poll.err.log   # check it worked
 ```
@@ -55,5 +70,8 @@ Keep the Mac awake: plugged in, lid open, and `sudo pmset -c sleep 0` (never sle
 - `data.nosync/raw/`: bet history from Wagerhouse and cached ESPN responses
 - `data.nosync/reports/`: weekly reports
 - `~/Library/Logs/betting-engine/`: scheduled job output
-- `config.yaml`: unit, cap, alert thresholds, read hours, key numbers
+- `config.yaml`: unit, cap, alert thresholds, read hours, key numbers, picks and agent settings
+- `adjustments.yaml`: this week's point adjustments, each with reason and source
+- `docs/cards/`: one card per day; `docs/cards/decisions/` holds the agent's status and reasons
+- `ops/agent_prompt.md`: the research agent's instructions
 - Times are stored in UTC and shown in Mountain. Wagerhouse reports Eastern.

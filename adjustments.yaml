@@ -35,3 +35,17 @@ adjustments:
     reason: "Kyler Murray ruled out Nov 20 (hamstring); Kirk Cousins starts. Cousins started and won last week, so part of this is already in the ratings."
     source: "https://www.espn.com/nfl/injuries"
     added: "2026-11-21 16:33 MT"
+  - game: "Miami Dolphins at Buffalo Bills"
+    team: "Miami Dolphins"
+    market: spread
+    points: -2.5
+    reason: "Malik Willis is not playing; Kyle McCord makes his second career start (AP, Nov 19). ESPN's injury page lists Willis on injured reserve. One game without Willis is only slightly in the ratings."
+    source: "https://www.tsn.ca/nfl/article/bills-get-chance-to-feast-on-another-backup-qb-with-mccord-dolphins-up-next/"
+    added: "2026-11-21 17:15 MT"
+  - game: "New England Patriots at Los Angeles Chargers"
+    team: "New England Patriots"
+    market: spread
+    points: -5.0
+    reason: "Drake Maye out with a fractured right fibula (reported Nov 20); Tommy DeVito named the starter for Nov 29. None of this is in the ratings."
+    source: "https://www.espn.com/nfl/injuries"
+    added: "2026-11-21 17:15 MT"

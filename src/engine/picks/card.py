@@ -49,7 +49,9 @@ def _fmt(x, signed=True):
     return f"{x:+g}" if signed else f"{x:g}"
 
 
-def build(sheet: dict, decisions: dict, note: str, cfg: dict) -> tuple[str, list[dict]]:
+def build(sheet: dict, decisions: dict, note: str, cfg: dict, strict: bool = True) -> tuple[str, list[dict]]:
+    """strict=False is for re-pricing an existing card: a Bet the fresh numbers no longer
+    support becomes a Pass marked "value gone" instead of an error."""
     tz = ZoneInfo(cfg["timezone_display"])
     pc = cfg["picks"]
     unit = cfg["unit"]
@@ -61,17 +63,24 @@ def build(sheet: dict, decisions: dict, note: str, cfg: dict) -> tuple[str, list
             for s in m.get("sides", []):
                 d = decisions.get((g["game"], m["market"], s["side"]))
                 if d is None:
-                    if s["numbers_say_bet"]:
+                    if s["numbers_say_bet"] and strict:
                         raise SourceError(f"the numbers flag {s['pick']} ({g['game']}) but there is no decision for it")
                     continue
-                if d["status"] == "Bet" and not s["numbers_say_bet"]:
-                    raise SourceError(f"refused: Bet on {s['pick']} ({g['game']}) but the numbers do not support it")
+                downgraded = None
+                if d["status"] in ("Bet", "Conditional") and not s["numbers_say_bet"]:
+                    if strict and d["status"] == "Bet":
+                        raise SourceError(f"refused: Bet on {s['pick']} ({g['game']}) but the numbers do not support it")
+                    if not strict:
+                        downgraded = (f"Value gone: your book is now {s['pick']} ({int(s['price']):+d}), "
+                                      f"which no longer clears the bar. Would be a bet again at {s['dont_bet_past'] or 'no nearby number'}.")
+                        d = {**d, "status": "Pass", "why_pass": downgraded}
                 units = {"Bet": pc["max_units"], "Conditional": pc["conditional_units"], "Pass": 0}[d["status"]]
                 rec = {"game": g["game"], "kick": kick, "market": m["market"], "pick": s["pick"], "price": s["price"],
                        "status": d["status"], "units": units, "dollars": units * unit, "value": s["value"],
                        "edge_points": s["edge_points"], "dont_bet_past": s["dont_bet_past"], "fair": m["fair_line"],
                        "book_line": m.get("book_line"), "decision": d, "numbers_say_bet": s["numbers_say_bet"],
-                       "event_id": g["event_id"], "side": s["side"]}
+                       "event_id": g["event_id"], "side": s["side"], "downgraded": downgraded,
+                       "limit_line": s.get("limit_line")}
                 (picks if d["status"] != "Pass" else passes).append(rec)
                 rows.append(rec)
 

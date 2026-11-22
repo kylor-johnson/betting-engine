@@ -206,6 +206,31 @@ def cmd_slate(args) -> int:
     return 0
 
 
+def cmd_agent(args) -> int:
+    from engine.picks import agent
+
+    code, lines = agent.run(args.reason, send=not args.no_send, skip_research=args.skip_research)
+    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%SZ")
+    for line in lines:
+        print(f"{stamp} {line}")
+    return code
+
+
+def cmd_injuries(args) -> int:
+    from engine.picks import news
+
+    players = news.fetch()
+    for p in sorted(players, key=lambda p: (p.team, p.pos != "QB", p.name)):
+        if not args.all and p.pos != "QB":
+            continue
+        if args.team and args.team.lower() not in p.team.lower():
+            continue
+        if args.all and p.status == "Active":
+            continue
+        print(f"{p.team} | {p.pos} {p.name} | {p.status} | {p.updated} | {p.comment[:220]}")
+    return 0
+
+
 def cmd_card(args) -> int:
     """Render the card from the latest slate sheet and the decisions file."""
     import json as _json
@@ -218,7 +243,7 @@ def cmd_card(args) -> int:
         print("No slate sheet yet. Run `engine slate` first.", file=sys.stderr)
         return 2
     sheet = _json.loads(sheet_path.read_text())
-    day = args.date or datetime.fromisoformat(sheet["games"][0]["start_utc"]).astimezone(config.display_tz(cfg)).strftime("%Y-%m-%d")
+    day = args.date or datetime.now(config.display_tz(cfg)).strftime("%Y-%m-%d")
     dpath = ROOT / "docs" / "cards" / "decisions" / f"{day}-nfl.yaml"
     if not dpath.exists():
         print(f"No decisions file at {dpath.relative_to(ROOT)}.", file=sys.stderr)
@@ -253,10 +278,19 @@ def main(argv=None) -> int:
     a = sub.add_parser("book", help="how Wagerhouse compares with the market so far")
     a.set_defaults(func=cmd_book)
     a = sub.add_parser("slate", help="build the slate sheet: fair lines and edges for every NFL game")
-    a.add_argument("--days", type=int, default=3)
+    a.add_argument("--days", type=int, default=8)
     a.set_defaults(func=cmd_slate)
+    a = sub.add_parser("agent", help="research run: numbers, Claude research and decisions, card, pick alerts")
+    a.add_argument("--reason", default="manual run")
+    a.add_argument("--no-send", action="store_true", help="print alerts instead of sending them")
+    a.add_argument("--skip-research", action="store_true", help="re-price the existing decisions without a new research run")
+    a.set_defaults(func=cmd_agent)
+    a = sub.add_parser("injuries", help="current NFL injury statuses (quarterbacks by default)")
+    a.add_argument("--all", action="store_true", help="every position, not only quarterbacks")
+    a.add_argument("--team", help="filter by team name")
+    a.set_defaults(func=cmd_injuries)
     a = sub.add_parser("card", help="render the card from the slate sheet and the decisions file")
-    a.add_argument("--date", help="card date, e.g. 2026-11-22 (default: first game on the sheet)")
+    a.add_argument("--date", help="card date, e.g. 2026-11-22 (default: today, Mountain)")
     a.set_defaults(func=cmd_card)
     a = sub.add_parser("telegram-setup", help="find the chat id and send a test message")
     a.set_defaults(func=cmd_telegram_setup)

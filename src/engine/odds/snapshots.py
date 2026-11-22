@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS watchlist (
 CREATE TABLE IF NOT EXISTS manual_bets (
   created_utc TIMESTAMP, raw VARCHAR, team VARCHAR, market VARCHAR, line DOUBLE, price DOUBLE, stake DOUBLE, note VARCHAR);
 """
-WH, MKT = "wagerhouse", "draftkings"
+WH, MKT, SHARP = "wagerhouse", "draftkings", "pinnacle"
 LOOKAHEAD_DAYS = {"NFL": 8, "College": 8, "NBA": 2}
 
 
@@ -75,6 +75,17 @@ def collect(wh: Wagerhouse, sports: list[str], now: datetime) -> tuple[list[Snap
             continue
         today = now.date()
         events = espn.upcoming(sport, today - timedelta(days=1), today + timedelta(days=LOOKAHEAD_DAYS[sport]))
+        sharp_by_event = {}
+        if sport in ("NFL", "College"):
+            from engine.picks import sources
+            try:
+                for sl in sources.pinnacle(sport):
+                    near = [e for e in events if abs((e.start - sl.start).total_seconds()) < 12 * 3600]
+                    ev, how = espn.find_event(near, sl.away, sl.home)
+                    if ev is not None and how == "both teams":
+                        sharp_by_event[ev.event_id] = sl
+            except espn.SourceError as e:
+                problems.append(f"{sport}: {e}")
         for l in lines:
             ev = match_event(l, events)
             if ev is None:
@@ -83,6 +94,11 @@ def collect(wh: Wagerhouse, sports: list[str], now: datetime) -> tuple[list[Snap
             snaps.append(Snap(now, WH, sport, ev.event_id, l.away, l.home, ev.start, l.home_spread,
                               l.home_spread_price, l.away_spread_price, l.home_ml, l.away_ml, l.total,
                               l.over_price, l.under_price))
+            sl = sharp_by_event.get(ev.event_id)
+            if sl is not None:
+                snaps.append(Snap(now, SHARP, sport, ev.event_id, l.away, l.home, ev.start, sl.home_spread,
+                                  sl.home_spread_price, sl.away_spread_price, sl.home_ml, sl.away_ml, sl.total,
+                                  sl.over_price, sl.under_price))
             odds = espn.event_odds(ev, None)
             c = odds.current if odds else None
             if c is None or (c.home_spread is None and c.total is None and c.home_ml is None):

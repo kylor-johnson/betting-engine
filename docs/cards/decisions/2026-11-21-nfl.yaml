@@ -1,0 +1,42 @@
+# The agent's decisions for this card. Status and reasons only: every number on the
+# card comes from the slate sheet. A Bet the numbers do not support is refused.
+slate_note: >
+  Saturday evening before Sunday's games, so the market has had all week and the final
+  injury reports to settle. The numbers flag two sides, the Cowboys and the Panthers, and
+  neither has a reason that is not already in Pinnacle's price. No game has forecast
+  sustained wind at the level that would move a total, so no totals are in play.
+decisions:
+  - game: "Tennessee Titans at Dallas Cowboys"
+    market: spread
+    side: home
+    status: Pass
+    why_pass: >
+      The edge is thin and comes from the slow market ratings, which still rate Dallas at
+      full strength. Friday's final report has five Cowboys starters out (guard Tyler
+      Booker, tight end Jake Ferguson, cornerback DaRon Bland, safety P.J. Locke, receiver
+      Jonathan Mingo) while the Titans list only one player out. That news cuts against
+      Dallas, the ratings have not absorbed it and Pinnacle has. It also means laying the
+      hook above a key number, and Dallas plays again on Thursday. I looked for late news
+      the book has not followed and found none. It would take a number at or under the key
+      number plus a new reason to revisit.
+  - game: "Baltimore Ravens at Carolina Panthers"
+    market: spread
+    side: home
+    status: Pass
+    why_pass: >
+      The edge exists only because of my own estimate for Lamar Jackson's absence. Without
+      it the model and Pinnacle land on about your book's number. Jackson has been on
+      injured reserve for more than a week and Jacoby Brissett has already started, so the
+      market has priced it. The other injuries roughly cancel and were all public by
+      Friday: Baltimore is without Madubuike, Humphrey and Hawkins; Carolina is without
+      Okereke, Ekwonu, Simmons and Brooks. Nothing from the last few hours that the book
+      has missed. An estimate is not a reason to bet.
+  - game: "New Orleans Saints at Chicago Bears"
+    market: spread
+    side: away
+    status: Pass
+    why_pass: >
+      Kept from the earlier card; the numbers no longer flag this side. The only thing on
+      the Saints' side is the slow market rating. The public systems agree with the market,
+      and I found no injury that explains this week's move toward Chicago, so I cannot say
+      the move is wrong. An unexplained move is a pass, not a signal.

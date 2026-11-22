@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.kylor.betting-engine.agent</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/opt/homebrew/bin/uv</string><string>run</string><string>--project</string><string>/Users/kylorjohnson/Library/Mobile Documents/com~apple~CloudDocs/Bettng Model</string>
+    <string>engine</string><string>agent</string><string>--reason</string><string>scheduled run</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>UV_PROJECT_ENVIRONMENT</key><string>/Users/kylorjohnson/Library/Mobile Documents/com~apple~CloudDocs/Bettng Model/.venv.nosync</string>
+    <key>PATH</key><string>/Users/kylorjohnson/.nvm/versions/node/v25.2.1/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
+    <key>HOME</key><string>/Users/kylorjohnson</string>
+  </dict>
+  <!-- Local (Mountain) time. Weekday: 0 = Sunday. -->
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict><key>Weekday</key><integer>0</integer><key>Hour</key><integer>8</integer><key>Minute</key><integer>15</integer></dict>
+    <dict><key>Weekday</key><integer>0</integer><key>Hour</key><integer>18</integer><key>Minute</key><integer>45</integer></dict>
+    <dict><key>Weekday</key><integer>0</integer><key>Hour</key><integer>20</integer><key>Minute</key><integer>45</integer></dict>
+    <dict><key>Weekday</key><integer>1</integer><key>Hour</key><integer>8</integer><key>Minute</key><integer>15</integer></dict>
+    <dict><key>Weekday</key><integer>2</integer><key>Hour</key><integer>8</integer><key>Minute</key><integer>15</integer></dict>
+    <dict><key>Weekday</key><integer>3</integer><key>Hour</key><integer>15</integer><key>Minute</key><integer>15</integer></dict>
+    <dict><key>Weekday</key><integer>4</integer><key>Hour</key><integer>15</integer><key>Minute</key><integer>15</integer></dict>
+    <dict><key>Weekday</key><integer>5</integer><key>Hour</key><integer>15</integer><key>Minute</key><integer>15</integer></dict>
+    <dict><key>Weekday</key><integer>6</integer><key>Hour</key><integer>8</integer><key>Minute</key><integer>15</integer></dict>
+  </array>
+  <key>StandardOutPath</key><string>/Users/kylorjohnson/Library/Logs/betting-engine/agent.log</string>
+  <key>StandardErrorPath</key><string>/Users/kylorjohnson/Library/Logs/betting-engine/agent.err.log</string>
+</dict>
+</plist>
