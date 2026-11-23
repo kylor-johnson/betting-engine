@@ -203,13 +203,14 @@ def prop_candidates(games: list[dict], pm, priced: list[dict], st: dict, sport: 
     so each pick carries the worst Wagerhouse line and price at which it is still a bet."""
     by_teams = {(g["away"], g["home"]): g for g in games}
     w, wt = st["weights"]["prop"], st["weights"]["team_total"]
-    lead_params = {}
+    lead_params, match_params = {}, {}
     if sport == "NFL":
         try:
-            from engine.models import props_script
+            from engine.models import props_matchup, props_script
             lead_params = props_script.load(pm.season)
+            match_params = props_matchup.load(pm.season)      # blitz and box splits: tested, not used today (research 17)
         except Exception:
-            lead_params = {}
+            lead_params, match_params = {}, {}
     out = []
     for r in priced:
         g = by_teams.get((r["away"], r["home"]))
@@ -233,6 +234,13 @@ def prop_candidates(games: list[dict], pm, priced: list[dict], st: dict, sport: 
             if abs(f - 1) > 0.002:
                 proj *= f
                 lead_note = f"; game script: expected margin {margin:+.1f} ({f - 1:+.1%} on the projection)"
+            if stat in ("passing_yards", "rushing_yards") and match_params.get(stat, {}).get("use"):
+                from engine.models import props_matchup
+                opp = _abbr(g["away"] if is_home else g["home"], sport)
+                mf = props_matchup.live_factor(pm.season, r["player_id"], opp, stat, match_params)
+                if abs(mf - 1) > 0.002:
+                    proj *= mf
+                    lead_note += f"; matchup ({'blitz' if stat == 'passing_yards' else 'box'} splits) {mf - 1:+.1%}"
         model_p = pm.dists[stat].p_over(proj, r["line"])
         mkt = r["market_p_over"]
         our_over = mkt + w * (model_p - mkt)

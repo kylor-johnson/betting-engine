@@ -234,3 +234,14 @@ def test_candidates_are_logged_once_and_refit_counts_each_market_once():
     rf = {r["market"]: r for r in pb.refit(con, {})}
     assert rf["side"]["n"] == 1 and rf["total"]["n"] == 1      # home and away (over and under) are one market
     assert 0.0 <= rf["side"]["fitted"] <= 1.0
+
+
+def test_props_matchup_factor_math():
+    from engine.models import props_matchup as pm
+    st = pm.State()
+    rows = [(2024, 1, "g", "BUF", "pass", "qb1", 10.0, True)] * 40 + [(2024, 1, "g", "BUF", "pass", "qb1", 5.0, False)] * 60
+    st.add_game(rows)
+    st.add_game([(2024, 2, "g2", "MIA", "pass", "qb2", 6.0, True)] * 200)          # MIA blitzes on every play
+    f = st.factor("qb1", 2024, "MIA", "pass")
+    assert f is not None and f > 1.0                       # a QB who is better against the blitz, facing a blitz-heavy defense
+    assert pm.live_factor(2024, "qb1", "MIA", "passing_yards", {"passing_yards": {"use": False, "g": 1.0}}) == 1.0

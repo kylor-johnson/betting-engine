@@ -138,6 +138,10 @@ We copy methods, never picks. Warren Sharp's write-ups are one example; Walters,
 | NFL Wong teasers | Live, staked (A) | decision 0014, 0019 |
 | CHECK clearing by the research agent | Live for all three sports | `docs/cards/decisions/<date>-<sport>-checks.yaml` |
 | Per-principle record and weight re-fit on every candidate | Live | `engine playbook-record`, `docs/lanes/PLAYBOOK-RECORD.md` |
-| Not yet | Coverage-type splits, injury clusters and rain as script inputs, schedule-adjusted form, referees (zero weight until tested) | |
+| Schedule-adjusted form (NFL script) | Live: the one addition that helped (NFL totals, research 17) | `script.ADJUST` |
+| Rain, wind | Live inputs to the NFL script since the start | `script.py` |
+| Outlier half weight, injury clusters, referees | Built, tested, off (no held-out gain, research 17) | `script.py` |
+| Blitz and stacked-box matchup splits for props | Built, tested, off (no held-out gain, research 17) | `props_matchup.py` |
+| Coverage-type (man/zone) splits | Not buildable: free data has 2023 only | |
 
 Commands: `engine playbook --dry-run [--sport NFL|NBA|College]` shows the current lists without sending or writing; `engine playbook-record`.

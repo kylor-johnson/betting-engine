@@ -2,7 +2,7 @@
 
 For every team in every game this builds, from play-by-play of EARLIER games only:
   * offense and defense form: EPA per play, success rate, points per drive (the opponent's defensive form is a separate input, so the
-    regression weighs one against the other; form is not yet adjusted for the schedule each team faced);
+    regression weighs one against the other; each game's numbers are also corrected for the opponent's form, ADJUST);
   * pace: drives per game (own and allowed);
   * pass rate over expected in neutral situations (score within 7, first three quarters);
   * the game's situation: home, starting quarterback different from the team's usual starter, wind and rain at kickoff.
@@ -15,7 +15,7 @@ The weight is the honest answer to "how much should our number count against the
 (team total, game total, side) on seasons before the test season, and reported on seasons it never saw.
 
 Form is a decayed average of this season's earlier games (newest weigh most) plus last season's average counted as `PRIOR_GAMES` games.
-Not yet done (PLAYBOOK step 1): half weight for games against the best and worst units, and schedule adjustment.
+Tested in research 17: schedule adjustment (kept), outlier half weight, injury clusters by unit and referee total history (all left out).
 """
 from __future__ import annotations
 
@@ -78,28 +78,49 @@ def _games_meta() -> dict[str, dict]:
 
 @dataclass
 class Form:
-    """Running decayed averages for one team-season, offense and defense."""
+    """Running decayed averages for one team-season, offense and defense. `w` counts games (decayed); `wo` and `wd` are the weights
+    behind the offense and defense averages, which differ from `w` when outlier opponents count half."""
     w: float = 0.0
+    wo: float = 0.0
+    wd: float = 0.0
     off: dict = field(default_factory=lambda: defaultdict(float))
     dfn: dict = field(default_factory=lambda: defaultdict(float))
     qbs: dict = field(default_factory=lambda: defaultdict(int))
 
-    def add(self, off: dict, dfn: dict, weight: float = 1.0):
-        self.w = self.w * DECAY + weight
+    def add(self, off: dict, dfn: dict, w_off: float = 1.0, w_def: float = 1.0):
+        self.w = self.w * DECAY + 1.0
+        self.wo = self.wo * DECAY + w_off
+        self.wd = self.wd * DECAY + w_def
         for k in STATS:
             if off.get(k) is not None:
-                self.off[k] = self.off[k] * DECAY + weight * off[k]
+                self.off[k] = self.off[k] * DECAY + w_off * off[k]
             if dfn.get(k) is not None:
-                self.dfn[k] = self.dfn[k] * DECAY + weight * dfn[k]
+                self.dfn[k] = self.dfn[k] * DECAY + w_def * dfn[k]
 
     def mean(self, side: str, k: str):
-        d = self.off if side == "off" else self.dfn
-        return d[k] / self.w if self.w else None
+        d, w = (self.off, self.wo) if side == "off" else (self.dfn, self.wd)
+        return d[k] / w if w else None
 
 
-def build_features(first_test: int = 2017, state: dict | None = None) -> list[dict]:
+ADJUST = True        # schedule-adjusted form: kept, it lowered held-out total error and kept the totals weight above 0 in 2024-26 (research 17)
+OUTLIER = False      # half weight for outlier opponents: tested, mixed (better sides, worse totals); off (research 17)
+
+
+def _ranked_extremes(forms: dict, s: int, side: str, k: str = "epa", n: int = 3) -> set[str]:
+    vals = [(t, f.mean(side, k)) for (ss, t), f in forms.items() if ss == s and f.w >= 3 and f.mean(side, k) is not None]
+    if len(vals) < 2 * n + 4:
+        return set()
+    vals.sort(key=lambda x: x[1])
+    return {t for t, _ in vals[:n]} | {t for t, _ in vals[-n:]}
+
+
+def build_features(first_test: int = 2017, state: dict | None = None, adjust: bool | None = None, outlier: bool | None = None) -> list[dict]:
     """For every game from 2016 on: both teams' pre-game form, situation, the market's implied team points and the real points.
-    If `state` is given it is filled with the running forms after the last completed game (for live use: `live_row`)."""
+    If `state` is given it is filled with the running forms after the last completed game (for live use: `live_row`).
+    adjust: each game's EPA, success rate and points per drive are corrected for the opponent's pre-game form against the league average.
+    outlier: games against the three best or three worst units (by pre-game EPA) count half."""
+    adjust = ADJUST if adjust is None else adjust
+    outlier = OUTLIER if outlier is None else outlier
     tg = team_games()
     meta = _games_meta()
     by_game = defaultdict(dict)
@@ -110,6 +131,8 @@ def build_features(first_test: int = 2017, state: dict | None = None) -> list[di
     season_avg: dict[tuple[int, str], dict] = {}
     league: dict[int, dict] = defaultdict(lambda: defaultdict(list))
     wind = _weather()
+    units = injury_units()
+    refs = referee_resid(meta)
     out = []
     for gid in order:
         m = meta.get(gid)
@@ -135,37 +158,56 @@ def build_features(first_test: int = 2017, state: dict | None = None) -> list[di
                             "backup_qb": int(usual is not None and qb is not None and qb != usual),
                             "wind": w[0], "rain": w[1], "dome": int((m["roof"] or "") in ("dome", "closed")),
                             **{f"o_{k}": f["off"].get(k) for k in STATS}, **{f"d_{k}": fo["dfn"].get(k) for k in STATS},
-                            "o_drives_opp": fo["off"].get("drives"), "games": f["games"]})
+                            "o_drives_opp": fo["off"].get("drives"), "games": f["games"],
+                            **_unit_feats(units, s, m["game_type"] != "REG", m["week"], team, opp), "ref_total": refs.get(gid, 0.0) / 2})
         # update forms after the game (no look-ahead)
+        ext_d = _ranked_extremes(forms, s, "dfn") if outlier else set()
+        ext_o = _ranked_extremes(forms, s, "off") if outlier else set()
+        lg = {k: (sum(v) / len(v)) for k, v in (league[s] if league.get(s) and len(league[s].get("epa", [])) >= 32 else league.get(s - 1, {})).items() if v}
         for team, opp in ((m["home"], m["away"]), (m["away"], m["home"])):
             if team not in rows or opp not in rows:
                 continue
             o, d = rows[team], rows[opp]
             off = {k: o.get(k) for k in STATS}
             dfn = {"epa": d["epa"], "sr": d["sr"], "ppd": d["ppd"], "drives": d["drives"], "proe": None}
+            if adjust and team in feats and lg:
+                op = feats[team]["opp_pre"]
+                for k in ("epa", "sr", "ppd"):
+                    if off.get(k) is not None and op["dfn"].get(k) is not None and k in lg:
+                        off[k] = off[k] - (op["dfn"][k] - lg[k])
+                    if dfn.get(k) is not None and op["off"].get(k) is not None and k in lg:
+                        dfn[k] = dfn[k] - (op["off"][k] - lg[k])
             fm = forms.setdefault((s, team), Form())
-            fm.add(off, dfn)
+            fm.add(off, dfn, 0.5 if opp in ext_d else 1.0, 0.5 if opp in ext_o else 1.0)
             q = m["hqb"] if team == m["home"] else m["aqb"]
             if q:
                 fm.qbs[q] += 1
             for k in STATS:
-                if off.get(k) is not None:
-                    league[s][k].append(off[k])
+                if o.get(k) is not None:
+                    league[s][k].append(o[k])          # league averages from raw values
             season_avg[(s, team)] = {"off": {k: fm.mean("off", k) for k in STATS}, "dfn": {k: fm.mean("dfn", k) for k in STATS}}
     if state is not None:
         state.update(forms=forms, season_avg=season_avg, league=league)
     return out
 
 
+def _unit_feats(units: dict, s: int, post: bool, wk: int, team: str, opp: str) -> dict:
+    mine, theirs = units.get((s, post, wk, team), {}), units.get((s, post, wk, opp), {})
+    return {"ol_out": mine.get("OL", 0.0), "sk_out": mine.get("SK", 0.0), "opp_dl_out": theirs.get("DL", 0.0),
+            "opp_lb_out": theirs.get("LB", 0.0), "opp_db_out": theirs.get("DB", 0.0)}
+
+
 def live_row(state: dict, season: int, team: str, opp: str, home: int, implied: float, spread: float, total: float,
-             backup_qb: int = 0, wind: float | None = None, rain: float | None = None, dome: int = 0) -> dict:
+             backup_qb: int = 0, wind: float | None = None, rain: float | None = None, dome: int = 0,
+             units: dict | None = None, week: int | None = None, ref_total: float = 0.0) -> dict:
     """The same row `build_features` makes, for a game not yet played (form = everything completed so far)."""
     f = _pre(state["forms"], state["season_avg"], state["league"], season, team)
     fo = _pre(state["forms"], state["season_avg"], state["league"], season, opp)
     return {"season": season, "team": team, "opp": opp, "home": home, "implied": implied, "spread": spread, "total": total,
             "backup_qb": backup_qb, "wind": wind, "rain": rain, "dome": dome,
             **{f"o_{k}": f["off"].get(k) for k in STATS}, **{f"d_{k}": fo["dfn"].get(k) for k in STATS},
-            "o_drives_opp": fo["off"].get("drives"), "games": f["games"]}
+            "o_drives_opp": fo["off"].get("drives"), "games": f["games"],
+            **_unit_feats(units or {}, season, False, week or 0, team, opp), "ref_total": ref_total / 2}
 
 
 def fit_live(rows: list[dict], min_games: float = 2.0, lam: float = 50.0):
@@ -198,6 +240,64 @@ def _pre(forms, season_avg, league, s, team) -> dict:
     return res
 
 
+UNIT = {"T": "OL", "G": "OL", "C": "OL", "OL": "OL", "WR": "SK", "TE": "SK", "RB": "SK", "FB": "SK",
+        "DE": "DL", "DT": "DL", "NT": "DL", "DL": "DL", "LB": "LB", "OLB": "LB", "ILB": "LB", "MLB": "LB",
+        "CB": "DB", "S": "DB", "FS": "DB", "SS": "DB", "DB": "DB"}
+
+
+def _norm(s) -> str:
+    import re
+    return re.sub(r"[^a-z]", "", re.sub(r"\b(jr|sr|ii|iii|iv|v)\b", "", str(s).lower()))
+
+
+def injury_units(first: int = 2018, last: int = 2026) -> dict[tuple, dict[str, float]]:
+    """(season, is_post, week, team) -> snap share of starters listed Out or Doubtful, summed by unit (OL, SK, DL, LB, DB).
+    Each player is weighted by his average snap share over his last three games played before that week (nflverse snap counts);
+    quarterbacks are left out (the backup flag covers them). Built on the same method as research 14, 2a."""
+    snaps_dir, inj = RAW / "snaps", []
+    con = duckdb.connect()
+    sfiles = [str(p) for y in range(first, last + 1) if (p := snaps_dir / f"snap_counts_{y}.parquet").exists()]
+    ifiles = [str(p) for y in range(first, last + 1) if (p := RAW / f"injuries_{y}.parquet").exists()]
+    if not sfiles or not ifiles:
+        return {}
+    snaps = con.execute(f"""SELECT season, game_type <> 'REG' AS post, week, team, player, greatest(offense_pct, defense_pct) AS pct
+                            FROM read_parquet({sfiles!r}, union_by_name=true)""").fetchall()
+    hist = defaultdict(list)
+    for s, post, wk, team, player, pct in sorted(snaps, key=lambda r: (r[0], r[1], r[2])):
+        hist[(s, team.replace("LAR", "LA"), _norm(player))].append(((post, wk), float(pct or 0)))
+    rows = con.execute(f"""SELECT season, game_type <> 'REG', week, team, full_name, position, report_status
+                           FROM read_parquet({ifiles!r}, union_by_name=true) WHERE report_status IN ('Out', 'Doubtful')""").fetchall()
+    out = defaultdict(lambda: defaultdict(float))
+    for s, post, wk, team, name, pos, _ in rows:
+        u = UNIT.get(pos)
+        if u is None:
+            continue
+        h = [p for (pw, p) in hist.get((s, team.replace("LAR", "LA"), _norm(name)), []) if pw < (post, wk)][-3:]
+        if h:
+            out[(s, bool(post), wk, team.replace("LAR", "LA"))][u] += sum(h) / len(h)
+    return {k: dict(v) for k, v in out.items()}
+
+
+def referee_resid(meta: dict, shrink: float = 20.0) -> dict[str, float]:
+    """game_id -> the referee's average (total - closing total) over his EARLIER games, shrunk toward 0 by `shrink` games."""
+    acc = defaultdict(lambda: [0.0, 0])
+    out = {}
+    rows = sorted((m for m in meta.values() if m.get("total") is not None),
+                  key=lambda m: (str(m["day"]), m["game_id"]))
+    import duckdb as _d
+    refs = {r[0]: r[1] for r in _d.connect().execute(f"SELECT game_id, referee FROM read_csv_auto('{GAMES_CSV}') WHERE season >= 2015").fetchall()}
+    for m in rows:
+        ref = refs.get(m["game_id"])
+        if not ref:
+            continue
+        sm, n = acc[ref]
+        out[m["game_id"]] = sm / (n + shrink)
+        if m["hs"] is not None and m["as_"] is not None:
+            acc[ref][0] += (m["hs"] + m["as_"]) - m["total"]
+            acc[ref][1] += 1
+    return out
+
+
 def _weather() -> dict[str, tuple[float | None, float | None]]:
     """Wind (mph) and rain (mm) at kickoff for open-air games, from the cached Open-Meteo archive the wind model uses."""
     from engine.models import wind_totals
@@ -209,13 +309,16 @@ def _weather() -> dict[str, tuple[float | None, float | None]]:
         return {}
 
 
-FEATURES = ("o_epa", "o_sr", "o_ppd", "o_drives", "o_proe", "d_epa", "d_sr", "d_ppd", "d_drives", "o_drives_opp",
-            "home", "backup_qb", "wind6", "rain")
+BASE_FEATURES = ("o_epa", "o_sr", "o_ppd", "o_drives", "o_proe", "d_epa", "d_sr", "d_ppd", "d_drives", "o_drives_opp",
+                 "home", "backup_qb", "wind6", "rain")
+CLUSTER_FEATURES = ("ol_out", "sk_out", "opp_dl_out", "opp_lb_out", "opp_db_out")
+REF_FEATURES = ("ref_total",)
+FEATURES = BASE_FEATURES          # injury clusters and referees tested and left out (research 17); live uses this
 
 
-def vector(r: dict) -> list[float] | None:
+def vector(r: dict, features: tuple | None = None) -> list[float] | None:
     x = []
-    for k in FEATURES:
+    for k in (features or FEATURES):
         if k == "wind6":
             v = max(0.0, (r["wind"] or 0.0) - 6.0) if not r["dome"] else 0.0
         elif k == "rain":
@@ -265,28 +368,29 @@ def fit_weight(own: list[float], mkt: list[float], y: list[float]) -> float:
     return max(0.0, min(1.0, num / den)) if den else 0.0
 
 
-def walk_forward(rows: list[dict] | None = None, first_test: int = 2019, last_test: int = 2026, min_games: float = 2.0, lam: float = 50.0) -> dict:
+def walk_forward(rows: list[dict] | None = None, first_test: int = 2019, last_test: int = 2026, min_games: float = 2.0, lam: float = 50.0,
+                 features: tuple | None = None) -> dict:
     """For each test season: fit the points model and the blend weights on earlier seasons (from 2016), score on the test season."""
     rows = rows if rows is not None else build_features()
-    usable = [r for r in rows if r["season"] >= 2016 and r["games"] >= min_games and vector(r) is not None]
+    usable = [r for r in rows if r["season"] >= 2016 and r["games"] >= min_games and vector(r, features) is not None]
     out = {"seasons": [], "team": [], "game": []}
     for s in range(first_test, last_test + 1):
         tr = [r for r in usable if r["season"] < s]
         te = [r for r in usable if r["season"] == s]
         if not te or len(tr) < 500:
             continue
-        model = ridge([vector(r) for r in tr], [r["points"] for r in tr], lam)
+        model = ridge([vector(r, features) for r in tr], [r["points"] for r in tr], lam)
         # blend weights fitted on the training seasons' own in-sample predictions would be biased: fit them on the last training season
         # with a model trained on the seasons before it (one-step walk-forward inside the training window)
         inner_tr = [r for r in tr if r["season"] < s - 1]
         inner_te = [r for r in tr if r["season"] == s - 1]
-        inner = ridge([vector(r) for r in inner_tr], [r["points"] for r in inner_tr], lam) if len(inner_tr) > 500 else model
-        own_i = [predict(inner, vector(r)) for r in inner_te]
+        inner = ridge([vector(r, features) for r in inner_tr], [r["points"] for r in inner_tr], lam) if len(inner_tr) > 500 else model
+        own_i = [predict(inner, vector(r, features)) for r in inner_te]
         w_team = fit_weight(own_i, [r["implied"] for r in inner_te], [r["points"] for r in inner_te])
         g_i = _pairs(inner_te, own_i)
         w_total = fit_weight([a["own_total"] for a in g_i], [a["total"] for a in g_i], [a["actual_total"] for a in g_i])
         w_side = fit_weight([a["own_margin"] for a in g_i], [a["mkt_margin"] for a in g_i], [a["actual_margin"] for a in g_i])
-        own = [predict(model, vector(r)) for r in te]
+        own = [predict(model, vector(r, features)) for r in te]
         for r, o in zip(te, own):
             out["team"].append({"season": s, "implied": r["implied"], "own": o, "blend": r["implied"] + w_team * (o - r["implied"]), "points": r["points"]})
         for a in _pairs(te, own):
