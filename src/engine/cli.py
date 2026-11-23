@@ -126,6 +126,15 @@ def cmd_poll(args) -> int:
     return code
 
 
+def cmd_burst(args) -> int:
+    from engine import burst
+    code, lines = burst.run(force=args.force)
+    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%SZ")
+    for line in lines:
+        print(f"{stamp} {line}")
+    return code
+
+
 def cmd_book(args) -> int:
     from engine.odds import snapshots
     from engine.reports import book_report
@@ -574,6 +583,9 @@ def main(argv=None) -> int:
     a.add_argument("--force", action="store_true", help="read now even outside the scheduled hours")
     a.add_argument("--no-send", action="store_true", help="print alerts instead of sending them")
     a.set_defaults(func=cmd_poll)
+    a = sub.add_parser("burst", help="fast Wagerhouse and Pinnacle reads inside the configured windows (launchd runs it every 10 minutes)")
+    a.add_argument("--force", action="store_true", help="read now even outside a window or past the daily cap")
+    a.set_defaults(func=cmd_burst)
     a = sub.add_parser("book", help="how Wagerhouse compares with the market so far")
     a.set_defaults(func=cmd_book)
     a = sub.add_parser("slate", help="build the slate sheet: fair lines and edges for every NFL game")

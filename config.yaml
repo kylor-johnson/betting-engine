@@ -179,3 +179,18 @@ leans:
   max_per_lane_per_week: 3          # per sport, Monday to Sunday Mountain
   max_pinnacle_move_since_news: 0.5 # a news lean is refused if Pinnacle already moved this far toward the side since the news
   promote_after_graded: 50          # not to be bet before this many are graded and average closing-line value is above zero
+
+# Fast reads (src/engine/burst.py): Wagerhouse and Pinnacle full-game lines every 10 minutes inside these windows, Mountain time, to measure how
+# many minutes Wagerhouse trails Pinnacle after news (docs/research/12a-reading-2026-11-23.md). Wednesday to Friday afternoon is when practice
+# reports land; Sunday and the weekday-night games are the inactives windows (about 90 minutes before kickoff). Bounded by max_reads_per_day.
+# Roughly 130 reads a week. Never alerts and never starts a research run.
+burst:
+  enabled: true
+  sports: [NFL]
+  max_reads_per_day: 40
+  windows:
+    mon: ["16:30-18:30"]
+    wed: ["12:00-15:30"]
+    thu: ["12:00-15:30", "16:30-18:30"]
+    fri: ["12:00-15:30"]
+    sun: ["09:00-11:15", "12:15-14:30", "16:30-18:30"]
