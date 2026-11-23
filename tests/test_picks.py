@@ -148,3 +148,19 @@ def test_card_sentence_matches_the_real_config():
     sentence = card.fair_sentence({"settings": {"use_model_leg": bool(pc.get("use_model_leg", False)),
                                                 "market_weight": pc["market_weight"]}}, pc)
     assert ("100%" in sentence) == (not pc.get("use_model_leg", False))
+
+
+def test_one_position_per_game_keeps_the_stronger_and_passes_the_other(tmp_path):
+    import copy
+    sheet = copy.deepcopy(SHEET)
+    sheet["games"][0]["markets"].append({"market": "total", "fair_line": 44.0, "book_line": 45.0, "sides": [
+        {"side": "under", "pick": "Under 45", "price": -110, "value": 0.03, "edge_points": 1.0, "numbers_say_bet": True,
+         "dont_bet_past": "Under 44.5", "win": 0.53, "push": 0.0}]})
+    d, note = decide(tmp_path, [
+        {"game": "Jets at Chargers", "market": "spread", "side": "home", "status": "Bet", "reasons": REASONS, "summary": "s"},
+        {"game": "Jets at Chargers", "market": "total", "side": "under", "status": "Bet", "reasons": REASONS, "summary": "s"}])
+    text, rows = card.build(sheet, d, note, CFG)
+    live = [r for r in rows if r["status"] != "Pass"]
+    assert [r["pick"] for r in live] == ["Chargers -2.5"]           # value 0.06 beats 0.03
+    cut = [r for r in rows if r["pick"] == "Under 45"][0]
+    assert cut["status"] == "Pass" and cut["dollars"] == 0 and "One position per game" in cut["downgraded"]

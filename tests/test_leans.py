@@ -95,7 +95,7 @@ def test_grade_result_clv_forecast_and_record(monkeypatch):
     con.execute(snap.SCHEMA) if hasattr(snap, "SCHEMA") else None
     con.execute(leans.SCHEMA)
     past = datetime.utcnow() - timedelta(hours=5)
-    con.execute("INSERT INTO leans VALUES ('k','2026-11-20 12:00','2026-11-16','NFL','E1','B at A','spread','home','A +3',3.0,-110,3.0,'A +3',3.0,"
+    con.execute("INSERT INTO leans (lean_key, issued_utc, week, sport, event_id, game, market, side, pick, book_line, price, dont_bet_past_line, dont_bet_past, pinnacle_line, reason_type, reason, source, news_at, pinnacle_before_news, forecast_line, kickoff_utc, bet_at_stated) VALUES ('k','2026-11-20 12:00','2026-11-16','NFL','E1','B at A','spread','home','A +3',3.0,-110,3.0,'A +3',3.0,"
                 "'forecast','r','s',NULL,NULL,4.0,?,NULL)", [past])
     try:
         con.execute("CREATE TABLE IF NOT EXISTS line_snapshots (ts_utc TIMESTAMP, source VARCHAR, sport VARCHAR, event_id VARCHAR, away VARCHAR, home VARCHAR, "

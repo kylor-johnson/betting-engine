@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS leans (
   market VARCHAR, side VARCHAR, pick VARCHAR, book_line DOUBLE, price DOUBLE, dont_bet_past_line DOUBLE, dont_bet_past VARCHAR,
   pinnacle_line DOUBLE, reason_type VARCHAR, reason VARCHAR, source VARCHAR, news_at VARCHAR, pinnacle_before_news DOUBLE,
   forecast_line DOUBLE, kickoff_utc TIMESTAMP, bet_at_stated BOOLEAN);
+ALTER TABLE leans ADD COLUMN IF NOT EXISTS rule_version VARCHAR;
 CREATE TABLE IF NOT EXISTS lean_grades (
   lean_key VARCHAR PRIMARY KEY, pinnacle_close DOUBLE, clv_points DOUBLE, result VARCHAR, home_score INTEGER, away_score INTEGER,
   forecast_hit BOOLEAN, graded_utc TIMESTAMP);
@@ -170,6 +171,8 @@ def ingest(cfg: dict, con, sheet: dict, day: str, sport: str, pin_hist: dict | N
     tz = config.display_tz(cfg)
     week = week_of(now, tz)
     out = []
+    from engine import version
+    rv = version.stamp(cfg, con) if cfg.get("picks") else ""
     for d in load(path):
         key = f"{d['game']}|{d['market']}|{d['side']}"
         if con.execute("SELECT 1 FROM leans WHERE lean_key=?", [key]).fetchone():
@@ -182,11 +185,11 @@ def ingest(cfg: dict, con, sheet: dict, day: str, sport: str, pin_hist: dict | N
         if row is None:
             out.append(f"REFUSED {key}: {why}")
             continue
-        con.execute("INSERT INTO leans VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        con.execute("INSERT INTO leans VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     [key, now.replace(tzinfo=None), week, sport, row["event_id"], row["game"], row["market"], row["side"], row["pick"],
                      row["book_line"], row["price"], row["dont_bet_past_line"], row["dont_bet_past"], row["pinnacle_line"],
                      row["reason_type"], row["reason"], row["source"], row["news_at"], row["pinnacle_before_news"],
-                     row["forecast_line"], row["kickoff_utc"], None])
+                     row["forecast_line"], row["kickoff_utc"], None, rv])
         out.append(f"LEAN (paper) {row['pick']} ({int(row['price']):+d}), {row['game']}: {row['reason_type']}. Don't bet past {row['dont_bet_past']}.")
     return out
 

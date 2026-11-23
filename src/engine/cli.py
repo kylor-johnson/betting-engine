@@ -399,6 +399,8 @@ def cmd_status(args) -> int:
     con = _db.connect(config.DB)
     try:
         print(lanes.table_markdown(cfg, con))
+        from engine import version
+        print("\n" + version.versions_text(con))
         path = lanes.write_status_file(cfg, con)
         print(f"\nWritten: {path.relative_to(config.ROOT)}")
         if args.send:
@@ -534,6 +536,13 @@ def cmd_lean(args) -> int:
     return 0
 
 
+def cmd_calib(args) -> int:
+    from engine.models import calibration
+    calibration.run_all()
+    print("Written: docs/research/11a-calibration.md")
+    return 0
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(prog="engine")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -612,6 +621,8 @@ def main(argv=None) -> int:
     a.add_argument("--bet", metavar="KEY")
     a.add_argument("--not-bet", metavar="KEY")
     a.set_defaults(func=cmd_lean)
+    a = sub.add_parser("calib-test", help="walk-forward reliability check of the landing tables (writes docs/research/11a-calibration.md)")
+    a.set_defaults(func=cmd_calib)
     a = sub.add_parser("telegram-setup", help="find the chat id and send a test message")
     a.set_defaults(func=cmd_telegram_setup)
     a = sub.add_parser("watch", help='watchlist: add "Kansas State +10", list, remove 3')

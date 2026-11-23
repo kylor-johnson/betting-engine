@@ -44,9 +44,9 @@ def _db():
     start = datetime.utcnow() - timedelta(hours=5)
     con.execute("INSERT INTO line_snapshots VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 [start - timedelta(hours=1), snap.SHARP, "NFL", "E1", "A", "H", start, -3.5, -110, -110, None, None, 44.0, -110, -110])
-    con.execute("INSERT INTO engine_pick_events VALUES (?,?,?,?,?,?,?,?,?,?)",
+    con.execute("INSERT INTO engine_pick_events (ts_utc, pick_key, game, pick, status, book_line, price, fair, value, pinnacle_line) VALUES (?,?,?,?,?,?,?,?,?,?)",
                 [start - timedelta(hours=20), "E1|spread|home", "A at H", "H -2.5", "Bet", -2.5, -110, -3.0, 0.03, -3.5])
-    con.execute("INSERT INTO engine_pick_events VALUES (?,?,?,?,?,?,?,?,?,?)",
+    con.execute("INSERT INTO engine_pick_events (ts_utc, pick_key, game, pick, status, book_line, price, fair, value, pinnacle_line) VALUES (?,?,?,?,?,?,?,?,?,?)",
                 [start - timedelta(hours=20), "E1|total|over", "A at H", "Over 43", "Pass", 43.0, -110, 43.5, 0.01, None])
     return con
 

@@ -173,6 +173,16 @@ def build() -> Path:
         parts.append("<h2>Came close, and why not</h2><ul class=close>" + "".join(
             f"<li><b>{_e(r['pick'])}</b> <span class=sub>({LABEL[r['sport']]}, {_when(r['kick'], tz)})</span><br>"
             f"{_e(r.get('downgraded') or ' '.join(str(r['decision'].get('why_pass', '')).split()))}</li>" for r in close) + "</ul>")
+    try:
+        from engine import version
+        from engine.odds import snapshots as snap
+        vc = snap.connect(config.DB)
+        try:
+            parts.append(f"<p class=sub>{_e(version.versions_text(vc))} Any change to the rules or settings starts a new version; the record can be split by it.</p>")
+        finally:
+            vc.close()
+    except Exception as e:
+        parts.append(f"<p class=sub>Rule version unavailable: {_e(type(e).__name__)}</p>")
     parts.append("<h2>The five lanes: what each one looks at, and its record</h2>" + _lanes_html(cfg))
     parts.append("<h2>Paper Leans (unproven, never staked)</h2>" + _leans_html(cfg, tz))
     parts.append("<h2>How the engine's picks have done</h2>" + _grades_html(tz))

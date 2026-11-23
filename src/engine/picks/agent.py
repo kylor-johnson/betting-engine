@@ -26,9 +26,11 @@ CREATE TABLE IF NOT EXISTS agent_runs (ts_utc TIMESTAMP, reason VARCHAR, ok BOOL
 CREATE TABLE IF NOT EXISTS engine_picks (
   pick_key VARCHAR PRIMARY KEY, game VARCHAR, pick VARCHAR, status VARCHAR, book_line DOUBLE, price DOUBLE,
   fair DOUBLE, value DOUBLE, dont_bet_past VARCHAR, first_issued_utc TIMESTAMP, updated_utc TIMESTAMP, kickoff_utc TIMESTAMP);
+ALTER TABLE engine_picks ADD COLUMN IF NOT EXISTS rule_version VARCHAR;
 CREATE TABLE IF NOT EXISTS engine_pick_events (
   ts_utc TIMESTAMP, pick_key VARCHAR, game VARCHAR, pick VARCHAR, status VARCHAR, book_line DOUBLE, price DOUBLE,
   fair DOUBLE, value DOUBLE, pinnacle_line DOUBLE);
+ALTER TABLE engine_pick_events ADD COLUMN IF NOT EXISTS rule_version VARCHAR;
 """
 PROMPT_FILE = config.ROOT / "ops" / "agent_prompt.md"
 LOG_DIR = Path.home() / "Library" / "Logs" / "betting-engine"
@@ -177,6 +179,8 @@ def finalize(cfg, env, day: str, sport: str = "NFL", send: bool = True, reason: 
         except Exception as e:
             lean_lines, alerts_lean = [f"Leans could not be processed: {type(e).__name__}: {e}"], []
             props_line = (props_line + "\n" if props_line else "") + lean_lines[0]
+        from engine import version
+        rv = version.stamp(cfg, con)
         pin = {g["event_id"]: g["markets"][0].get("pinnacle_line") for g in sheet["games"]}
         for r in rows:
             key = f"{r['event_id']}|{r['market']}|{r['side']}"
@@ -184,20 +188,20 @@ def finalize(cfg, env, day: str, sport: str = "NFL", send: bool = True, reason: 
             if key in prev or r["status"] != "Pass":
                 first = con.execute("SELECT first_issued_utc FROM engine_picks WHERE pick_key=?", [key]).fetchone()
                 con.execute("DELETE FROM engine_picks WHERE pick_key=?", [key])
-                con.execute("INSERT INTO engine_picks VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                con.execute("INSERT INTO engine_picks VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                             [key, r["game"], r["pick"], r["status"], r["book_line"], r["price"], r["fair"], r["value"],
-                             r["dont_bet_past"], first[0] if first else ts, ts, kick])
+                             r["dont_bet_past"], first[0] if first else ts, ts, kick, rv])
                 if prev.get(key, {}).get("status") != r["status"]:
-                    con.execute("INSERT INTO engine_pick_events VALUES (?,?,?,?,?,?,?,?,?,?)",
+                    con.execute("INSERT INTO engine_pick_events VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                                 [ts, key, r["game"], r["pick"], r["status"], r["book_line"], r["price"], r["fair"],
-                                 r["value"], pin.get(r["event_id"]) if r["market"] == "spread" else None])
+                                 r["value"], pin.get(r["event_id"]) if r["market"] == "spread" else None, rv])
             elif r["status"] == "Pass":
                 # log every flagged Pass too, once per change, so the engine's hit rate is not measured on bets alone
                 last = con.execute("SELECT status FROM engine_pick_events WHERE pick_key=? ORDER BY ts_utc DESC LIMIT 1", [key]).fetchone()
                 if last is None or last[0] != "Pass":
-                    con.execute("INSERT INTO engine_pick_events VALUES (?,?,?,?,?,?,?,?,?,?)",
+                    con.execute("INSERT INTO engine_pick_events VALUES (?,?,?,?,?,?,?,?,?,?,?)",
                                 [ts, key, r["game"], r["pick"], "Pass", r["book_line"], r["price"], r["fair"],
-                                 r["value"], pin.get(r["event_id"]) if r["market"] == "spread" else None])
+                                 r["value"], pin.get(r["event_id"]) if r["market"] == "spread" else None, rv])
             # arm the watchlist at the number that would make a pass a bet
             if r["status"] == "Pass" and not r["numbers_say_bet"] and r.get("limit_line") is not None and r["market"] == "spread":
                 team = r["pick"].rsplit(" ", 1)[0]

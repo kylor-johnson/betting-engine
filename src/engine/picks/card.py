@@ -123,6 +123,22 @@ def build(sheet: dict, decisions: dict, note: str, cfg: dict, strict: bool = Tru
                 (picks if d["status"] != "Pass" else passes).append(rec)
                 rows.append(rec)
 
+    # one position per game: a side and a total (or two sides) in the same game move together, so only the strongest stays live
+    by_game: dict[str, list[dict]] = {}
+    for r in picks:
+        by_game.setdefault(r["event_id"], []).append(r)
+    for group in by_game.values():
+        if len(group) < 2:
+            continue
+        group.sort(key=lambda r: (r["status"] == "Bet", r["value"]), reverse=True)
+        keep = group[0]
+        for r in group[1:]:
+            msg = (f"Same game as {keep['pick']} ({keep['status']}). One position per game, because a side and a total in the same game "
+                   f"are not independent bets; the stronger one stays.")
+            r.update(status="Pass", units=0, dollars=0, downgraded=msg, decision={**r["decision"], "status": "Pass", "why_pass": msg})
+            picks.remove(r)
+            passes.append(r)
+
     if not sheet["games"]:
         why = "; ".join(sheet.get("problems") or ["your book has no games posted for this sport right now"])
         return f"# {sheet.get('sport', '')} card\n\nBuilt {built:%a %b %-d, %-I:%M %p} Mountain. Nothing to price: {why}\n", []
