@@ -1,7 +1,7 @@
 from engine.models import nba_absences as na
 
 
-def game(i, home_play, away_play, spread=-3.0, hp=60, ap=55):
+def game(i, home_play, away_play, spread=-3.0, hp=110, ap=105):
     pl = [{"id": f"h{k}", "team": "H", "min": m, "pts": hp / 5} for k, m in home_play.items()]
     pl += [{"id": f"a{k}", "team": "A", "min": m, "pts": ap / 5} for k, m in away_play.items()]
     return {"season": 2026, "home": "H", "away": "A", "home_spread": spread, "players": pl, "start_utc": f"2026-11-{i:02d}"}
@@ -9,7 +9,7 @@ def game(i, home_play, away_play, spread=-3.0, hp=60, ap=55):
 
 def test_fresh_absence_of_a_regular_counts_and_a_long_absence_does_not():
     full = {k: 30.0 for k in range(5)}
-    games = [game(i, full, full, hp=60, ap=55) for i in range(1, 8)]
+    games = [game(i, full, full, hp=110, ap=105) for i in range(1, 8)]
     # game 8: home's player 0 (30 min regular) is out; away is whole
     games.append(game(8, {k: (0.0 if k == 0 else 30.0) for k in range(5)}, full, hp=120, ap=110))
     rows = na.game_features(games)
