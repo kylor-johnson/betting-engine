@@ -565,6 +565,14 @@ def cmd_wh_edge(args) -> int:
     return 0
 
 
+def cmd_nba_absences(args) -> int:
+    from engine.models import nba_absences, nba_data
+    text = nba_absences.report(nba_data.load())
+    (ROOT / "docs" / "research" / "13-nba-absences.md").write_text(text)
+    print(text)
+    return 0
+
+
 def cmd_calib(args) -> int:
     from engine.models import calibration
     calibration.run_all()
@@ -655,6 +663,8 @@ def main(argv=None) -> int:
     a.set_defaults(func=cmd_lean)
     a = sub.add_parser("wh-edge", help="where Wagerhouse is soft against Pinnacle and how fast it follows (writes docs/research/12-...md)")
     a.set_defaults(func=cmd_wh_edge)
+    a = sub.add_parser("nba-absences", help="does the NBA closing spread already carry who is missing? (writes docs/research/13-...md)")
+    a.set_defaults(func=cmd_nba_absences)
     a = sub.add_parser("calib-test", help="walk-forward reliability check of the landing tables (writes docs/research/11a-calibration.md)")
     a.set_defaults(func=cmd_calib)
     a = sub.add_parser("telegram-setup", help="find the chat id and send a test message")
