@@ -67,6 +67,23 @@ def fair_sentence(sheet: dict, pc: dict) -> str:
             "\"DraftKings first seen by us\" is the first number our own logger recorded (it began 2026-11-21), not a true opener.")
 
 
+def _lane_block(cfg: dict, sport: str) -> list[str]:
+    """Lane header generated from config and the database; empty when the config has no lanes section (tests)."""
+    if not cfg.get("lanes"):
+        return []
+    from engine import config, lanes
+    from engine.odds import snapshots
+    try:
+        con = snapshots.connect(config.DB, read_only=True)
+    except Exception:
+        con = None
+    try:
+        return lanes.card_block(cfg, con, sport)
+    finally:
+        if con is not None:
+            con.close()
+
+
 def build(sheet: dict, decisions: dict, note: str, cfg: dict, strict: bool = True) -> tuple[str, list[dict]]:
     """strict=False is for re-pricing an existing card: a Bet the fresh numbers no longer
     support becomes a Pass marked "value gone" instead of an error."""
@@ -114,6 +131,7 @@ def build(sheet: dict, decisions: dict, note: str, cfg: dict, strict: bool = Tru
     out = [f"# {label} card for {first:%A %b %-d, %Y}", "",
            f"Built {built:%a %b %-d, %-I:%M %p} Mountain from Wagerhouse, Pinnacle and DraftKings prices at that minute. "
            f"Unit ${unit}; cap {pc['max_units']} unit a bet until the engine has 100 graded picks.", ""]
+    out += _lane_block(cfg, sheet.get("sport", "NFL"))
     if note:
         out += [note.strip(), ""]
     out += ["## Picks", ""]

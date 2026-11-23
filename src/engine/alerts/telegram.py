@@ -32,7 +32,9 @@ def find_chat_id(token: str) -> str | None:
     return str(chats[-1]) if chats else None
 
 
-def send(env: dict, text: str) -> None:
+def send(env: dict, text: str, lane: str | None = None) -> None:
+    """`lane` is a key from config `lanes:`. If .env has TELEGRAM_THREAD_<LANE> (a forum topic id) the message goes to that topic;
+    otherwise it goes to the main chat, and its first line already names the lane."""
     token, chat = env.get("TELEGRAM_BOT_TOKEN"), env.get("TELEGRAM_CHAT_ID")
     if not token:
         raise SourceError("Telegram bot token is missing from .env")
@@ -41,4 +43,8 @@ def send(env: dict, text: str) -> None:
     import html as _html
     head, _, rest = text[:3900].partition("\n")
     body = f"<b>{_html.escape(head)}</b>" + ("\n" + _html.escape(rest) if rest else "")
-    _call(token, "sendMessage", {"chat_id": chat, "text": body, "parse_mode": "HTML", "disable_web_page_preview": "true"})
+    params = {"chat_id": chat, "text": body, "parse_mode": "HTML", "disable_web_page_preview": "true"}
+    thread = env.get(f"TELEGRAM_THREAD_{lane.upper()}") if lane else None
+    if thread:
+        params["message_thread_id"] = thread
+    _call(token, "sendMessage", params)

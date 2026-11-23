@@ -43,17 +43,17 @@ This is the rule that stops me finding out a week later that the engine is only 
 4. **Cards say what they actually do.** Any sentence on a card or message that describes how a number was built must be generated from the same config the number came from.
 5. **Every session ends by checking the table** against what it changed, and says in its summary what each lane can and cannot do now.
 
-Until `engine status` exists, the table below is kept by hand and must be updated in the same commit as any change that affects it.
+`engine status` now exists (built 2026-11-23). The table is generated into `docs/lanes/STATUS.md`, onto `board.html`, and to Telegram on Monday mornings and whenever it changes. Do not edit it by hand; change `config.yaml` (`lanes:` and the switches it points to).
 
-## Lane status as of Monday Nov 23, 2026 (kept by hand until `engine status` exists)
+Generated table as of Monday Nov 23, 2026 (see `docs/lanes/STATUS.md` for the current one):
 
 | Lane | What produces a flag today | Own model that passed a test | Can issue a pick? | Record |
 |---|---|---|---|---|
-| NFL spreads and totals | My book differing from Pinnacle; injury adjustments the agent enters; wind on outdoor totals | Wind totals only | Sides: only on unpriced news. Totals: a half-unit Conditional from wind | 0-0, starts this week |
-| College spreads and totals | My book differing from Pinnacle; agent news | None | Only on unpriced news | 0-0 |
-| NBA spreads and totals | My book differing from Pinnacle; agent news; injury watcher | None | Only on unpriced news | 0-0 |
-| NFL props | Nothing yet | Being scored, not passed | No | Not started |
-| NBA props | Nothing yet | Being scored, not passed | No | Not started |
+| NFL spreads and totals | Injury news the agent enters, counted only for the part Pinnacle has not moved for; wind on outdoor totals | Wind totals only | Sides: only on unpriced news. Totals: a half-unit Conditional from wind | 0-0 |
+| College spreads and totals | Injury news the agent enters, same rule | None | Only on unpriced news | 0-0 |
+| NBA spreads and totals | Injury news (checked 10am, 3pm, 5pm Mountain), same rule | None | Only on unpriced news | 0-1 (one Conditional, graded on result) |
+| NFL props | Nothing yet | Being scored, not passed | No | Not started (150 of 300 graded) |
+| NBA props | Nothing yet | Being scored, not passed | No | Not started (209 of 300 graded) |
 
 Models tested and switched off because they did not beat the closing line: sides from market ratings and public systems, sides from play-by-play ratings, totals from pace and efficiency, first-half scoring habits, early-week openers from ratings.
 

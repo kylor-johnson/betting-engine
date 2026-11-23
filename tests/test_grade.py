@@ -126,3 +126,19 @@ def test_connect_gives_up_after_the_wait(tmp_path):
     with pytest.raises(duckdb.IOException):
         snap.connect(db, wait=2)
     p.kill()
+
+
+def test_board_shows_a_graded_pick_with_no_closing_line(tmp_path, monkeypatch):
+    from datetime import datetime
+    from engine import config
+    from engine.picks import board
+    db = tmp_path / "t2.duckdb"
+    monkeypatch.setattr(config, "DB", db)
+    con = snap.connect(db)
+    con.execute(grade.GRADES)
+    con.execute("INSERT INTO engine_pick_grades VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                ["E9|spread|away", "A at H", "A +2.5", "Conditional", "NBA", "spread", datetime(2026, 11, 22), 2.5, -110, 0.5, None, None,
+                 100, 104, "L", -0.5, datetime(2026, 11, 23)])
+    con.close()
+    html = board._grades_html(None)
+    assert "A +2.5" in html and "n/a" in html

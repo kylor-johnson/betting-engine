@@ -389,6 +389,25 @@ def cmd_props_test(args) -> int:
     return 0
 
 
+def cmd_status(args) -> int:
+    """The lane status table, generated from config.yaml and the database (charter drift guard)."""
+    from engine import lanes
+    from engine.alerts import telegram
+
+    cfg = config.load_config()
+    con = _db.connect(config.DB)
+    try:
+        print(lanes.table_markdown(cfg, con))
+        path = lanes.write_status_file(cfg, con)
+        print(f"\nWritten: {path.relative_to(config.ROOT)}")
+        if args.send:
+            telegram.send(config.load_env(), "LANE STATUS (all five lanes)\n" + lanes.table_text(cfg, con))
+            print("Sent to Telegram.")
+    finally:
+        con.close()
+    return 0
+
+
 def cmd_nba_watch(args) -> int:
     """NBA injury watcher: news for players who matter, lines at your book and Pinnacle, research run."""
     from engine.picks import nba_news
@@ -546,6 +565,9 @@ def main(argv=None) -> int:
     a.set_defaults(func=cmd_nba_props_test)
     a = sub.add_parser("props-test", help="held-out test of the props model")
     a.set_defaults(func=cmd_props_test)
+    a = sub.add_parser("status", help="the five-lane status table, generated from config and the database")
+    a.add_argument("--send", action="store_true", help="also send it to Telegram")
+    a.set_defaults(func=cmd_status)
     a = sub.add_parser("nba-watch", help="NBA injury watcher (launchd runs it at 10am, 3pm and 5pm Mountain)")
     a.add_argument("--force", action="store_true", help="run outside the watch hours")
     a.add_argument("--dry-run", action="store_true", help="print, do not message or start a research run")

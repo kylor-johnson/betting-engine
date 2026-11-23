@@ -15,7 +15,7 @@ import subprocess
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from engine import config
+from engine import config, lanes
 from engine.alerts import telegram
 from engine.odds import snapshots as snap
 from engine.odds.espn import SourceError
@@ -162,7 +162,8 @@ def finalize(cfg, env, day: str, sport: str = "NFL", send: bool = True, reason: 
         prev = {r[0]: {"status": r[1], "pick": r[2]} for r in con.execute(
             "SELECT pick_key, status, pick FROM engine_picks WHERE kickoff_utc > ?", [ts]).fetchall()}
         tz = config.display_tz(cfg)
-        alerts = changes(prev, rows, tz, sport, next_check_text(cfg, datetime.now(tz)))
+        alerts = changes(prev, rows, tz, lanes.tag(cfg, sport), next_check_text(cfg, datetime.now(tz)))
+        props_line = lanes.props_footer(cfg, con, sport)
         pin = {g["event_id"]: g["markets"][0].get("pinnacle_line") for g in sheet["games"]}
         for r in rows:
             key = f"{r['event_id']}|{r['market']}|{r['side']}"
@@ -202,7 +203,7 @@ def finalize(cfg, env, day: str, sport: str = "NFL", send: bool = True, reason: 
     for a in alerts:
         msg = a
         if send:
-            telegram.send(env, msg)
+            telegram.send(env, msg, lanes.thread_key(cfg, sport))
         sent.append(msg)
     # a short "nothing to do" note only when this run produced no pick message
     if not alerts and (cfg.get("agent") or {}).get("summary_message", True):
@@ -210,16 +211,18 @@ def finalize(cfg, env, day: str, sport: str = "NFL", send: bool = True, reason: 
         bets = [r for r in rows if r["status"] == "Bet"]
         passed = [r for r in rows if r["status"] == "Pass"]
         if bets or waiting:
-            lines = [f"{sport} · NOTHING NEW. Checked again ({len(sheet['games'])} games)."]
+            lines = [f"{lanes.tag(cfg, sport)} · NOTHING NEW. Checked again ({len(sheet['games'])} games)."]
             lines += [f"Still a bet: {r['pick']} ({int(r['price']):+d}), skip if worse than {_limit(r)}." for r in bets]
             lines += [f"Still waiting: {r['pick']}. Only if: {' '.join(str(r['decision']['condition']).split())}" for r in waiting]
         else:
-            lines = [f"{sport} · NO BETS. Checked {len(sheet['games'])} games; nothing is worth a bet right now."]
+            lines = [f"{lanes.tag(cfg, sport)} · NO BETS. Checked {len(sheet['games'])} games; nothing is worth a bet right now."]
             if passed:
                 lines.append("Came close but had no real reason behind them: " + ", ".join(r["pick"] for r in passed[:6]) + ".")
+        if props_line:
+            lines.append(props_line)
         msg = "\n".join(lines)
         if send:
-            telegram.send(env, msg)
+            telegram.send(env, msg, lanes.thread_key(cfg, sport))
         sent.append(msg)
     return sent, out
 
@@ -258,6 +261,8 @@ def run(reason: str, send: bool = True, skip_research: bool = False, sport: str 
         lines.append(f"{sport} card: {path.relative_to(config.ROOT)}. {flagged} side(s) flagged by the numbers. {len(sent)} message(s).")
         lines += sent
         record(True, f"{len(sent)} messages")
+        from engine import gitsync
+        lines.append(gitsync.commit_generated(sport))
         return 0, lines
     except Exception as e:
         msg = str(e) if isinstance(e, SourceError) else f"{type(e).__name__}: {e}"

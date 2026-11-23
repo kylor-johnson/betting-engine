@@ -91,6 +91,20 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
                                                     f"The {when:%a %-I:%M %p} research run did not start (no record of it). Check ~/Library/Logs/betting-engine/agent.log.")], now, out)
             except Exception as e:
                 out.append(f"Could not check for missed research runs: {type(e).__name__}: {e}")
+        if send_alerts and not force:
+            try:   # drift guard: Monday morning, and whenever what a lane looks at or which models are on changes
+                from engine import lanes
+                changed = lanes.check_changed(con, cfg, now)
+                extra = []
+                if changed:
+                    extra.append(rules.Alert(f"status-changed|{lanes.structure_hash(cfg)}", "status", changed))
+                local = now.astimezone(config.display_tz(cfg))
+                if local.weekday() == 0 and local.hour >= 7:
+                    extra.append(rules.Alert(f"status-monday|{local:%Y-%m-%d}", "status", "LANE STATUS, Monday (all five lanes)\n" + lanes.table_text(cfg, con)))
+                if extra:
+                    _deliver(con, env, extra, now, out)
+            except Exception as e:
+                out.append(f"Lane status check failed: {type(e).__name__}: {e}")
         if not force and not due(cfg, now, last_ok):
             return 0, out + ["Nothing read: outside the scheduled hours, or a read already ran in the last 45 minutes."]
         gap = rules.missed_reads(last_ok, now, cfg["missed_read_alert_hours"] + 12)
