@@ -150,7 +150,7 @@ def test_playbook_blends_at_the_starting_weight_and_checks_big_gaps():
 def test_playbook_stakes_half_size_then_full_and_stop_loss():
     from engine.picks import playbook as pb
     st = pb.settings({"playbook": {"live_since": "2026-11-24"}})
-    assert pb.stake(st, "B", datetime(2026, 11, 25, tzinfo=UTC), 0.0, 25)[:2] == (0.25, 6.25)
+    assert pb.stake(pb.settings({"playbook": {"live_since": "2026-11-24", "half_size_weeks": 3}}), "B", datetime(2026, 11, 25, tzinfo=UTC), 0.0, 25)[:2] == (0.25, 6.25)
     assert pb.stake(st, "A", datetime(2027, 1, 5, tzinfo=UTC), 0.0, 25)[:2] == (1.0, 25.0)
     assert pb.stake(st, "B", datetime(2027, 1, 5, tzinfo=UTC), -10.0, 25)[:2] == (0.0, 0.0)
     assert pb.stake(st, "C", datetime(2027, 1, 5, tzinfo=UTC), 0.0, 25)[:2] == (0.0, 0.0)

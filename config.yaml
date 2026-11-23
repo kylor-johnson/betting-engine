@@ -203,7 +203,7 @@ playbook:
   check_points: {side: 3.0, total: 4.0, team_total: 4.0}  # our own number this far from the market = CHECK (held until researched)
   units: {A: 1.0, B: 0.5}
   live_since: "2026-11-24"
-  half_size_weeks: 3
+  half_size_weeks: 0          # Kylor 2026-11-23: full units starting now (decision 0020)
   stop_loss_units: 10.0
   max_per_week: 5
   show_c: 5

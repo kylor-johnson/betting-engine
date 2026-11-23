@@ -7,3 +7,7 @@ Kylor: "NFL bets my unit is now $50 and for nba it is $25."
 - Grades in dollars, NFL, until Dec 15 (half size): A $25, B $12.50. After Dec 15: A $50, B $25. NBA: A $12.50 / B $6.25, then $25 / $12.50.
 - The two NFL picks already sent at the old $25 unit were re-priced in the database: Commanders team total under 24 is $12.50 (was $6.25),
   the Packers/Steelers teaser is $25 (was $12.50).
+
+**Amended the same evening.** Kylor: "units are $50 for nfl and $25 for nba starting now." No half-size period (`playbook.half_size_weeks: 0`).
+NFL: A $50, B $25. NBA: A $25, B $12.50. Open picks were re-priced: Commanders team total under 24, Chase under 0.5 TD and DeVonta Smith
+under 64.5 are $25 each; the Packers/Steelers teaser is $50.
