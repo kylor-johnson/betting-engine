@@ -200,6 +200,8 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
             _stale.grade(con, cfg=cfg)
             from engine.picks import teasers as _teasers
             _teasers.grade(con)
+            from engine.picks import playbook as _playbook
+            _playbook.grade(con, cfg)
             for gl in grade.run(cfg, con):
                 if gl.startswith(("GRADED", "NOT GRADED")):
                     out.append(gl)
@@ -261,13 +263,21 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
         from engine import stale
         stale_msgs = stale.scan(cfg, env, con, snaps, now, send=send_alerts)
         out += stale_msgs
-        try:   # NFL Wong teasers, paper only (decision 0014): freeze new legs and refresh this week's card
+        day = now.astimezone(config.display_tz(cfg)).strftime("%Y-%m-%d")
+        try:   # NFL Wong teasers (decisions 0014, 0019): freeze new legs, send tickets, refresh this week's card
             from engine.picks import teasers
             out += teasers.scan(cfg, con, snaps, now)
-            day = now.astimezone(config.display_tz(cfg)).strftime("%Y-%m-%d")
             (config.ROOT / "docs" / "cards" / f"{day}-nfl-teasers.md").write_text(teasers.card(con, cfg, now))
         except Exception as e:
             out.append(f"Teaser lane failed: {type(e).__name__}: {e}")
+        try:   # playbook picks, NFL full-game markets (decisions 0018, 0019)
+            from engine.picks import playbook
+            pb_lines, pb_card = playbook.run(cfg, env, con, now, send=send_alerts)
+            out += [l for l in pb_lines if not l.startswith("NFL · PLAYBOOK")] + [f"playbook pick issued: {l.splitlines()[1]}" for l in pb_lines if l.startswith("NFL · PLAYBOOK")]
+            if pb_card:
+                (config.ROOT / "docs" / "cards" / f"{day}-nfl-playbook.md").write_text(pb_card)
+        except Exception as e:
+            out.append(f"Playbook failed: {type(e).__name__}: {e}")
         # run on change (decision 0016): a new stale number means Pinnacle moved and Wagerhouse has not; the agent looks for the reason
         stale_sports = stale.new_sports(con, now)
         if "NFL" in stale_sports:

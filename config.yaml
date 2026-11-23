@@ -114,6 +114,7 @@ lanes:
       small_markets: {enabled: true, text: "First-half, quarter and team-total lines are logged and compared with Pinnacle; not yet measured."}
     models:
       wind_totals: {status: passed_weak, switch: models.wind_totals.enabled, doc: docs/research/05-model-first-picks.md, note: "Unders only, Conditional at most; weaker since 2024"}
+      playbook_script: {status: overridden, switch: playbook.enabled, doc: docs/research/15-script-model.md, note: "game-script team points, blended at the playbook's starting weights (decision 0019)"}
       ratings_sides: {status: failed, doc: docs/research/04-evaluation.md, note: "market ratings and public systems did not beat the close (2,663 games)"}
       pbp_ratings_sides: {status: failed, doc: docs/research/03-sharp-style-handicapping.md, note: "play-by-play ratings did not beat the close (918 games)"}
       pace_totals: {status: failed, doc: docs/research/02-totals-model.md, note: "pace and efficiency totals did not beat the close (918 games)"}
@@ -181,12 +182,28 @@ lanes:
 # Wagerhouse's 2-team 6-point teaser pays -110 ("WH 6/4 MIX" in his tickets); if that changes, change `price` here (a kill condition).
 teasers:
   enabled: true
+  real_money: true            # Kylor 2026-11-23 (decision 0019): tickets are A picks, staked like playbook picks
   points: 6.0
   price: -110
   max_total: 49.0
   favorite: [-8.5, -7.5]      # this side's own spread
   underdog: [1.5, 2.5]
   kill_after_legs: 150        # judged here: under the break-even rate (72.4% at -110) means off
+
+# Playbook picks, NFL full-game markets (src/engine/picks/playbook.py, PLAYBOOK.md, decisions 0018 and 0019).
+# Weights on OUR number against the market are the playbook's starting weights, chosen by Kylor over the walk-forward result
+# (zero weight 2024-2026, docs/research/15-script-model.md). Re-fit on graded picks every 4 weeks.
+playbook:
+  enabled: true
+  weights: {side: 0.25, total: 0.35, team_total: 0.4}
+  min_edge: {side: 0.03, total: 0.03, team_total: 0.03}   # win chance above what Wagerhouse's price needs
+  check_points: {side: 3.0, total: 4.0, team_total: 4.0}  # our own number this far from the market = CHECK (held until researched)
+  units: {A: 1.0, B: 0.5}
+  live_since: "2026-11-24"
+  half_size_weeks: 3
+  stop_loss_units: 10.0
+  max_per_week: 5
+  show_c: 5
 
 # Telegram only pings for things you must act on (changed 2026-11-23, Kylor: "only ping me when it has a bet for me to place").
 # Kinds: bet = a Bet, a Conditional, or the cancellation of one; stale = a STALE NUMBER price alert (src/engine/stale.py; added 2026-11-23, Kylor asked); system = the engine is broken (a read failed, a scheduled research run

@@ -97,8 +97,9 @@ class Form:
         return d[k] / self.w if self.w else None
 
 
-def build_features(first_test: int = 2017) -> list[dict]:
-    """For every game from 2016 on: both teams' pre-game form, situation, the market's implied team points and the real points."""
+def build_features(first_test: int = 2017, state: dict | None = None) -> list[dict]:
+    """For every game from 2016 on: both teams' pre-game form, situation, the market's implied team points and the real points.
+    If `state` is given it is filled with the running forms after the last completed game (for live use: `live_row`)."""
     tg = team_games()
     meta = _games_meta()
     by_game = defaultdict(dict)
@@ -151,7 +152,26 @@ def build_features(first_test: int = 2017) -> list[dict]:
                 if off.get(k) is not None:
                     league[s][k].append(off[k])
             season_avg[(s, team)] = {"off": {k: fm.mean("off", k) for k in STATS}, "dfn": {k: fm.mean("dfn", k) for k in STATS}}
+    if state is not None:
+        state.update(forms=forms, season_avg=season_avg, league=league)
     return out
+
+
+def live_row(state: dict, season: int, team: str, opp: str, home: int, implied: float, spread: float, total: float,
+             backup_qb: int = 0, wind: float | None = None, rain: float | None = None, dome: int = 0) -> dict:
+    """The same row `build_features` makes, for a game not yet played (form = everything completed so far)."""
+    f = _pre(state["forms"], state["season_avg"], state["league"], season, team)
+    fo = _pre(state["forms"], state["season_avg"], state["league"], season, opp)
+    return {"season": season, "team": team, "opp": opp, "home": home, "implied": implied, "spread": spread, "total": total,
+            "backup_qb": backup_qb, "wind": wind, "rain": rain, "dome": dome,
+            **{f"o_{k}": f["off"].get(k) for k in STATS}, **{f"d_{k}": fo["dfn"].get(k) for k in STATS},
+            "o_drives_opp": fo["off"].get("drives"), "games": f["games"]}
+
+
+def fit_live(rows: list[dict], min_games: float = 2.0, lam: float = 50.0):
+    """The points model fitted on every completed game (live use only; tests use walk_forward)."""
+    usable = [r for r in rows if r["season"] >= 2016 and r["games"] >= min_games and vector(r) is not None]
+    return ridge([vector(r) for r in usable], [r["points"] for r in usable], lam)
 
 
 def _pre(forms, season_avg, league, s, team) -> dict:

@@ -16,6 +16,7 @@ STATUS_WORDS = {
     "passed_weak": "passed a test, weaker lately",
     "testing": "still being tested",
     "failed": "tested, failed, switched off",
+    "overridden": "ON by Kylor's choice; its walk-forward test gave it no weight",
 }
 
 
@@ -47,8 +48,13 @@ def can_produce(cfg: dict, lane: dict) -> str:
     if lane["kind"] == "teaser":
         from engine.picks import teasers
         st = teasers.settings(cfg)
+        if not st["enabled"]:
+            return "Nothing (switched off)."
+        if st.get("real_money"):
+            return (f"A 2-team {st['points']:g}-point teaser (A pick, real money) whenever two qualifying legs are open; judged at "
+                    f"{st['kill_after_legs']} graded legs against {teasers.breakeven(st['price']):.1%} (decisions 0014, 0019).")
         return (f"Nothing staked. Paper teasers only, until {st['kill_after_legs']} legs are graded and at least "
-                f"{teasers.breakeven(st['price']):.1%} win (decision 0014).") if st["enabled"] else "Nothing (switched off)."
+                f"{teasers.breakeven(st['price']):.1%} win (decision 0014).")
     if lane["kind"] == "props":
         need = ((cfg.get("models") or {}).get("props") or {}).get("min_graded", 300)
         return f"Nothing. Testing only until {need} props are graded and the test is passed."
@@ -60,6 +66,8 @@ def can_produce(cfg: dict, lane: dict) -> str:
         if model_on(cfg, m) and m["status"] in ("passed", "passed_weak"):
             cap = ((cfg.get("models") or {}).get(name) or {}).get("max_status", "Bet")
             parts.append(f"{name.replace('_', ' ')} ({cap} at most)")
+        elif model_on(cfg, m) and m["status"] == "overridden":
+            parts.append(f"{name.replace('_', ' ')} (B picks, half a unit; real money)")
     if not parts:
         return "Nothing."
     stake = f"Bet {pc.get('max_units', 1)} unit, Conditional {pc.get('conditional_units', 0.5)} unit"

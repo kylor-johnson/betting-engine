@@ -568,6 +568,28 @@ def cmd_wh_edge(args) -> int:
     return 0
 
 
+def cmd_playbook(args) -> int:
+    """Price the NFL playbook picks now and print the card. --dry-run uses a copy of the database and sends nothing."""
+    import shutil, tempfile
+    from datetime import datetime, timezone
+    from engine.picks import playbook
+    cfg, env = config.load_config(), config.load_env()
+    now = datetime.now(timezone.utc)
+    if args.dry_run:
+        tmp = Path(tempfile.mkdtemp()) / "dry.duckdb"
+        shutil.copy(config.DB, tmp)
+        con = _db.connect(tmp)
+    else:
+        con = _db.connect(config.DB)
+    try:
+        lines, card = playbook.run(cfg, env, con, now, send=not args.dry_run)
+    finally:
+        con.close()
+    print("\n".join(lines))
+    print(card)
+    return 0
+
+
 def cmd_stale(args) -> int:
     from engine import stale
     con = _db.connect(config.DB)
@@ -690,6 +712,9 @@ def main(argv=None) -> int:
     a.add_argument("--bet", metavar="KEY")
     a.add_argument("--not-bet", metavar="KEY")
     a.set_defaults(func=cmd_lean)
+    a = sub.add_parser("playbook", help="price the NFL playbook picks now (PLAYBOOK.md); --dry-run sends nothing and writes nothing")
+    a.add_argument("--dry-run", action="store_true")
+    a.set_defaults(func=cmd_playbook)
     a = sub.add_parser("wh-edge", help="where Wagerhouse is soft against Pinnacle and how fast it follows (writes docs/research/12-...md)")
     a.set_defaults(func=cmd_wh_edge)
     a = sub.add_parser("stale", help="stale-number price alerts: grade them and show the record")

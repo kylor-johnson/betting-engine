@@ -122,3 +122,49 @@ def test_script_blend_weight_and_ridge():
     y = [2.0 * r[0] + 1.0 for r in X]
     m = script.ridge(X, y, 0.0)
     assert abs(script.predict(m, [10.0, 1.0]) - 21.0) < 1e-6
+
+
+def _game(**kw):
+    g = {"event_id": "g1", "home": "Home", "away": "Away", "kick": datetime(2030, 1, 1, tzinfo=UTC),
+         "own_home": 27.0, "own_away": 20.0, "own_margin": 7.0, "own_total": 47.0, "mkt_home": 24.0, "mkt_away": 21.0,
+         "mkt_margin": 3.0, "mkt_total": 45.0, "wh_spread": -3.0, "wh_home_price": -110, "wh_away_price": -110,
+         "wh_total": 45.0, "wh_over": -110, "wh_under": -110}
+    g.update(kw)
+    return g
+
+
+def test_playbook_blends_at_the_starting_weight_and_checks_big_gaps():
+    from engine.picks import playbook as pb
+    st = pb.settings({})
+    lands = stale.landings("NFL", {})
+    cands = pb.candidates([_game()], st, lands)
+    side = next(c for c in cands if c["market"] == "side" and c["side"] == "home")
+    assert abs(side["our_line"] - -(3.0 + 0.25 * 4.0)) < 1e-9 and side["check"] is True     # own 7 vs market 3: 4 points > 3
+    graded = pb.grade_all(cands, st)
+    assert len(graded) == 1                                      # one position per game
+    key = pb.key_of(next(c for c in cands if c["market"] == "side" and c["side"] == "home"))
+    cleared = pb.grade_all(pb.candidates([_game()], st, lands), st, checks={key: {"verdict": "clear", "why": "nothing found"}})
+    assert any(c["grade"] == "B" for c in cleared)
+
+
+def test_playbook_stakes_half_size_then_full_and_stop_loss():
+    from engine.picks import playbook as pb
+    st = pb.settings({"playbook": {"live_since": "2026-11-24"}})
+    assert pb.stake(st, "B", datetime(2026, 11, 25, tzinfo=UTC), 0.0, 25)[:2] == (0.25, 6.25)
+    assert pb.stake(st, "A", datetime(2027, 1, 5, tzinfo=UTC), 0.0, 25)[:2] == (1.0, 25.0)
+    assert pb.stake(st, "B", datetime(2027, 1, 5, tzinfo=UTC), -10.0, 25)[:2] == (0.0, 0.0)
+    assert pb.stake(st, "C", datetime(2027, 1, 5, tzinfo=UTC), 0.0, 25)[:2] == (0.0, 0.0)
+
+
+def test_teaser_tickets_pair_open_legs_from_different_games(monkeypatch):
+    con = duckdb.connect()
+    con.execute(teasers.SCHEMA)
+    import engine.version as v
+    monkeypatch.setattr(v, "stamp", lambda cfg, con: "test")
+    now = datetime(2029, 12, 31, tzinfo=UTC)
+    cfg = {"teasers": {}, "timezone_display": "America/Denver", "unit": 25, "playbook": {"live_since": "2029-12-30"}}
+    teasers.scan({**cfg, "teasers": {"real_money": False}}, con, [S(), S(event_id="e2", home="PIT", away="DEN", home_spread=2.5, total=38.0)], now)
+    sent = []
+    out = teasers.tickets_to_send(cfg, con, now, sender=lambda env, text, lane, kind: sent.append((lane, kind)))
+    assert len(out) == 1 and "TEASER BET (A)" in out[0] and "$12.5" in out[0] and sent == [("nfl_teasers", "bet")]
+    assert teasers.tickets_to_send(cfg, con, now) == []          # legs already used

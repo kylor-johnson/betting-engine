@@ -10,4 +10,20 @@
 
 **Wind.** When a total carries `model: wind`, the numbers flag it because of the tested wind model (record and its weakening since 2024: docs/research/05-model-first-picks.md and 14, 2e; quote only numbers you read there). It is a Conditional at most: issue it unless something sourced kills it (roof closed, game moved, forecast changed), with the condition "forecast still at or above <wind_mph rounded down> mph two hours before kickoff". Say plainly it is the wind model's pick.
 
-**Teasers.** The paper Wong-teaser lane runs in code (docs/cards/<date>-nfl-teasers.md). Do not issue teasers in the decisions file.
+**Playbook CHECK picks (PLAYBOOK.md, decision 0019).** Open `docs/cards/{{DAY}}-nfl-playbook.md` (or the latest one). Each row marked CHECK clears the edge, but the game-script model's own number is far from the market. For each one, find out whether the market knows something the model does not: a quarterback or key player out or returning, a suspension, a weather change, a team resting starters. The model only knows past play-by-play, the usual starter and the wind forecast. Then write `docs/cards/decisions/{{DAY}}-nfl-checks.yaml`:
+
+```
+checks:
+  - key: "<the Key column, exactly>"
+    verdict: clear        # nothing found that explains the gap: the model's view stands and the pick is issued as a B pick
+    why: "<one sentence: what you checked>"
+    source: "<a page you opened>"
+  - key: "..."
+    verdict: hold         # you found what the market knows (name it, with the time it was published)
+    why: "..."
+    source: "..."
+```
+
+Never write a number. A verdict on a game already played is ignored.
+
+**Teasers.** The Wong-teaser lane runs in code (docs/cards/<date>-nfl-teasers.md) and sends its own tickets. Do not issue teasers in the decisions file.
