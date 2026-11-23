@@ -14,5 +14,5 @@ def test_only_bets_and_system_get_through(monkeypatch):
     assert len(calls) == 2
 
 
-def test_config_default_is_bets_and_system():
-    assert telegram.allowed_kinds() == {"bet", "system"}
+def test_config_default_is_bets_system_and_stale_number():
+    assert telegram.allowed_kinds() == {"bet", "system", "stale"}

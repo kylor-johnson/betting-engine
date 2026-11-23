@@ -568,6 +568,20 @@ def cmd_wh_edge(args) -> int:
     return 0
 
 
+def cmd_stale(args) -> int:
+    from engine import stale
+    con = _db.connect(config.DB)
+    try:
+        for line in stale.grade(con):
+            print(line)
+        print(stale.summary_text(con))
+        for r in con.execute("SELECT game, pick, price, pinnacle_line, value, dont_bet_past, ts_utc FROM stale_alerts ORDER BY ts_utc DESC LIMIT 15").fetchall():
+            print(f"- {r[6]:%b %-d %H:%M} UTC  {r[1]} ({int(r[2]):+d}) {r[0]}; Pinnacle {r[3]:g}; {100 * r[4]:+.1f}%; don't bet past {r[5]}")
+    finally:
+        con.close()
+    return 0
+
+
 def cmd_ready(args) -> int:
     from engine import readiness
     cfg = config.load_config()
@@ -678,6 +692,8 @@ def main(argv=None) -> int:
     a.set_defaults(func=cmd_lean)
     a = sub.add_parser("wh-edge", help="where Wagerhouse is soft against Pinnacle and how fast it follows (writes docs/research/12-...md)")
     a.set_defaults(func=cmd_wh_edge)
+    a = sub.add_parser("stale", help="stale-number price alerts: grade them and show the record")
+    a.set_defaults(func=cmd_stale)
     a = sub.add_parser("ready", help="when may real money go on an engine pick? generated from the record (writes docs/lanes/READINESS.md)")
     a.set_defaults(func=cmd_ready)
     a = sub.add_parser("nba-absences", help="does the NBA closing spread already carry who is missing? (writes docs/research/13-...md)")

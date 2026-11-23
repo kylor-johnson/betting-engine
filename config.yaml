@@ -166,11 +166,11 @@ lanes:
     not_evaluating: ["any Wagerhouse prop price", "any prop pick (the gate below must pass first)"]
 
 # Telegram only pings for things you must act on (changed 2026-11-23, Kylor: "only ping me when it has a bet for me to place").
-# Kinds: bet = a Bet, a Conditional, or the cancellation of one; system = the engine is broken (a read failed, a scheduled research run
+# Kinds: bet = a Bet, a Conditional, or the cancellation of one; stale = a STALE NUMBER price alert (src/engine/stale.py; added 2026-11-23, Kylor asked); system = the engine is broken (a read failed, a scheduled research run
 # did not happen) or you asked by command. Everything else (NO BETS summaries, openers, QB and NBA news, price gaps, lane status,
 # graded picks, props, paper Leans) is held back; it is still on the cards and board.html. Add "info" to see everything again.
 telegram:
-  send_kinds: [bet, system]
+  send_kinds: [bet, system, stale]
 
 # Paper Leans (src/engine/picks/leans.py): the agent's judgment picks, never staked. Kylor, 2026-11-23: "leans paper-only".
 leans:
@@ -219,3 +219,11 @@ go_live:
   stop_loss_units: 10           # pause if down this many units since Stage 1 began
   weekly_stake_cap_units: 2.0   # at most this many units staked in a week at Stage 1
   stage1_unit_fraction: 0.5     # Stage 1 stakes this fraction of the unit
+
+# STALE NUMBER alerts (src/engine/stale.py): Wagerhouse is better than Pinnacle's fair price by the engine's 2% bar on a full-game side or total.
+# A price alert, not a pick; graded on result and closing-line value (engine stale). College is not covered (no cheap landing table).
+stale:
+  enabled: true
+  sports: [NFL, NBA]
+  max_per_day: 10
+  max_gap_points: 3.0        # a bigger gap is treated as a data mismatch, not an opportunity

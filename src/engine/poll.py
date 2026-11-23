@@ -196,6 +196,8 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
             from engine.picks import grade
             from engine.picks import leans as _leans
             _leans.grade(cfg, con)      # paper Leans are graded quietly, shown on the board
+            from engine import stale as _stale
+            _stale.grade(con)
             for gl in grade.run(cfg, con):
                 if gl.startswith(("GRADED", "NOT GRADED")):
                     out.append(gl)
@@ -254,6 +256,8 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
             alerts.append(rules.Alert(f"problems|{now:%Y-%m-%d}|{len(problems)}", "problem",
                                       "Problems on this read:\n" + "\n".join(problems[:15])))
         snap.save(con, snaps)
+        from engine import stale
+        out += stale.scan(cfg, env, con, snaps, now, send=send_alerts)
         if triggers and send_alerts:
             from engine.picks import agent
             acfg = cfg.get("agent") or {}

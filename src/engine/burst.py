@@ -4,7 +4,7 @@ The hourly read cannot say how many minutes Wagerhouse trails Pinnacle after a m
 Pinnacle full-game lines every ten minutes (NFL only by default) and stores them as ordinary line snapshots, so the speed table in
 `engine wh-edge` gets minute-level resolution and grading gets a nearer closing line.
 
-It is deliberately light: no DraftKings, no props, no alerts, no research runs. Windows are in `config.yaml` (`burst:`), Mountain time:
+It is deliberately light: no DraftKings, no props, no research runs. The one thing it can send is a STALE NUMBER price alert (src/engine/stale.py). Windows are in `config.yaml` (`burst:`), Mountain time:
 Wednesday to Friday afternoon for practice reports, Sunday and the weekday-night games for inactives (about 90 minutes before kickoff).
 A daily cap bounds the number of Wagerhouse sign-ins. A failed burst read is recorded in `burst_reads` and never alerts: the hourly
 heartbeat is the alarm, and a fast read is a measurement, not a safety net.
@@ -112,6 +112,8 @@ def run(force: bool = False) -> tuple[int, list[str]]:
         if allsnaps:
             snap.save(con, allsnaps)
         con.executemany("INSERT INTO burst_reads VALUES (?,?,?,?,?,?)", rows)
+        from engine import stale
+        out += stale.scan(cfg, env, con, allsnaps, now)         # the only thing a fast read can send: a stale-number price alert
     finally:
         con.close()
     return (0 if all(r[2] for r in rows) else 1), out
