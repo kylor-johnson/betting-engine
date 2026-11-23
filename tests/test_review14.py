@@ -1,4 +1,5 @@
 """Changes from review 14 (approved 2026-11-23): teasers, win-chance CLV, minute lags, NBA first-tip window, per-sport readiness."""
+import math
 from datetime import datetime, timedelta, timezone
 
 import duckdb
@@ -166,7 +167,7 @@ def test_teaser_tickets_pair_open_legs_from_different_games(monkeypatch):
     teasers.scan({**cfg, "teasers": {"real_money": False}}, con, [S(), S(event_id="e2", home="PIT", away="DEN", home_spread=2.5, total=38.0)], now)
     sent = []
     out = teasers.tickets_to_send(cfg, con, now, sender=lambda env, text, lane, kind: sent.append((lane, kind)))
-    assert len(out) == 1 and "TEASER BET (A)" in out[0] and "$12.5" in out[0] and sent == [("nfl_teasers", "bet")]
+    assert len(out) == 1 and "TEASER BET (A)" in out[0] and "$25" in out[0] and sent == [("nfl_teasers", "bet")]
     assert teasers.tickets_to_send(cfg, con, now) == []          # legs already used
 
 
@@ -192,3 +193,44 @@ def test_prop_candidates_feed_the_script_and_blend():
     assert pb.grade_props(cands, st)[0]["grade"] == "C"                    # held: CHECK
     key = pb.prop_key(over)
     assert pb.grade_props(cands, st, {key: {"verdict": "clear", "why": "x"}})[0]["grade"] == "B"
+
+
+def test_settings_per_sport_and_period_keys():
+    from engine.picks import playbook as pb
+    cfg = {"timezone_display": "America/Denver", "playbook": {"weights": {"side": 0.3}, "sports": {"NBA": {"max_per_period": 3}}}}
+    nfl, nba, cfb = pb.settings(cfg, "NFL"), pb.settings(cfg, "NBA"), pb.settings(cfg, "College")
+    assert nfl["full_game"] == "stake" and nba["full_game"] == "show" and cfb["full_game"] == "show"
+    assert nba["max_per_period"] == 3 and nba["check_points"]["side"] == 4.0 and nfl["check_points"]["side"] == 3.0
+    assert nfl["weights"]["side"] == 0.3 and nba["weights"]["side"] == 0.3
+    kick = datetime(2026, 11, 25, 3, 0, tzinfo=UTC)           # Tue 8 pm MT
+    assert pb.period_key(nba, kick, cfg) == "2026-11-24" and pb.period_key(nfl, kick, cfg) == teasers.nfl_week(kick)
+
+
+def test_market_implied_handles_missing_totals():
+    from engine.picks import playbook as pb
+    w = (None, "wagerhouse", "College", "e", "A", "H", None, -7.0, -110, -110, None, None, None, None, None)
+    assert pb.market_implied(w, None) is None                              # no total anywhere and no fallback
+    hs, tot, ih, ia = pb.market_implied(w, None, 52.0)
+    assert tot is None and (ih, ia) == (29.5, 22.5)
+
+
+def test_props_lead_factor_only_where_the_test_passed():
+    from engine.models import props_script
+    params = {"carries": {"b": 0.003, "use": True}, "receptions": {"b": 0.001, "use": False}}
+    assert abs(props_script.factor(params, "carries", 7.0) - math.exp(0.021)) < 1e-12
+    assert props_script.factor(params, "receptions", 7.0) == 1.0 and props_script.factor(params, "tds", 7.0) == 1.0
+
+
+def test_candidates_are_logged_once_and_refit_counts_each_market_once():
+    from engine.picks import playbook as pb
+    con = duckdb.connect()
+    con.execute(pb.SCHEMA)
+    st = pb.settings({})
+    cands = pb.candidates([_game()], st, stale.landings("NFL", {}))
+    graded = pb.grade_all(cands, st)
+    assert pb.log_candidates(con, "NFL", cands, datetime(2029, 12, 31, tzinfo=UTC)) == len(cands)
+    assert pb.log_candidates(con, "NFL", cands, datetime(2029, 12, 31, tzinfo=UTC)) == 0
+    con.execute("UPDATE playbook_candidates SET outcome = CASE market WHEN 'side' THEN 10 WHEN 'total' THEN 50 ELSE 24 END")
+    rf = {r["market"]: r for r in pb.refit(con, {})}
+    assert rf["side"]["n"] == 1 and rf["total"]["n"] == 1      # home and away (over and under) are one market
+    assert 0.0 <= rf["side"]["fitted"] <= 1.0

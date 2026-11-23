@@ -123,7 +123,7 @@ lanes:
       pace_totals: {status: failed, doc: docs/research/02-totals-model.md, note: "pace and efficiency totals did not beat the close (918 games)"}
       first_half: {status: failed, doc: docs/research/05-model-first-picks.md, note: "first-half scoring habits did not beat the close (2,111 games)"}
       openers: {status: failed, doc: docs/research/09-early-number-openers.md, note: "early-week openers from ratings did not beat the close (about 3,600 games)"}
-    not_evaluating: ["its own team ratings (switched off)", "matchups, pace, efficiency, first-half habits (all failed tests)", "betting splits and line movement (never a reason)"]
+    not_evaluating: ["matchup, pace and efficiency numbers as a pick on their own (they feed the game script only)", "first-half habits and openers (failed tests)", "betting splits and line movement (never a reason)"]
   college_sides_totals:
     title: College football spreads and totals
     short: College sides/totals
@@ -135,8 +135,9 @@ lanes:
       small_markets: {enabled: true, text: "Period and team-total lines are logged; not yet measured."}
     models:
       ratings_sides: {status: failed, doc: docs/research/04-evaluation.md, note: "market ratings and public systems did not beat the close"}
-      outside_ratings_openers: {status: testing, doc: docs/research/10-plan.md, note: "college openers against about 50 outside rating systems: Test 4, not yet run"}
-    not_evaluating: ["its own ratings (switched off)", "weather and wind (no tested college model)", "betting splits and line movement (never a reason)"]
+      outside_ratings_openers: {status: failed, doc: docs/research/14-deep-review.md, note: "public rating systems against the close and the opener: no edge (research 14, 2c)"}
+      playbook_script: {status: shown, switch: playbook.enabled, doc: docs/research/16-nba-college-scripts.md, note: "points scored and allowed; lost against the close (research 16)"}
+    not_evaluating: ["staked full-game picks from its own script (shown only, research 16)", "weather and wind (no tested college model)", "props (no college props model)", "betting splits and line movement (never a reason)"]
   nba_sides_totals:
     title: NBA spreads and totals
     short: NBA sides/totals
@@ -146,8 +147,9 @@ lanes:
       price_vs_pinnacle: {enabled: true, text: "Wagerhouse's price against Pinnacle's vig-free line (stored since 2026-11-23). A price gap alone is never a pick."}
       injury_news: {enabled: true, text: "Injury report and reporter news, checked at 10am, 3pm and 5pm Mountain, plus the research runs; counts only for the part Pinnacle has not moved for."}
       small_markets: {enabled: true, text: "First-half, first-quarter and team-total lines are logged and compared with Pinnacle; not yet measured."}
-    models: {}
-    not_evaluating: ["rest, travel and back-to-backs (Pinnacle prices them; no separate adjustment)", "its own team ratings or pace model (none built)", "betting splits and line movement (never a reason)"]
+    models:
+      playbook_script: {status: shown, switch: playbook.enabled, doc: docs/research/16-nba-college-scripts.md, note: "pace and points per possession; lost against the close (research 16)"}
+    not_evaluating: ["rest, travel and back-to-backs as a pick on their own (priced, research 14 2d)", "staked full-game picks from its own script (shown only, research 16)", "betting splits and line movement (never a reason)"]
   nfl_teasers:
     title: NFL Wong teasers (paper)
     short: NFL teasers
@@ -157,7 +159,7 @@ lanes:
       wagerhouse_spreads: {enabled: true, text: "Wagerhouse's NFL spreads and totals: favorites of -7.5 to -8.5 and underdogs of +1.5 to +2.5 with the total at 49 or lower, frozen at first sight."}
     models:
       wong_teasers: {status: testing, switch: teasers.enabled, doc: docs/research/14-deep-review.md, note: "2-team 6-point at -110; 75.8% of legs won in 2023-2026, break-even 72.4%"}
-    not_evaluating: ["college or NBA teasers (neither clears break-even)", "13-point or 3+ team teasers (leaks)", "any stake until the lane is judged"]
+    not_evaluating: ["college or NBA teasers (neither clears break-even)", "13-point or 3+ team teasers (leaks)", "legs outside the Wong ranges or with totals over 49"]
   nfl_props:
     title: NFL player props
     short: NFL props
@@ -168,7 +170,8 @@ lanes:
       wagerhouse_props: {enabled: false, text: "Wagerhouse's own prop lines are not logged yet, so no prop can be compared with the book you bet at."}
     models:
       nfl_props: {status: testing, switch: models.props.enabled, doc: docs/research/06-props-model.md, note: "forward test against Pinnacle"}
-    not_evaluating: ["any Wagerhouse prop price", "any prop pick (the gate below must pass first)"]
+      playbook_props: {status: overridden, switch: playbook.enabled, doc: docs/decisions/0021-playbook-props.md, note: "props model fed by the game script, blended with Pinnacle (real money)"}
+    not_evaluating: ["any Wagerhouse prop price (Bet Builder is not readable; each pick says the worst line and price to take)", "props the model and Pinnacle disagree on by 15+ points until the research agent clears them"]
   nba_props:
     title: NBA player props
     short: NBA props
@@ -178,8 +181,9 @@ lanes:
       pinnacle_props: {enabled: true, text: "Pinnacle's prop lines, priced against the engine's own model and graded against results."}
       wagerhouse_props: {enabled: false, text: "Wagerhouse's own prop lines are not logged yet, so no prop can be compared with the book you bet at."}
     models:
-      nba_props: {status: testing, switch: models.props.nba_enabled, doc: docs/research/06-props-model.md, note: "forward test against Pinnacle"}
-    not_evaluating: ["any Wagerhouse prop price", "any prop pick (the gate below must pass first)"]
+      nba_props: {status: testing, switch: models.props.nba_enabled, doc: docs/research/08-nba-props-model.md, note: "forward test against Pinnacle"}
+      playbook_props: {status: overridden, switch: playbook.enabled, doc: docs/decisions/0022-playbook-all-sports.md, note: "NBA props model fed by the game script, blended with Pinnacle (real money)"}
+    not_evaluating: ["any Wagerhouse prop price (Bet Builder is not readable; each pick says the worst line and price to take)", "props the model and Pinnacle disagree on by 15+ points until the research agent clears them"]
 
 # NFL Wong teasers, paper only (src/engine/picks/teasers.py, decision 0014, review 14 section 2f). Kylor approved 2026-11-23.
 # Wagerhouse's 2-team 6-point teaser pays -110 ("WH 6/4 MIX" in his tickets); if that changes, change `price` here (a kill condition).
@@ -204,9 +208,14 @@ playbook:
   units: {A: 1.0, B: 0.5}
   live_since: "2026-11-24"
   half_size_weeks: 0          # Kylor 2026-11-23: full units starting now (decision 0020)
-  stop_loss_units: 10.0
-  max_per_week: 5
+  stop_loss_units: 10.0       # per sport, in units
   show_c: 5
+  # Per sport (decision 0022). full_game: stake = real money, show = on the card only. Walk-forward results: NFL research 15 (Kylor chose to
+  # stake anyway, decision 0019), NBA and college research 16 (both lost against the close, so shown only until Kylor says otherwise).
+  sports:
+    NFL: {full_game: stake, props: true, period: week, max_per_period: 5, props_per_period: 10, props_per_game: 2}
+    NBA: {full_game: show, props: true, period: day, max_per_period: 2, props_per_period: 4, props_per_game: 2}
+    College: {full_game: show, props: false, period: week, max_per_period: 5}
 
 # Telegram only pings for things you must act on (changed 2026-11-23, Kylor: "only ping me when it has a bet for me to place").
 # Kinds: bet = a Bet, a Conditional, or the cancellation of one; stale = a STALE NUMBER price alert (src/engine/stale.py; added 2026-11-23, Kylor asked); system = the engine is broken (a read failed, a scheduled research run

@@ -17,6 +17,7 @@ STATUS_WORDS = {
     "testing": "still being tested",
     "failed": "tested, failed, switched off",
     "overridden": "ON by Kylor's choice; its walk-forward test gave it no weight",
+    "shown": "picks shown on the card, not staked; its walk-forward test lost",
 }
 
 
@@ -56,6 +57,11 @@ def can_produce(cfg: dict, lane: dict) -> str:
         return (f"Nothing staked. Paper teasers only, until {st['kill_after_legs']} legs are graded and at least "
                 f"{teasers.breakeven(st['price']):.1%} win (decision 0014).")
     if lane["kind"] == "props":
+        from engine.picks import playbook
+        st = playbook.settings(cfg, lane["sport"])
+        if st.get("enabled") and st.get("props"):
+            return (f"Playbook prop picks (B, half a unit, real money): the props model fed by the game script and blended with Pinnacle at weight "
+                    f"{st['weights']['prop']}; at most {st['props_per_game']} a game and {st['props_per_period']} a {st['period']} (decisions 0021, 0022).")
         need = ((cfg.get("models") or {}).get("props") or {}).get("min_graded", 300)
         return f"Nothing. Testing only until {need} props are graded and the test is passed."
     parts = []
@@ -68,6 +74,8 @@ def can_produce(cfg: dict, lane: dict) -> str:
             parts.append(f"{name.replace('_', ' ')} ({cap} at most)")
         elif model_on(cfg, m) and m["status"] == "overridden":
             parts.append(f"{name.replace('_', ' ')} (B picks, half a unit; real money)")
+        elif m.get("status") == "shown" and _get(cfg, m.get("switch", "")) :
+            parts.append(f"{name.replace('_', ' ')} (shown on the card, not staked)")
     if not parts:
         return "Nothing."
     stake = f"Bet {pc.get('max_units', 1)} unit, Conditional {pc.get('conditional_units', 0.5)} unit"

@@ -582,16 +582,36 @@ def cmd_playbook(args) -> int:
     else:
         con = _db.connect(config.DB)
     try:
-        ctx = None
-        if ((cfg.get("models") or {}).get("props") or {}).get("enabled"):
-            from engine.models import props
-            pm = props.Model(now.year if now.month >= 3 else now.year - 1)
-            ctx = (pm, props.evaluate_logged(con, pm, now))
-        lines, card = playbook.run(cfg, env, con, now, send=not args.dry_run, props_ctx=ctx)
+        for sport in args.sport or ["NFL", "NBA", "College"]:
+            ctx = None
+            if sport == "NFL" and ((cfg.get("models") or {}).get("props") or {}).get("enabled"):
+                from engine.models import props
+                pm = props.Model(now.year if now.month >= 3 else now.year - 1)
+                ctx = (pm, props.evaluate_logged(con, pm, now))
+            if sport == "NBA" and ((cfg.get("models") or {}).get("props") or {}).get("nba_enabled"):
+                from engine.models import nba_props
+                nm = nba_props.NbaModel(now)
+                ctx = (nm, nba_props.evaluate_logged(con, nm, now))
+            lines, card = playbook.run(cfg, env, con, now, send=not args.dry_run, props_ctx=ctx, sport=sport)
+            print("\n".join(lines))
+            print(card)
     finally:
         con.close()
-    print("\n".join(lines))
-    print(card)
+    return 0
+
+
+def cmd_playbook_record(args) -> int:
+    """Per-principle record and the weight re-fit, written to docs/lanes/PLAYBOOK-RECORD.md."""
+    from engine.picks import playbook
+    cfg = config.load_config()
+    con = _db.connect(config.DB)
+    try:
+        playbook.grade_candidates(con)
+        text = playbook.record_markdown(con, cfg)
+    finally:
+        con.close()
+    (ROOT / "docs" / "lanes" / "PLAYBOOK-RECORD.md").write_text(text)
+    print(text)
     return 0
 
 
@@ -719,7 +739,10 @@ def main(argv=None) -> int:
     a.set_defaults(func=cmd_lean)
     a = sub.add_parser("playbook", help="price the NFL playbook picks now (PLAYBOOK.md); --dry-run sends nothing and writes nothing")
     a.add_argument("--dry-run", action="store_true")
+    a.add_argument("--sport", action="append", choices=["NFL", "NBA", "College"], help="one sport (repeatable); default all three")
     a.set_defaults(func=cmd_playbook)
+    a = sub.add_parser("playbook-record", help="playbook record by sport and market, and the weight re-fit (writes docs/lanes/PLAYBOOK-RECORD.md)")
+    a.set_defaults(func=cmd_playbook_record)
     a = sub.add_parser("wh-edge", help="where Wagerhouse is soft against Pinnacle and how fast it follows (writes docs/research/12-...md)")
     a.set_defaults(func=cmd_wh_edge)
     a = sub.add_parser("stale", help="stale-number price alerts: grade them and show the record")

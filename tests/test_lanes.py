@@ -45,8 +45,14 @@ def test_failed_models_are_never_on_and_cite_a_real_write_up():
                 assert (config.ROOT / m["doc"]).exists(), f"{name}: missing {m['doc']}"
 
 
-def test_props_lanes_cannot_produce_a_pick():
+def test_props_lanes_say_what_produces_a_pick():
+    # since decisions 0021-0022 the playbook issues prop picks; with the playbook off, the props lanes produce nothing
     for r in lanes.rows(cfg(), None):
+        if r["kind"] == "props":
+            assert r["can_produce"].startswith("Playbook prop picks")
+    off = cfg()
+    off["playbook"]["enabled"] = False
+    for r in lanes.rows(off, None):
         if r["kind"] == "props":
             assert r["can_produce"].startswith("Nothing")
 

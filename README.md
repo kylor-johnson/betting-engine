@@ -29,6 +29,8 @@ uv run engine telegram-setup                  # after sending your bot any messa
 | `uv run engine injuries` | Current NFL quarterback statuses (`--all` for every position, `--team Vikings`) |
 | `uv run engine poll --force` | Read Wagerhouse and market lines now, store them, send any alerts |
 | `uv run engine poll --force --no-send` | Same, but print alerts instead of sending |
+| `uv run engine playbook --dry-run` | The playbook pick lists for NFL, NBA and college right now (PLAYBOOK.md), without sending or saving anything; `--sport NBA` for one |
+| `uv run engine playbook-record` | Playbook record by sport and market, and the weight re-fit from every priced candidate (`docs/lanes/PLAYBOOK-RECORD.md`) |
 | `uv run engine poll` | What the scheduled job runs: reads only in the hours listed in `config.yaml` |
 | `uv run engine watch add "Kansas State +10 -115"` | Alert when Wagerhouse has +10 or better at −115 or better |
 | `uv run engine watch add "Bills/Jets o44"` / `"Bills ML -150"` | Totals and moneylines |

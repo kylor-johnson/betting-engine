@@ -1,6 +1,6 @@
 # Playbook: how this engine picks bets
 
-**DRAFT for Kylor's approval, written 2026-11-23.** Once approved, this file sits next to `CHARTER.md` and outranks every handoff, prompt and research note on *how a pick is chosen*. The charter still owns the locked rules (Wagerhouse only, no paid data, the engine never places bets, $25 unit, code owns every number).
+**Approved 2026-11-23 (decision 0018); built the same night (decisions 0019 to 0022).** This file sits next to `CHARTER.md` and outranks every handoff, prompt and research note on *how a pick is chosen*. The charter still owns the locked rules (Wagerhouse only, no paid data, the engine never places bets, $25 unit, code owns every number).
 
 ## 1. What changed and why
 
@@ -125,3 +125,19 @@ We copy methods, never picks. Warren Sharp's write-ups are one example; Walters,
 4. **NBA**: script from pace and minutes; props already exist. About 2 days.
 5. **College**: script from CollegeFootballData; totals and QB situations first. About 2 days.
 6. Per-principle records and re-fitting every 4 weeks.
+
+## 9. What is built (2026-11-23)
+
+| Piece | Status | Where |
+|---|---|---|
+| NFL script, sides, totals, team totals | Live, staked (B) at the starting weights; walk-forward weight 0 for 2024-26 (research 15), Kylor chose to stake | `models/script.py`, `picks/playbook.py` |
+| NFL props | Live, staked (B): props model + script team points + expected margin (3 stats), blended 0.5 with Pinnacle | decision 0021, research 16 |
+| NBA props | Live, staked (B): NBA props model (minutes) + script team points, blended 0.5 | decision 0022 |
+| NBA sides, totals, team totals | Shown only (walk-forward lost, research 16) | `models/nba_script.py` |
+| College sides, totals, team totals | Shown only (walk-forward lost; totals weight a lead, research 16) | `models/college_script.py` |
+| NFL Wong teasers | Live, staked (A) | decision 0014, 0019 |
+| CHECK clearing by the research agent | Live for all three sports | `docs/cards/decisions/<date>-<sport>-checks.yaml` |
+| Per-principle record and weight re-fit on every candidate | Live | `engine playbook-record`, `docs/lanes/PLAYBOOK-RECORD.md` |
+| Not yet | Coverage-type splits, injury clusters and rain as script inputs, schedule-adjusted form, referees (zero weight until tested) | |
+
+Commands: `engine playbook --dry-run [--sport NFL|NBA|College]` shows the current lists without sending or writing; `engine playbook-record`.

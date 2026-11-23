@@ -166,7 +166,7 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
         except Exception as e:
             problems.append(f"Period/team-total/prop logging failed: {type(e).__name__}: {e}")
         rw_new, rw_first = [], False
-        nfl_props_ctx = None
+        nfl_props_ctx = nba_props_ctx = None
         try:   # reporter news (Rotoworld posts each beat-writer and insider item minutes after the tweet)
             from engine.picks import player_news
             rw_new, rw_first = player_news.update(con, "NFL", now)
@@ -189,6 +189,7 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
                 from engine.models import nba_props
                 nm = nba_props.NbaModel(now)
                 priced = nba_props.evaluate_logged(con, nm, now)
+                nba_props_ctx = (nm, priced)
                 graded = nba_props.grade(con)
                 out.append(f"NBA props model priced {len(priced)} Pinnacle props, graded {graded}.")
                 _paper_props(con, cfg, "NBA", nm, priced, now, out)
@@ -204,6 +205,8 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
             _teasers.grade(con)
             from engine.picks import playbook as _playbook
             _playbook.grade(con, cfg)
+            _playbook.grade_candidates(con)
+            (config.ROOT / "docs" / "lanes" / "PLAYBOOK-RECORD.md").write_text(_playbook.record_markdown(con, cfg))
             for gl in grade.run(cfg, con):
                 if gl.startswith(("GRADED", "NOT GRADED")):
                     out.append(gl)
@@ -272,14 +275,17 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
             (config.ROOT / "docs" / "cards" / f"{day}-nfl-teasers.md").write_text(teasers.card(con, cfg, now))
         except Exception as e:
             out.append(f"Teaser lane failed: {type(e).__name__}: {e}")
-        try:   # playbook picks, NFL full-game markets (decisions 0018, 0019)
-            from engine.picks import playbook
-            pb_lines, pb_card = playbook.run(cfg, env, con, now, send=send_alerts, props_ctx=nfl_props_ctx)
-            out += [l for l in pb_lines if not l.startswith("NFL · PLAYBOOK")] + [f"playbook pick issued: {l.splitlines()[1]}" for l in pb_lines if l.startswith("NFL · PLAYBOOK")]
-            if pb_card:
-                (config.ROOT / "docs" / "cards" / f"{day}-nfl-playbook.md").write_text(pb_card)
-        except Exception as e:
-            out.append(f"Playbook failed: {type(e).__name__}: {e}")
+        from engine.picks import playbook
+        for pb_sport, ctx in (("NFL", nfl_props_ctx), ("NBA", nba_props_ctx), ("College", None)):   # playbook picks (decisions 0018-0022)
+            if pb_sport not in cfg.get("sports", []):
+                continue
+            try:
+                pb_lines, pb_card = playbook.run(cfg, env, con, now, send=send_alerts, props_ctx=ctx, sport=pb_sport)
+                out += [l for l in pb_lines if " · PLAYBOOK" not in l] + [f"playbook pick issued: {l.splitlines()[1]}" for l in pb_lines if " · PLAYBOOK" in l]
+                if pb_card:
+                    (config.ROOT / "docs" / "cards" / f"{day}-{pb_sport.lower()}-playbook.md").write_text(pb_card)
+            except Exception as e:
+                out.append(f"Playbook {pb_sport} failed: {type(e).__name__}: {e}")
         # run on change (decision 0016): a new stale number means Pinnacle moved and Wagerhouse has not; the agent looks for the reason
         stale_sports = stale.new_sports(con, now)
         if "NFL" in stale_sports:
