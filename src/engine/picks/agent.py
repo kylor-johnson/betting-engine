@@ -62,7 +62,7 @@ def run_claude(cfg, reason: str, day: str, sport: str) -> tuple[bool, str]:
     env["UV_PROJECT_ENVIRONMENT"] = str(config.ROOT / ".venv.nosync")
     env["PATH"] = f"{Path(claude).parent}:/opt/homebrew/bin:/usr/bin:/bin:" + env.get("PATH", "")
     cmd = [claude, "-p", prompt, "--permission-mode", "default", "--allowedTools",
-           "Read", "Write(docs/cards/decisions/**)", "Edit(docs/cards/decisions/**)", "Edit(adjustments.yaml)", "Glob", "Grep", "WebSearch", "WebFetch", "Bash(uv run engine:*)"]
+           "Read", "Write(docs/cards/decisions/**)", "Edit(docs/cards/decisions/**)", "Write(docs/leans/decisions/**)", "Edit(docs/leans/decisions/**)", "Edit(adjustments.yaml)", "Glob", "Grep", "WebSearch", "WebFetch", "Bash(uv run engine:*)"]
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     try:
         res = subprocess.run(cmd, cwd=str(config.ROOT), env=env, capture_output=True, text=True,
@@ -164,6 +164,19 @@ def finalize(cfg, env, day: str, sport: str = "NFL", send: bool = True, reason: 
         tz = config.display_tz(cfg)
         alerts = changes(prev, rows, tz, lanes.tag(cfg, sport), next_check_text(cfg, datetime.now(tz)))
         props_line = lanes.props_footer(cfg, con, sport)
+        try:        # paper Leans: stamped by code, never staked, never a Telegram ping (kind "info")
+            from engine.picks import leans
+            lean_lines = leans.ingest(cfg, con, sheet, day, sport)
+            alerts_lean = [l for l in lean_lines if l.startswith("LEAN")]
+            for l in lean_lines:
+                if l.startswith("REFUSED"):
+                    props_line = (props_line + "\n" if props_line else "") + "Lean " + l
+            sec = leans.card_section(con, sport, tz)
+            if sec:
+                out.write_text(text + sec)
+        except Exception as e:
+            lean_lines, alerts_lean = [f"Leans could not be processed: {type(e).__name__}: {e}"], []
+            props_line = (props_line + "\n" if props_line else "") + lean_lines[0]
         pin = {g["event_id"]: g["markets"][0].get("pinnacle_line") for g in sheet["games"]}
         for r in rows:
             key = f"{r['event_id']}|{r['market']}|{r['side']}"
@@ -200,10 +213,13 @@ def finalize(cfg, env, day: str, sport: str = "NFL", send: bool = True, reason: 
     except Exception as e:      # the page is a convenience; a pick alert must not be lost over it
         alerts.append(f"Board page could not be rebuilt: {type(e).__name__}: {e}")
     sent = []
+    for l in alerts_lean:
+        if send:
+            telegram.send(env, f"{lanes.tag(cfg, sport)} · PAPER LEAN, DO NOT BET\n" + l.removeprefix("LEAN (paper) "), kind="info")
     for a in alerts:
         msg = a
         if send:
-            telegram.send(env, msg, lanes.thread_key(cfg, sport))
+            telegram.send(env, msg, lanes.thread_key(cfg, sport), kind="bet")
         sent.append(msg)
     # a short "nothing to do" note only when this run produced no pick message
     if not alerts and (cfg.get("agent") or {}).get("summary_message", True):
@@ -222,7 +238,7 @@ def finalize(cfg, env, day: str, sport: str = "NFL", send: bool = True, reason: 
             lines.append(props_line)
         msg = "\n".join(lines)
         if send:
-            telegram.send(env, msg, lanes.thread_key(cfg, sport))
+            telegram.send(env, msg, lanes.thread_key(cfg, sport), kind="info")     # held back by default: "no bets" is not a ping
         sent.append(msg)
     return sent, out
 
@@ -269,7 +285,7 @@ def run(reason: str, send: bool = True, skip_research: bool = False, sport: str 
         record(False, msg)
         if send:
             try:
-                telegram.send(env, f"{sport} research run FAILED ({reason}): {msg[:600]}")
+                telegram.send(env, f"{sport} research run FAILED ({reason}): {msg[:600]}", kind="system")
             except SourceError:
                 pass
         return 1, lines + [f"{sport} research run FAILED: {msg}"]

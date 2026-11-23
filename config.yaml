@@ -164,3 +164,18 @@ lanes:
     models:
       nba_props: {status: testing, switch: models.props.nba_enabled, doc: docs/research/06-props-model.md, note: "forward test against Pinnacle"}
     not_evaluating: ["any Wagerhouse prop price", "any prop pick (the gate below must pass first)"]
+
+# Telegram only pings for things you must act on (changed 2026-11-23, Kylor: "only ping me when it has a bet for me to place").
+# Kinds: bet = a Bet, a Conditional, or the cancellation of one; system = the engine is broken (a read failed, a scheduled research run
+# did not happen) or you asked by command. Everything else (NO BETS summaries, openers, QB and NBA news, price gaps, lane status,
+# graded picks, props, paper Leans) is held back; it is still on the cards and board.html. Add "info" to see everything again.
+telegram:
+  send_kinds: [bet, system]
+
+# Paper Leans (src/engine/picks/leans.py): the agent's judgment picks, never staked. Kylor, 2026-11-23: "leans paper-only".
+leans:
+  enabled: true
+  paper_only: true                  # no stake exists in the code path; a change here needs Kylor
+  max_per_lane_per_week: 3          # per sport, Monday to Sunday Mountain
+  max_pinnacle_move_since_news: 0.5 # a news lean is refused if Pinnacle already moved this far toward the side since the news
+  promote_after_graded: 50          # not to be bet before this many are graded and average closing-line value is above zero

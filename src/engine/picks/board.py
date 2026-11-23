@@ -67,6 +67,23 @@ def _lanes_html(cfg) -> str:
         return f"<p class=sub>Lane status could not be read: {_e(type(e).__name__)}: {_e(e)}</p>"
 
 
+def _leans_html(cfg, tz) -> str:
+    from engine.odds import snapshots as snap
+    from engine.picks import leans
+    try:
+        con = snap.connect(config.DB)
+        try:
+            rows = leans.open_leans(con)
+            head = f"<p class=sub>{_e(leans.summary_text(cfg, con))}</p>"
+        finally:
+            con.close()
+    except Exception as e:
+        return f"<p class=sub>Leans could not be read: {_e(type(e).__name__)}: {_e(e)}</p>"
+    items = "".join(f"<li><b>{_e(r['pick'])} ({int(r['price']):+d})</b> <span class=sub>{_e(r['game'])}, {_e(r['reason_type'])}. "
+                    f"Don't bet past {_e(r['dont_bet_past'])}.</span><br>{_e(r['reason'])}</li>" for r in rows)
+    return head + ("<ul class=close>" + items + "</ul>" if items else "<p class=sub>No open Leans.</p>")
+
+
 def _grades_html(tz) -> str:
     """Graded engine picks: totals by status, then the latest ten. Read-only; failures show on the page."""
     from engine.odds import snapshots as snap
@@ -157,6 +174,7 @@ def build() -> Path:
             f"<li><b>{_e(r['pick'])}</b> <span class=sub>({LABEL[r['sport']]}, {_when(r['kick'], tz)})</span><br>"
             f"{_e(r.get('downgraded') or ' '.join(str(r['decision'].get('why_pass', '')).split()))}</li>" for r in close) + "</ul>")
     parts.append("<h2>The five lanes: what each one looks at, and its record</h2>" + _lanes_html(cfg))
+    parts.append("<h2>Paper Leans (unproven, never staked)</h2>" + _leans_html(cfg, tz))
     parts.append("<h2>How the engine's picks have done</h2>" + _grades_html(tz))
     parts.append("<h2>Every game</h2>" + ("".join(tables) or "<p class=sub>No games priced yet.</p>"))
     page = ("<!doctype html><html lang=en><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>"

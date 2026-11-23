@@ -38,12 +38,13 @@ def _deliver(con, env: dict, alerts: list[rules.Alert], now: datetime, out: list
             continue
         delivered = True
         try:
-            telegram.send(env, a.text)
+            sent = telegram.send(env, a.text, kind="system" if a.kind in ("gap", "failure") else "info")
         except SourceError as e:
             delivered = False
             out.append(f"NOT SENT ({e}): {a.text}")
         else:
-            out.append(a.text)
+            out.append(a.text if sent else f"held back (not a bet; telegram.send_kinds): {a.text.splitlines()[0]}")
+            delivered = sent
         con.execute("INSERT INTO alerts_sent VALUES (?,?,?,?,?)", [a.key, now.replace(tzinfo=None), a.kind, a.text, delivered])
 
 
@@ -173,6 +174,8 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
             problems.append(f"NBA props model failed: {type(e).__name__}: {e}")
         try:   # grade finished engine picks as games end; a failure is reported, never silent
             from engine.picks import grade
+            from engine.picks import leans as _leans
+            _leans.grade(cfg, con)      # paper Leans are graded quietly, shown on the board
             for gl in grade.run(cfg, con):
                 if gl.startswith(("GRADED", "NOT GRADED")):
                     out.append(gl)

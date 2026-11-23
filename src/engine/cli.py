@@ -111,7 +111,8 @@ def cmd_report(args) -> int:
     if args.no_send:
         print(msg)
     else:
-        telegram.send(config.load_env(), msg)
+        if not telegram.send(config.load_env(), msg, kind="info"):
+            print("Held back by telegram.send_kinds; printing instead:\n" + msg)
     return 0
 
 
@@ -146,7 +147,7 @@ def cmd_telegram_setup(args) -> int:
         print("The bot has no messages yet. Open Telegram, send your bot any message, and run this again.", file=sys.stderr)
         return 2
     config.set_env_value("TELEGRAM_CHAT_ID", chat)
-    telegram.send(config.load_env(), "Betting engine connected. Alerts will arrive here.")
+    telegram.send(config.load_env(), "Betting engine connected. Alerts will arrive here.", kind="system")
     print("Chat id saved and a test message sent.")
     return 0
 
@@ -401,7 +402,7 @@ def cmd_status(args) -> int:
         path = lanes.write_status_file(cfg, con)
         print(f"\nWritten: {path.relative_to(config.ROOT)}")
         if args.send:
-            telegram.send(config.load_env(), "LANE STATUS (all five lanes)\n" + lanes.table_text(cfg, con))
+            telegram.send(config.load_env(), "LANE STATUS (all five lanes)\n" + lanes.table_text(cfg, con), kind="system")
             print("Sent to Telegram.")
     finally:
         con.close()
@@ -507,9 +508,27 @@ def cmd_grade(args) -> int:
     try:
         for line in grade.run(cfg, con):
             print(line)
+        from engine.picks import leans
+        for line in leans.grade(cfg, con):
+            print(line)
         print("--")
         for line in grade.summary(con, cfg):
             print(line)
+    finally:
+        con.close()
+    return 0
+
+
+def cmd_lean(args) -> int:
+    from engine.picks import leans
+    cfg = config.load_config()
+    con = _db.connect(config.DB)
+    try:
+        if args.bet or args.not_bet:
+            print(leans.mark_bet(con, args.bet or args.not_bet, bool(args.bet)))
+        print(leans.summary_text(cfg, con))
+        for r in leans.open_leans(con):
+            print(f"- {r['pick']} ({int(r['price']):+d}) {r['game']}: {r['reason_type']}; don't bet past {r['dont_bet_past']}  [{r['lean_key']}]")
     finally:
         con.close()
     return 0
@@ -589,6 +608,10 @@ def main(argv=None) -> int:
     a.set_defaults(func=cmd_card)
     a = sub.add_parser("grade", help="grade the engine's own picks on result and against Pinnacle's close")
     a.set_defaults(func=cmd_grade)
+    a = sub.add_parser("lean", help="paper Leans: list open ones and the record; --bet KEY / --not-bet KEY records whether you bet one at its number")
+    a.add_argument("--bet", metavar="KEY")
+    a.add_argument("--not-bet", metavar="KEY")
+    a.set_defaults(func=cmd_lean)
     a = sub.add_parser("telegram-setup", help="find the chat id and send a test message")
     a.set_defaults(func=cmd_telegram_setup)
     a = sub.add_parser("watch", help='watchlist: add "Kansas State +10", list, remove 3')

@@ -74,7 +74,9 @@ Do not reopen these without asking me.
 
 ## Open decision I still owe
 
-**Leans.** Today a model can drive a pick only after it beats the market in a test, and almost nothing has passed. The proposal: a second tier of picks, clearly labelled unproven, that are the agent's best handicapped opinions (3 to 5 per lane, weighted to Sunday night and Monday), each with a number, a "don't bet past" limit and a written handicap, at a quarter unit or on paper, all graded. Whatever proves itself gets promoted. Until I answer, do not build it, but plan for it.
+**Leans: decided 2026-11-23, paper only.** Built in `src/engine/picks/leans.py`. The agent's best handicapped opinions, never staked, at most 3 per lane per week, each with a code-stamped Wagerhouse number and "don't bet past" number and one of three reasons (timestamped news Pinnacle has not moved for, a forecast of where the line goes, a wind or weather case). Graded on closing-line value, result, and whether I bet it. Not to be bet until 50 are graded and the average closing-line value is above zero. They show on the board and cards, never in Telegram.
+
+**Telegram is for bets only (2026-11-23).** Telegram pings only for a Bet, a Conditional or a cancellation (`telegram.send_kinds` in `config.yaml`), plus alerts that the engine itself is broken. NO BETS summaries, openers, news, price gaps, the Monday lane table and grades stay on the cards and `board.html`. This replaces the drift guard's rule 2 for Telegram; the table is on the board and in `docs/lanes/STATUS.md`.
 
 ## How sessions work together
 

@@ -32,9 +32,24 @@ def find_chat_id(token: str) -> str | None:
     return str(chats[-1]) if chats else None
 
 
-def send(env: dict, text: str, lane: str | None = None) -> None:
-    """`lane` is a key from config `lanes:`. If .env has TELEGRAM_THREAD_<LANE> (a forum topic id) the message goes to that topic;
+def allowed_kinds() -> set[str]:
+    """Which kinds of message may reach Telegram (config `telegram.send_kinds`). Default: bets and broken-engine alerts only."""
+    try:
+        from engine import config
+        kinds = (config.load_config().get("telegram") or {}).get("send_kinds")
+    except Exception:
+        kinds = None
+    return set(kinds) if kinds is not None else {"bet", "system"}
+
+
+def send(env: dict, text: str, lane: str | None = None, kind: str = "info") -> bool:
+    """Returns True if sent, False if held back because its `kind` is not in `telegram.send_kinds`.
+    Kinds: "bet" (a Bet, Conditional, or the cancellation of one), "system" (the engine is broken or you asked for it by command),
+    anything else is "info" and is held back by default: it stays in the cards, the board page and the alerts_sent table.
+    `lane` is a key from config `lanes:`. If .env has TELEGRAM_THREAD_<LANE> (a forum topic id) the message goes to that topic;
     otherwise it goes to the main chat, and its first line already names the lane."""
+    if kind not in allowed_kinds():
+        return False
     token, chat = env.get("TELEGRAM_BOT_TOKEN"), env.get("TELEGRAM_CHAT_ID")
     if not token:
         raise SourceError("Telegram bot token is missing from .env")
@@ -48,3 +63,4 @@ def send(env: dict, text: str, lane: str | None = None) -> None:
     if thread:
         params["message_thread_id"] = thread
     _call(token, "sendMessage", params)
+    return True
