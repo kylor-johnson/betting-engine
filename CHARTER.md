@@ -1,0 +1,109 @@
+# Charter: what this engine is for, and how we keep it on track
+
+Owner: Kylor. Written 2026-11-23. Every session reads this before `CLAUDE.md` and before touching anything. If something in the code, the spec or a handoff disagrees with this page, this page wins until I change it.
+
+## What I want
+
+An agent that does the handicapping research on a schedule and tells me when there is a bet to place, early enough in the week that I'm the one holding the good number.
+
+It is not a bet tracker and it is not a price checker. Those are plumbing.
+
+## The five lanes
+
+The engine is five separate lanes. Each has its own model, its own status, its own record and its own messages.
+
+1. NFL spreads and totals
+2. College football spreads and totals
+3. NBA spreads and totals
+4. NFL player props
+5. NBA player props
+
+A lane is never allowed to hide inside another lane's "no bets" message.
+
+## What "working" looks like
+
+- Every lane says, in plain words, what it is evaluating right now and what it is not.
+- Every lane produces output on its schedule: picks, or a clear statement that it has no model that can produce one yet.
+- Every pick is logged at the price when issued and graded against the result and the closing line.
+- I can open one page and see all five lanes, what each one looks at, and each one's record.
+
+## The drift guard
+
+This is the rule that stops me finding out a week later that the engine is only looking at wind.
+
+1. **One generated status table.** A command (`engine status`) builds a table from the live config and code, never typed by hand. For each lane it shows:
+   - which inputs are switched on;
+   - which models are switched on, and whether each passed a test, failed, or is still being tested;
+   - what can produce a pick in that lane today;
+   - the lane's record and the date of its last pick.
+2. **It goes where I will see it.** The table is on the board page and is sent to Telegram every Monday morning and any time it changes.
+3. **Switching something off is an event.** If a session turns off a model, an input or a lane, it writes a decision note, the status table changes, and I get a message that day saying what was turned off and why.
+4. **Cards say what they actually do.** Any sentence on a card or message that describes how a number was built must be generated from the same config the number came from.
+5. **Every session ends by checking the table** against what it changed, and says in its summary what each lane can and cannot do now.
+
+Until `engine status` exists, the table below is kept by hand and must be updated in the same commit as any change that affects it.
+
+## Lane status as of Monday Nov 23, 2026 (kept by hand until `engine status` exists)
+
+| Lane | What produces a flag today | Own model that passed a test | Can issue a pick? | Record |
+|---|---|---|---|---|
+| NFL spreads and totals | My book differing from Pinnacle; injury adjustments the agent enters; wind on outdoor totals | Wind totals only | Sides: only on unpriced news. Totals: a half-unit Conditional from wind | 0-0, starts this week |
+| College spreads and totals | My book differing from Pinnacle; agent news | None | Only on unpriced news | 0-0 |
+| NBA spreads and totals | My book differing from Pinnacle; agent news; injury watcher | None | Only on unpriced news | 0-0 |
+| NFL props | Nothing yet | Being scored, not passed | No | Not started |
+| NBA props | Nothing yet | Being scored, not passed | No | Not started |
+
+Models tested and switched off because they did not beat the closing line: sides from market ratings and public systems, sides from play-by-play ratings, totals from pace and efficiency, first-half scoring habits, early-week openers from ratings.
+
+## Locked decisions
+
+Do not reopen these without asking me.
+
+- I stay on Wagerhouse only. It is a soft book; that is probably where my edge is.
+- No paid data.
+- The engine never places bets. I place every bet by hand.
+- Pregame only. NFL, college football and NBA.
+- Unit is $25.
+- Code owns every number. The agent owns research and judgment, and cannot type a line, a price or a stake.
+- Every pick has a "don't bet past" number.
+- Betting splits and reverse line movement are never a reason for a pick.
+- A price gap alone is never a reason for a pick.
+- Tests never look ahead, and anything tuned is checked on seasons it never saw.
+
+## Open decision I still owe
+
+**Leans.** Today a model can drive a pick only after it beats the market in a test, and almost nothing has passed. The proposal: a second tier of picks, clearly labelled unproven, that are the agent's best handicapped opinions (3 to 5 per lane, weighted to Sunday night and Monday), each with a number, a "don't bet past" limit and a written handicap, at a quarter unit or on paper, all graded. Whatever proves itself gets promoted. Until I answer, do not build it, but plan for it.
+
+## How sessions work together
+
+- **One session owns the code at a time.** Other sessions may read and write research, but do not edit `src/`, `config.yaml` or `adjustments.yaml` while another session is mid-change.
+- **Commit before you hand off.** No session leaves uncommitted work for the next one to guess at.
+- **Start by running `git status` and `git log`.** If there is uncommitted work you did not write, stop and ask me.
+- **Explain in plain English.** I'm technical but not a quant.
+- **When I'm reading on my phone, the first line tells me what to do.**
+
+## Where things live
+
+```
+CHARTER.md                 this page: purpose, lanes, drift guard, locked decisions
+CLAUDE.md                  the build spec and working rules
+README.md                  every command
+config.yaml                every switch and threshold; the status table is generated from it
+adjustments.yaml           this week's sourced point adjustments
+board.html                 the page I look at
+docs/
+  lanes/                   one folder per lane (to be created)
+    nfl-sides-totals/      what it evaluates, model status, tests run, record
+    college-sides-totals/
+    nba-sides-totals/
+    nfl-props/
+    nba-props/
+  research/                numbered research and test write-ups
+  decisions/               one short note per decision, numbered
+  handoffs/                handoffs between sessions, dated
+  cards/                   daily cards per lane; decisions/ holds the agent's status and reasons
+src/engine/                code
+tests/
+ops/                       scheduled jobs and the research agent's instructions
+data.nosync/               database and raw data (not synced, not in git)
+```

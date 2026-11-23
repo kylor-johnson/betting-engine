@@ -1,5 +1,7 @@
 # Betting Engine: Build Spec (revised after Phase 0, approved 2026-11-21)
 
+**Read `CHARTER.md` first.** It states what this engine is for, the five lanes, the rule that keeps it from drifting, and the locked decisions. If this file disagrees with the charter, the charter wins.
+
 Owner: Kylor (Denver, Mountain time). This file is copied to `CLAUDE.md`. The research behind it is in `docs/research/00-red-team.md`; decisions are in `docs/decisions/`. `HANDOFF.md` has the working rules and folder layout. Build one phase at a time. Do not start a phase until the one before it passes its exit test and Kylor says go.
 
 ## What this is, and what it is not
