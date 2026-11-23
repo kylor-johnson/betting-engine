@@ -28,6 +28,7 @@ adjustments:
     reason: "Austin Reaves (heel) ruled out for Monday vs Utah (ESPN feed Nov 23 01:09 UTC, citing Jovan Buha). Starter; feed does not show how many games he has already missed, so counted at the starter level only."
     source: "https://www.espn.com/nba/injuries"
     added: "2026-11-23 08:20 MT"
+    news_at: "2026-11-22 18:09 MT"
   - game: "Cleveland Cavaliers at Chicago Bulls"
     team: "Chicago Bulls"
     market: spread
@@ -35,3 +36,4 @@ adjustments:
     reason: "Norman Powell out with a mild right hamstring strain, re-evaluated later this week (ESPN feed Nov 22). Starter, new injury, not in the ratings."
     source: "https://www.espn.com/nba/injuries"
     added: "2026-11-23 08:20 MT"
+    news_at: "2026-11-22 08:25 MT"

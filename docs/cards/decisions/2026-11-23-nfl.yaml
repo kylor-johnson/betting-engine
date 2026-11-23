@@ -1,0 +1,32 @@
+# The agent's decisions for this card. Status and reasons only: every number on the
+# card comes from the slate sheet. A Bet the numbers do not support is refused.
+slate_note: >
+  Monday morning run: tonight's Bengals at Commanders plus next week's Thanksgiving and Sunday
+  games. The only flagged side, Texans -6.5, comes entirely from the Lamar Jackson adjustment
+  added this morning, which the market has priced for weeks, so it is a Pass. Nothing is a Bet.
+decisions:
+  - game: "Baltimore Ravens at Houston Texans"
+    market: spread
+    side: home
+    status: Pass
+    why_pass: >
+      The whole edge is my own Lamar Jackson adjustment, and the sheet adds it on top of Pinnacle's
+      number too. Jackson has been out since the Nov 1 Buffalo game, so Pinnacle and DraftKings
+      already price Brissett. Before the adjustment the sheet had Houston at no edge and the model
+      on the Baltimore side. The handicap does favor Houston: Baltimore's offense over its last four
+      games is #30 in EPA per play and #31 per dropback, and Houston's defense is #2 in success rate
+      allowed. But that is the Brissett team the market has been pricing. Luck points the other way:
+      Baltimore has recovered 32% of fumbles, is -5 in turnovers and scores 2.04 points per drive
+      against 2.28 expected, while Houston is +4 in turnovers and scores 2.44 against 2.09 expected,
+      so Houston's results flatter it. I found no Sharp Football Analysis piece on this game yet.
+      This would change only with news the market has not priced, for example a Stroud or Brissett
+      injury report.
+  - game: "Cincinnati Bengals at Washington Commanders"
+    market: total
+    side: under
+    status: Pass
+    why_pass: >
+      Unchanged from last night. The wind model is not used: the forecast is about 11 mph, below the
+      13 mph condition, and the numbers do not flag the Under. Burrow and Jayden Daniels are both
+      active. It would come back only if the forecast rises to 13 mph or more and the sheet flags it
+      again.

@@ -1,0 +1,32 @@
+# The agent's decisions for this card. Status and reasons only: every number on the
+# card comes from the slate sheet. A Bet the numbers do not support is refused.
+slate_note: >
+  Monday morning run on the rivalry-week slate. Two sides are flagged, Kentucky +3 and Delaware -2.5.
+  Both flags come only from Pinnacle charging more juice on the same number than the book does, with
+  no news or handicap behind them, so both are Passes. Nothing is a Bet.
+decisions:
+  - game: "Louisville Cardinals at Kentucky Wildcats"
+    market: spread
+    side: home
+    status: Pass
+    why_pass: >
+      The edge comes only from the book dealing +3 at standard juice while Pinnacle charges more
+      for Kentucky at the same number. That is a price gap, not a reason. The line went from Kentucky
+      favored at the open to Kentucky +3, and the move has a plain explanation: Kentucky has lost
+      three straight, the last at Missouri, while Louisville has won six straight and beat Pitt 42-10
+      on Nov 21 with Lincoln Kienholz throwing five touchdowns. Louisville's defense forced four
+      turnovers in that game, which may flatter the result, but one game's turnovers are not enough
+      to show the market overreacted. I found no quarterback injury for either team; Kenny Minchey
+      is Kentucky's starter on ESPN's stats page. Both search results were summaries, and I did not
+      open a current injury report. This would change with a Kentucky +3.5 or a sourced Louisville
+      quarterback injury that the market has not followed.
+  - game: "Jacksonville State Gamecocks at Delaware Blue Hens"
+    market: spread
+    side: home
+    status: Pass
+    why_pass: >
+      The model is on the other side: the ratings make Jacksonville State the better team, and the
+      edge on Delaware comes only from Pinnacle charging more juice at the same -2.5. A side the model
+      does not back cannot be a Bet. I found no 2026 quarterback news for either team; the only injury
+      results were from earlier seasons. This would change with a sourced Jacksonville State
+      quarterback injury or Delaware available at -1.5 or better.
