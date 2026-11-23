@@ -4,8 +4,9 @@ import duckdb
 
 from engine import burst
 
-CFG = {"timezone_display": "America/Denver", "burst": {"enabled": True, "max_reads_per_day": 2,
-       "windows": {"sun": ["09:00-11:15"], "wed": ["12:00-15:30"]}}}
+CFG = {"timezone_display": "America/Denver", "burst": {"enabled": True, "sports": {
+    "NFL": {"max_reads_per_day": 2, "windows": {"sun": ["09:00-11:15"], "wed": ["12:00-15:30"]}},
+    "NBA": {"max_reads_per_day": 2, "windows": {"tue": ["09:45-11:30"]}}}}}
 
 
 def utc(y, m, d, h, mi):
@@ -17,7 +18,9 @@ def test_window_is_checked_in_mountain_time():
     assert burst.in_window(CFG, utc(2026, 11, 22, 17, 0)) == "09:00-11:15"
     assert burst.in_window(CFG, utc(2026, 11, 22, 18, 30)) is None         # 11:30 MT, after the window
     assert burst.in_window(CFG, utc(2026, 11, 25, 20, 0)) == "12:00-15:30"  # Wednesday 13:00 MT
-    assert burst.in_window(CFG, utc(2026, 11, 24, 20, 0)) is None           # Tuesday has none
+    assert burst.in_window(CFG, utc(2026, 11, 24, 20, 0)) is None           # Tuesday has none for the NFL
+    assert burst.in_window(CFG, utc(2026, 11, 24, 17, 0), "NBA") == "09:45-11:30"   # but the NBA has one: Tuesday 10:00 MT
+    assert burst.in_window(CFG, utc(2026, 11, 22, 17, 0), "NBA") is None
 
 
 def test_disabled_means_no_window():
@@ -31,3 +34,4 @@ def test_daily_cap_counts_reads_not_rows():
     for sport in ("NFL", "NFL"):          # two rows, one read time
         con.execute("INSERT INTO burst_reads VALUES (?,?,?,?,?,?)", [t, sport, True, 5, 5, ""])
     assert burst.reads_today(con, CFG, utc(2026, 11, 22, 19, 0)) == 1
+    assert burst.reads_today(con, CFG, utc(2026, 11, 22, 19, 0), "NBA") == 0

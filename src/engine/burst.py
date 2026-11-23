@@ -22,13 +22,15 @@ SCHEMA = "CREATE TABLE IF NOT EXISTS burst_reads (ts_utc TIMESTAMP, sport VARCHA
 DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 
 
-def in_window(cfg: dict, now: datetime) -> str | None:
-    """The window ('HH:MM-HH:MM') this moment falls in (Mountain time), or None."""
+def in_window(cfg: dict, now: datetime, sport: str = "NFL") -> str | None:
+    """The window ('HH:MM-HH:MM') this sport's fast reads are in right now (Mountain time), or None.
+    `burst.sports.<SPORT>.windows` maps weekday to windows."""
     bc = cfg.get("burst") or {}
     if not bc.get("enabled"):
         return None
     local = now.astimezone(config.display_tz(cfg))
-    for w in (bc.get("windows") or {}).get(DAYS[local.weekday()], []) or []:
+    sc = (bc.get("sports") or {}).get(sport) or {}
+    for w in (sc.get("windows") or {}).get(DAYS[local.weekday()], []) or []:
         a, b = (x.strip() for x in str(w).split("-"))
         start = local.replace(hour=int(a[:2]), minute=int(a[3:5]), second=0, microsecond=0)
         end = local.replace(hour=int(b[:2]), minute=int(b[3:5]), second=0, microsecond=0)
@@ -65,32 +67,36 @@ def collect_light(wh: Wagerhouse, sport: str, now: datetime) -> tuple[list[snap.
     return snaps, problems
 
 
-def reads_today(con, cfg: dict, now: datetime) -> int:
+def reads_today(con, cfg: dict, now: datetime, sport: str = "NFL") -> int:
     con.execute(SCHEMA)
     local = now.astimezone(config.display_tz(cfg))
     start = local.replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc).replace(tzinfo=None)
-    return con.execute("SELECT count(DISTINCT ts_utc) FROM burst_reads WHERE ts_utc >= ?", [start]).fetchone()[0]
+    return con.execute("SELECT count(DISTINCT ts_utc) FROM burst_reads WHERE ts_utc >= ? AND sport = ?", [start, sport]).fetchone()[0]
 
 
 def run(force: bool = False) -> tuple[int, list[str]]:
     cfg, env = config.load_config(), config.load_env()
     now = datetime.now(timezone.utc)
     bc = cfg.get("burst") or {}
-    window = in_window(cfg, now)
-    if window is None and not force:
-        return 0, ["Outside the fast-read windows; nothing read."]
+    configured = list((bc.get("sports") or {}).keys())
+    todo, out = [], []
     con = snap.connect(config.DB)
     try:
-        used = reads_today(con, cfg, now)
-        cap = int(bc.get("max_reads_per_day", 40))
-        if used >= cap and not force:
-            return 0, [f"Daily cap reached ({used} of {cap} fast reads); nothing read."]
+        for sport in configured:
+            if not force and in_window(cfg, now, sport) is None:
+                continue
+            used, cap = reads_today(con, cfg, now, sport), int(((bc["sports"][sport] or {}).get("max_reads_per_day", 40)))
+            if used >= cap and not force:
+                out.append(f"{sport}: daily cap reached ({used} of {cap} fast reads); nothing read.")
+                continue
+            todo.append(sport)
     finally:
         con.close()
-    out, allsnaps = [], []
+    if not todo:
+        return 0, out or ["Outside the fast-read windows; nothing read."]
+    allsnaps, rows = [], []
     wh = Wagerhouse(env.get("WAGERHOUSE_USER", ""), env.get("WAGERHOUSE_PASSWORD", ""))
-    rows = []
-    for sport in bc.get("sports", ["NFL"]):
+    for sport in todo:
         try:
             s, problems = collect_light(wh, sport, now)
             allsnaps += s

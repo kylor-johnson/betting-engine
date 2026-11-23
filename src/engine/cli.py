@@ -417,6 +417,9 @@ def cmd_status(args) -> int:
         print(lanes.table_markdown(cfg, con))
         from engine import version
         print("\n" + version.versions_text(con))
+        from engine import readiness
+        readiness.write(cfg, con)
+        print("\n" + readiness.NAMES[readiness.stage(readiness.metrics(con), readiness.settings(cfg))[0]] + "  (details: docs/lanes/READINESS.md)")
         path = lanes.write_status_file(cfg, con)
         print(f"\nWritten: {path.relative_to(config.ROOT)}")
         if args.send:
@@ -565,6 +568,18 @@ def cmd_wh_edge(args) -> int:
     return 0
 
 
+def cmd_ready(args) -> int:
+    from engine import readiness
+    cfg = config.load_config()
+    con = _db.connect(config.DB)
+    try:
+        path = readiness.write(cfg, con)
+        print(readiness.report(cfg, con))
+    finally:
+        con.close()
+    return 0
+
+
 def cmd_nba_absences(args) -> int:
     from engine.models import nba_absences, nba_data
     text = nba_absences.report(nba_data.load())
@@ -663,6 +678,8 @@ def main(argv=None) -> int:
     a.set_defaults(func=cmd_lean)
     a = sub.add_parser("wh-edge", help="where Wagerhouse is soft against Pinnacle and how fast it follows (writes docs/research/12-...md)")
     a.set_defaults(func=cmd_wh_edge)
+    a = sub.add_parser("ready", help="when may real money go on an engine pick? generated from the record (writes docs/lanes/READINESS.md)")
+    a.set_defaults(func=cmd_ready)
     a = sub.add_parser("nba-absences", help="does the NBA closing spread already carry who is missing? (writes docs/research/13-...md)")
     a.set_defaults(func=cmd_nba_absences)
     a = sub.add_parser("calib-test", help="walk-forward reliability check of the landing tables (writes docs/research/11a-calibration.md)")

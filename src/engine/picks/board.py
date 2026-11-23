@@ -183,6 +183,17 @@ def build() -> Path:
             vc.close()
     except Exception as e:
         parts.append(f"<p class=sub>Rule version unavailable: {_e(type(e).__name__)}</p>")
+    try:
+        from engine import readiness
+        from engine.odds import snapshots as snap2
+        rc = snap2.connect(config.DB)
+        try:
+            st = readiness.stage(readiness.metrics(rc), readiness.settings(cfg))[0]
+        finally:
+            rc.close()
+        parts.append(f"<p class=sub><b>Betting readiness: {_e(readiness.NAMES[st])}.</b> Criteria and what each stage allows: docs/lanes/READINESS.md.</p>")
+    except Exception as e:
+        parts.append(f"<p class=sub>Readiness unavailable: {_e(type(e).__name__)}</p>")
     parts.append("<h2>The five lanes: what each one looks at, and its record</h2>" + _lanes_html(cfg))
     parts.append("<h2>Paper Leans (unproven, never staked)</h2>" + _leans_html(cfg, tz))
     parts.append("<h2>How the engine's picks have done</h2>" + _grades_html(tz))

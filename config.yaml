@@ -186,11 +186,36 @@ leans:
 # Roughly 130 reads a week. Never alerts and never starts a research run.
 burst:
   enabled: true
-  sports: [NFL]
-  max_reads_per_day: 40
-  windows:
-    mon: ["16:30-18:30"]
-    wed: ["12:00-15:30"]
-    thu: ["12:00-15:30", "16:30-18:30"]
-    fri: ["12:00-15:30"]
-    sun: ["09:00-11:15", "12:15-14:30", "16:30-18:30"]
+  sports:
+    NFL:
+      max_reads_per_day: 40
+      windows:
+        mon: ["16:30-18:30"]
+        wed: ["12:00-15:30"]
+        thu: ["12:00-15:30", "16:30-18:30"]
+        fri: ["12:00-15:30"]
+        sun: ["09:00-11:15", "12:15-14:30", "16:30-18:30"]
+    NBA:                           # around the injury watcher's 10am, 3pm and 5pm checks, every day
+      max_reads_per_day: 25
+      windows:
+        mon: ["09:45-11:30", "14:45-16:30", "16:45-18:15"]
+        tue: ["09:45-11:30", "14:45-16:30", "16:45-18:15"]
+        wed: ["09:45-11:30", "14:45-16:30", "16:45-18:15"]
+        thu: ["09:45-11:30", "14:45-16:30", "16:45-18:15"]
+        fri: ["09:45-11:30", "14:45-16:30", "16:45-18:15"]
+        sat: ["09:45-11:30", "14:45-16:30", "16:45-18:15"]
+        sun: ["09:45-11:30", "14:45-16:30", "16:45-18:15"]
+
+# When real money may go on an engine pick (src/engine/readiness.py, docs/decisions/0012-go-no-go-rules.md). Changing these is an event: write a decision note.
+go_live:
+  weeks_min: 3                  # full weeks since the rules were frozen (first rule version, Nov 23 2026)
+  graded_min: 10                # graded Bets and Conditionals since the freeze
+  clv_n_min: 5                  # of those, with a Pinnacle closing line stored
+  clv_floor: 0.0                # average closing-line value must be at least this many points
+  full_graded: 100              # the full unit needs this many graded...
+  full_clv_floor: 0.0           # ...and average closing-line value above this
+  pause_n: 25                   # pause if, with this many closing lines...
+  pause_clv: -0.5               # ...the average is below this
+  stop_loss_units: 10           # pause if down this many units since Stage 1 began
+  weekly_stake_cap_units: 2.0   # at most this many units staked in a week at Stage 1
+  stage1_unit_fraction: 0.5     # Stage 1 stakes this fraction of the unit

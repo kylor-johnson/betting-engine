@@ -11,7 +11,7 @@ from datetime import datetime
 
 from engine import config
 
-PATHS = ["docs/cards", "adjustments.yaml", "docs/lanes/STATUS.md", "docs/leans"]
+PATHS = ["docs/cards", "adjustments.yaml", "docs/lanes/STATUS.md", "docs/lanes/READINESS.md", "docs/leans"]
 
 
 def _git(*args: str) -> subprocess.CompletedProcess:
