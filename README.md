@@ -47,7 +47,7 @@ uv run engine telegram-setup                  # after sending your bot any messa
 2. Claude researches the sides the numbers flag (injuries, weather, why the line moved) and writes status and reasons to a decisions file. It may add sourced entries to `adjustments.yaml`. It cannot write a line, price or stake.
 3. Code re-prices at fresh numbers, renders the card, and sends a Telegram alert only for what changed: a new Bet or Conditional, a status change, or a pick whose value is gone.
 
-Research runs happen on a schedule (Sunday 8:15am, 6:45pm and 8:45pm; Monday and Tuesday 8:15am; Wednesday to Friday 3:15pm; Saturday 8:15am, all Mountain) and whenever the hourly read sees a quarterback's status change or new NFL games at your book, at most once every 90 minutes.
+Research runs happen at 8:15am every day and 6:45pm Sunday (NFL openers), Mountain, and on change: a quarterback's status change, new NFL games at your book, an NBA watcher hit, or a new stale number (for that sport), at most once every 90 minutes per trigger (`config.yaml` `agent:`, decision 0016).
 
 ## Running on a schedule (launchd)
 
@@ -80,5 +80,6 @@ Keep the Mac awake: plugged in, lid open, and `sudo pmset -c sleep 0` (never sle
 - `config.yaml`: unit, cap, alert thresholds, read hours, key numbers, picks and agent settings
 - `adjustments.yaml`: this week's point adjustments, each with reason and source
 - `docs/cards/`: one card per day; `docs/cards/decisions/` holds the agent's status and reasons
-- `ops/agent_prompt.md`: the research agent's instructions
+- `ops/agent_prompt.md`: the research agent's shared instructions; `ops/agent_prompt_nfl.md`, `_college.md`, `_nba.md`: one guide per sport
+- `docs/cards/<date>-nfl-teasers.md`: the paper Wong-teaser legs and record (decision 0014)
 - Times are stored in UTC and shown in Mountain. Wagerhouse reports Eastern.

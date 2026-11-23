@@ -10,15 +10,18 @@ It is not a bet tracker and it is not a price checker. Those are plumbing.
 
 This repository is the betting engine only. Nothing else lives here: my DFS model has its own folder and its own repository, and the two never share code, data or settings.
 
-## The five lanes
+## The lanes
 
-The engine is five separate lanes. Each has its own model, its own status, its own record and its own messages.
+The engine is separate lanes. Each has its own model, its own status, its own record and its own messages.
 
 1. NFL spreads and totals
 2. College football spreads and totals
 3. NBA spreads and totals
 4. NFL player props
 5. NBA player props
+6. NFL Wong teasers, paper first (added 2026-11-23, decision 0014)
+
+Each sport also has its own research-agent guide (`ops/agent_prompt_<sport>.md`) and its own money-readiness thresholds (decisions 0016 and 0017), so no sport hides behind another's progress.
 
 A lane is never allowed to hide inside another lane's "no bets" message.
 
@@ -27,7 +30,7 @@ A lane is never allowed to hide inside another lane's "no bets" message.
 - Every lane says, in plain words, what it is evaluating right now and what it is not.
 - Every lane produces output on its schedule: picks, or a clear statement that it has no model that can produce one yet.
 - Every pick is logged at the price when issued and graded against the result and the closing line.
-- I can open one page and see all five lanes, what each one looks at, and each one's record.
+- I can open one page and see every lane, what each one looks at, and each one's record.
 
 ## The drift guard
 

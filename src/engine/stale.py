@@ -6,8 +6,8 @@ no reason is known, so the research agent has not looked at it. It stays inside 
 an alert is not a pick. Each alert is frozen at the number shown and graded on the result and against Pinnacle's close, so the record shows whether
 stale numbers are worth chasing (`engine stale`).
 
-Limits: one alert per game, market, side and Wagerhouse number; at most `stale.max_per_day` a day; NFL and NBA only (college has no cheap landing
-table here). Pinnacle is the reference. A big gap (over `stale.max_gap_points`) is treated as a data mismatch, not an opportunity.
+Limits: one alert per game, market, side and Wagerhouse number; at most `stale.max_per_day` a day; the sports in `stale.sports` (NFL, NBA and,
+since 2026-11-24, College, whose landing table comes from the cached CollegeFootballData closes). Pinnacle is the reference. A big gap (over `stale.max_gap_points`) is treated as a data mismatch, not an opportunity.
 """
 from __future__ import annotations
 
@@ -25,8 +25,9 @@ CREATE TABLE IF NOT EXISTS stale_alerts (
   wh_line DOUBLE, price DOUBLE, pinnacle_line DOUBLE, value DOUBLE, limit_line DOUBLE, dont_bet_past VARCHAR, kickoff_utc TIMESTAMP, rule_version VARCHAR);
 CREATE TABLE IF NOT EXISTS stale_grades (
   alert_key VARCHAR PRIMARY KEY, pinnacle_close DOUBLE, clv_points DOUBLE, result VARCHAR, graded_utc TIMESTAMP);
+ALTER TABLE stale_grades ADD COLUMN IF NOT EXISTS clv_chance DOUBLE;
 """
-DEFAULTS = {"enabled": True, "sports": ["NFL", "NBA"], "max_per_day": 10, "max_gap_points": 3.0}
+DEFAULTS = {"enabled": True, "sports": ["NFL", "NBA", "College"], "max_per_day": 10, "max_gap_points": 3.0}
 _CACHE: dict = {}
 
 
@@ -48,6 +49,11 @@ def landings(sport: str, cfg: dict) -> tuple[Landing, Landing]:
         sd = cfg["margin_sd"]["NBA"]
         out = (Landing(bell_rows("spread", sd["spread"], -25, 25), "spread", window=0.25, min_n=100),
                Landing(bell_rows("total", sd["total"], 180, 270), "total", window=0.25, min_n=100))
+    elif sport == "College":
+        from engine.models import openers      # cached CollegeFootballData closes and scores, 2021 on; no network
+        games = [g for g in openers.cfb_games(2021) if g.close_margin is not None]
+        out = (Landing([(-g.close_margin, g.margin) for g in games], "spread", window=1.5, min_n=600),
+               Landing([(g.close_total, g.points) for g in games if g.close_total is not None], "total", window=3.0, min_n=600))
     else:
         raise ValueError(sport)
     _CACHE[sport] = out
@@ -142,7 +148,35 @@ def scan(cfg: dict, env: dict, con, snaps: list, now: datetime, send: bool = Tru
     return out
 
 
-def grade(con, scorer=None) -> list[str]:
+def new_sports(con, now: datetime) -> list[str]:
+    """Sports with a stale-number alert first frozen in this read."""
+    try:
+        con.execute(SCHEMA)
+        return [r[0] for r in con.execute("SELECT DISTINCT sport FROM stale_alerts WHERE ts_utc=?", [now.replace(tzinfo=None)]).fetchall()]
+    except Exception:
+        return []
+
+
+def start_research(cfg: dict, con, now: datetime, sports: list[str]) -> list[str]:
+    """Run on change (decision 0016): a research run for each sport with a new stale number, so the agent looks for the news behind it.
+    Respects the agent's cooldown per sport. Never raises into a read."""
+    out = []
+    acfg = cfg.get("agent") or {}
+    if not sports or not acfg.get("run_on_news", True):
+        return out
+    try:
+        from engine.picks import agent
+        con.execute(agent.SCHEMA)
+        for sp in sports:
+            if agent.cooled_down(con, now, acfg.get("cooldown_minutes", 90), sp):
+                agent.spawn(f"stale number at Wagerhouse ({sp}): Pinnacle moved and Wagerhouse has not", sp)
+                out.append(f"Started a {sp} research run: stale number at Wagerhouse.")
+    except Exception as e:
+        out.append(f"could not start a research run on a stale number: {type(e).__name__}: {e}")
+    return out
+
+
+def grade(con, scorer=None, cfg: dict | None = None) -> list[str]:
     """Result at the number shown, and points against Pinnacle's last line before kickoff (a compass, not proof)."""
     from engine.picks import grade as g
     scorer = scorer or g.final_score
@@ -160,8 +194,12 @@ def grade(con, scorer=None) -> list[str]:
             continue
         res = g.result(market, side, line, *score)
         clv = None if close is None else g.clv_points(market, side, line, close[0])
-        con.execute("INSERT INTO stale_grades VALUES (?,?,?,?,?)", [key, None if close is None else close[0], clv, res, now])
-        out.append(f"STALE ALERT GRADED {key}: {res}" + ("" if clv is None else f", {clv:+.1f} points vs Pinnacle close"))
+        from engine import clv as clv_mod
+        ch = None if close is None else clv_mod.chance(cfg or config.load_config(), sport, market, side, line, close[0])
+        con.execute("INSERT INTO stale_grades (alert_key, pinnacle_close, clv_points, result, graded_utc, clv_chance) VALUES (?,?,?,?,?,?)",
+                    [key, None if close is None else close[0], clv, res, now, ch])
+        out.append(f"STALE ALERT GRADED {key}: {res}" + ("" if clv is None else f", {clv:+.1f} points vs Pinnacle close")
+                   + ("" if ch is None else f" ({100 * ch:+.1f}% win chance)"))
     return out
 
 
@@ -170,7 +208,8 @@ def summary_text(con) -> str:
     n = con.execute("SELECT count(*) FROM stale_alerts").fetchone()[0]
     if not n:
         return "Stale-number alerts: none yet."
-    w, l, p, clv, cn, ng = con.execute("SELECT count(*) FILTER (result='W'), count(*) FILTER (result='L'), count(*) FILTER (result='P'), "
-                                       "avg(clv_points), count(clv_points), count(*) FROM stale_grades").fetchone()
-    tail = "closing-line value n/a" if clv is None else f"average {clv:+.2f} points vs Pinnacle close (on {cn})"
+    w, l, p, clv, cn, ng, ch = con.execute("SELECT count(*) FILTER (result='W'), count(*) FILTER (result='L'), count(*) FILTER (result='P'), "
+                                           "avg(clv_points), count(clv_points), count(*), avg(clv_chance) FROM stale_grades").fetchone()
+    tail = "closing-line value n/a" if clv is None else f"average {clv:+.2f} points vs Pinnacle close (on {cn})" + (
+        "" if ch is None else f", {100 * ch:+.1f}% win chance")
     return f"Stale-number alerts: {n} sent, {ng} graded, {w}-{l}-{p}, {tail}. A price alert, never a Bet."

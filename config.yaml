@@ -90,12 +90,14 @@ agent:
   cooldown_minutes: 90       # never more often than this
   summary_message: true      # send a short Telegram summary after every research run, even with no bets
   # Scheduled research runs, Mountain time. Each runs every sport your book has games posted for.
+  # Run on change (decision 0016, 2026-11-24): news (quarterback, NBA watcher), a new NFL slate, or a new stale number (Pinnacle moved, Wagerhouse
+  # has not) starts a run for that sport; the fixed runs are one early run a day (NBA and college mornings, NFL news) and Sunday evening for NFL openers.
   schedule:
-    sunday: ["08:15", "15:15", "18:45", "20:45"]
-    other: ["08:15", "15:15"]
+    sunday: ["08:15", "18:45"]
+    other: ["08:15"]
 
 
-# The five lanes (CHARTER.md). `engine status` and every card and message header are generated from this
+# The lanes (CHARTER.md's five, plus NFL Wong teasers since 2026-11-24). `engine status` and every card and message header are generated from this
 # section, the switches above and the database. Edit it in the same commit as any change to what a lane looks at.
 # inputs: what the lane reads (on: true/false). models: each model's test result (passed / passed_weak / testing / failed)
 # and, if it has a switch, where that switch lives in this file (`switch`), so the table cannot disagree with it.
@@ -142,6 +144,16 @@ lanes:
       small_markets: {enabled: true, text: "First-half, first-quarter and team-total lines are logged and compared with Pinnacle; not yet measured."}
     models: {}
     not_evaluating: ["rest, travel and back-to-backs (Pinnacle prices them; no separate adjustment)", "its own team ratings or pace model (none built)", "betting splits and line movement (never a reason)"]
+  nfl_teasers:
+    title: NFL Wong teasers (paper)
+    short: NFL teasers
+    sport: NFL
+    kind: teaser
+    inputs:
+      wagerhouse_spreads: {enabled: true, text: "Wagerhouse's NFL spreads and totals: favorites of -7.5 to -8.5 and underdogs of +1.5 to +2.5 with the total at 49 or lower, frozen at first sight."}
+    models:
+      wong_teasers: {status: testing, switch: teasers.enabled, doc: docs/research/14-deep-review.md, note: "2-team 6-point at -110; 75.8% of legs won in 2023-2026, break-even 72.4%"}
+    not_evaluating: ["college or NBA teasers (neither clears break-even)", "13-point or 3+ team teasers (leaks)", "any stake until the lane is judged"]
   nfl_props:
     title: NFL player props
     short: NFL props
@@ -165,6 +177,17 @@ lanes:
       nba_props: {status: testing, switch: models.props.nba_enabled, doc: docs/research/06-props-model.md, note: "forward test against Pinnacle"}
     not_evaluating: ["any Wagerhouse prop price", "any prop pick (the gate below must pass first)"]
 
+# NFL Wong teasers, paper only (src/engine/picks/teasers.py, decision 0014, review 14 section 2f). Kylor approved 2026-11-23.
+# Wagerhouse's 2-team 6-point teaser pays -110 ("WH 6/4 MIX" in his tickets); if that changes, change `price` here (a kill condition).
+teasers:
+  enabled: true
+  points: 6.0
+  price: -110
+  max_total: 49.0
+  favorite: [-8.5, -7.5]      # this side's own spread
+  underdog: [1.5, 2.5]
+  kill_after_legs: 150        # judged here: under the break-even rate (72.4% at -110) means off
+
 # Telegram only pings for things you must act on (changed 2026-11-23, Kylor: "only ping me when it has a bet for me to place").
 # Kinds: bet = a Bet, a Conditional, or the cancellation of one; stale = a STALE NUMBER price alert (src/engine/stale.py; added 2026-11-23, Kylor asked); system = the engine is broken (a read failed, a scheduled research run
 # did not happen) or you asked by command. Everything else (NO BETS summaries, openers, QB and NBA news, price gaps, lane status,
@@ -181,7 +204,7 @@ leans:
   promote_after_graded: 50          # not to be bet before this many are graded and average closing-line value is above zero
 
 # Fast reads (src/engine/burst.py): Wagerhouse and Pinnacle full-game lines every 10 minutes inside these windows, Mountain time, to measure how
-# many minutes Wagerhouse trails Pinnacle after news (docs/research/12a-reading-2026-11-23.md). Wednesday to Friday afternoon is when practice
+# many minutes Wagerhouse trails Pinnacle after news (section 4 of `engine wh-edge` judges it against the keep/kill rule, decision 0015) (docs/research/12a-reading-2026-11-23.md). Wednesday to Friday afternoon is when practice
 # reports land; Sunday and the weekday-night games are the inactives windows (about 90 minutes before kickoff). Bounded by max_reads_per_day.
 # Roughly 130 reads a week. Never alerts and never starts a research run.
 burst:
@@ -195,35 +218,40 @@ burst:
         thu: ["12:00-15:30", "16:30-18:30"]
         fri: ["12:00-15:30"]
         sun: ["09:00-11:15", "12:15-14:30", "16:30-18:30"]
-    NBA:                           # around the injury watcher's 10am, 3pm and 5pm checks, every day
+    NBA:                           # 2 hours before the day's first tip to 15 minutes after (official report reposts every 15 minutes; decision 0016)
+      max_reads_per_day: 25
+      before_first_start: [120, 15]   # minutes before, minutes after the first start in our line log
+    College:                       # quarterback and availability news: Friday afternoon reports, Saturday mornings (added 2026-11-24)
       max_reads_per_day: 25
       windows:
-        mon: ["09:45-11:30", "14:45-16:30", "16:45-18:15"]
-        tue: ["09:45-11:30", "14:45-16:30", "16:45-18:15"]
-        wed: ["09:45-11:30", "14:45-16:30", "16:45-18:15"]
-        thu: ["09:45-11:30", "14:45-16:30", "16:45-18:15"]
-        fri: ["09:45-11:30", "14:45-16:30", "16:45-18:15"]
-        sat: ["09:45-11:30", "14:45-16:30", "16:45-18:15"]
-        sun: ["09:45-11:30", "14:45-16:30", "16:45-18:15"]
+        fri: ["13:00-15:30"]
+        sat: ["07:30-10:30", "11:30-13:30"]
 
 # When real money may go on an engine pick (src/engine/readiness.py, docs/decisions/0012-go-no-go-rules.md). Changing these is an event: write a decision note.
 go_live:
   weeks_min: 3                  # full weeks since the rules were frozen (first rule version, Nov 23 2026)
   graded_min: 10                # graded Bets and Conditionals since the freeze
   clv_n_min: 5                  # of those, with a Pinnacle closing line stored
-  clv_floor: 0.0                # average closing-line value must be at least this many points
+  clv_floor: 0.0                # average closing-line value (win chance) must be at least this
   full_graded: 100              # the full unit needs this many graded...
   full_clv_floor: 0.0           # ...and average closing-line value above this
   pause_n: 25                   # pause if, with this many closing lines...
-  pause_clv: -0.5               # ...the average is below this
+  pause_clv: -0.015             # ...the average is below this (win chance; -1.5% is about half a point in the NFL)
+  # Since 2026-11-24 (decision 0017): closing-line value is win chance (src/engine/clv.py), floors above are fractions (0.0 = break-even
+  # against the close), and each sport is judged on its own picks. Overrides per sport:
+  per_sport:
+    NFL: {graded_min: 10, clv_n_min: 5}
+    College: {graded_min: 10, clv_n_min: 5}
+    NBA: {graded_min: 25, clv_n_min: 15}      # NBA picks pile up in days, so it must show more before money
   stop_loss_units: 10           # pause if down this many units since Stage 1 began
   weekly_stake_cap_units: 2.0   # at most this many units staked in a week at Stage 1
   stage1_unit_fraction: 0.5     # Stage 1 stakes this fraction of the unit
 
 # STALE NUMBER alerts (src/engine/stale.py): Wagerhouse is better than Pinnacle's fair price by the engine's 2% bar on a full-game side or total.
-# A price alert, not a pick; graded on result and closing-line value (engine stale). College is not covered (no cheap landing table).
+# A price alert, not a pick; graded on result and closing-line value in points and win chance (engine stale). A new one starts a research run
+# for that sport (decision 0016). Turning one with news behind it into a Bet waits for the lag measurement (decision 0015).
 stale:
   enabled: true
-  sports: [NFL, NBA]
+  sports: [NFL, NBA, College]   # College added 2026-11-24 (landing table from cached CollegeFootballData closes)
   max_per_day: 10
   max_gap_points: 3.0        # a bigger gap is treated as a data mismatch, not an opportunity

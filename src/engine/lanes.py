@@ -1,4 +1,4 @@
-"""The five lanes and the generated status table (CHARTER.md, drift guard).
+"""The lanes (five from the charter, plus NFL Wong teasers since 2026-11-24) and the generated status table (CHARTER.md, drift guard).
 
 Everything here is built from `config.yaml` (the `lanes:` section and the switches it points to) and the
 database. Nothing about a lane is typed by hand in a card, a message or the status table.
@@ -44,6 +44,11 @@ def inputs_on(lane: dict) -> list[str]:
 def can_produce(cfg: dict, lane: dict) -> str:
     """What can produce a pick in this lane today, from its switches and test results."""
     pc = cfg.get("picks") or {}
+    if lane["kind"] == "teaser":
+        from engine.picks import teasers
+        st = teasers.settings(cfg)
+        return (f"Nothing staked. Paper teasers only, until {st['kill_after_legs']} legs are graded and at least "
+                f"{teasers.breakeven(st['price']):.1%} win (decision 0014).") if st["enabled"] else "Nothing (switched off)."
     if lane["kind"] == "props":
         need = ((cfg.get("models") or {}).get("props") or {}).get("min_graded", 300)
         return f"Nothing. Testing only until {need} props are graded and the test is passed."
@@ -65,6 +70,15 @@ def record(con, cfg: dict, lane: dict) -> dict:
     """Graded record and the date of the last pick, from the database."""
     out = {"graded": 0, "line": "", "last_pick": None}
     sport = lane["sport"]
+    if lane["kind"] == "teaser":
+        from engine.picks import teasers
+        try:
+            rec = teasers.record(con, cfg)
+            last = con.execute("SELECT max(first_seen_utc) FROM teaser_legs").fetchone()[0]
+        except Exception as e:
+            return {**out, "line": f"Teaser record unavailable: {type(e).__name__}"}
+        out.update(graded=rec["graded"], last_pick=last, line=teasers.record_text(rec, cfg))
+        return out
     if lane["kind"] == "props":
         from engine.models import props
         pc = (cfg.get("models") or {}).get("props") or {}

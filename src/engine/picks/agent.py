@@ -84,6 +84,8 @@ def run_claude(cfg, reason: str, day: str, sport: str) -> tuple[bool, str]:
     claude = find_claude(cfg)
     now_mt = datetime.now(config.display_tz(cfg)).strftime("%Y-%m-%d %H:%M MT")
     prompt = PROMPT_FILE.read_text().replace("{{REASON}}", reason).replace("{{DAY}}", day).replace("{{NOW}}", now_mt)
+    guide = config.ROOT / "ops" / f"agent_prompt_{sport.lower()}.md"     # one guide per sport (decision 0016)
+    prompt = prompt.replace("{{SPORT_GUIDE}}", guide.read_text() if guide.exists() else "")
     prompt = prompt.replace("{{SPORT}}", sport).replace("{{sport}}", sport.lower())
     env = dict(os.environ)
     env["UV_PROJECT_ENVIRONMENT"] = str(config.ROOT / ".venv.nosync")

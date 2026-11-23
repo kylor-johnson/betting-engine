@@ -1,6 +1,8 @@
 # 14. Deep review: where real money could come from, and what to build, stop and change
 
-Written Monday Nov 23, 2026, Mountain, by an outside-review session. No engine code, config or schedule was changed. State reviewed: commit `19b5a89`, working tree clean at the start. Every test below is walk-forward (each season judged only on rules fitted to earlier seasons) and compared against the closing line. Scratch scripts are in this session's scratchpad (`work/`); I'll move them into `scripts/` if you say so.
+Written Monday Nov 23, 2026, Mountain, by an outside-review session. No engine code, config or schedule was changed. State reviewed: commit `19b5a89`, working tree clean at the start. Every test below is walk-forward (each season judged only on rules fitted to earlier seasons) and compared against the closing line. Scripts: `scripts/research14/`.
+
+**Kylor's answers (Nov 23, evening): all yes.** Built the same night: the paper teaser lane (decision 0014), lag in minutes with a keep/kill verdict, college stale alerts and fast reads, NBA fast reads from 2 hours before the first tip, per-sport agent guides, research runs on change (0016), per-sport readiness in win chance and no new full-game models (0017). Stale-plus-news Bets wait for the lag verdict (0015). The stray `.venv` was deleted.
 
 ---
 

@@ -1,6 +1,6 @@
 # Betting Engine: Build Spec (revised after Phase 0, approved 2026-11-21)
 
-**Read `CHARTER.md` first.** It states what this engine is for, the five lanes, the rule that keeps it from drifting, and the locked decisions. If this file disagrees with the charter, the charter wins.
+**Read `CHARTER.md` first.** It states what this engine is for, the lanes, the rule that keeps it from drifting, and the locked decisions. If this file disagrees with the charter, the charter wins.
 
 Owner: Kylor (Denver, Mountain time). This file is copied to `CLAUDE.md`. The research behind it is in `docs/research/00-red-team.md`; decisions are in `docs/decisions/`. `HANDOFF.md` has the working rules and folder layout. Build one phase at a time. Do not start a phase until the one before it passes its exit test and Kylor says go.
 
@@ -57,12 +57,14 @@ The goal is an agent that does the handicapping on a schedule and alerts Kylor w
 
 - **Code owns every number.** `engine slate` builds the slate sheet: your book's price, Pinnacle (free, sharp) and DraftKings; three independent fair numbers (ratings backed out of the market's own closing lines, the average of about 50 public rating systems, Pinnacle with the vig removed); the blended fair line (55% Pinnacle, 45% model); the edge using how real games landed on each margin; the "don't bet past" number; the stake.
 - **The agent owns research and judgment.** It reads the slate sheet, checks injuries, availability reports, weather and why a line moved, and writes a decisions file with status and reasons only. It may add entries to `adjustments.yaml` (each with points, reason, source link and time). It cannot type a line, price, edge or stake; `engine card` refuses a Bet the numbers do not support.
-- **A Bet needs all four:** an edge of at least 2% at the book's current number; the model on the same side; a written reason that is not "the line moved"; the book's number re-checked in the same minute as the alert. An edge that exists only because of the agent's own estimated adjustment is not a Bet.
+- **A Bet needs all four:** an edge of at least 2% at the book's current number (the model leg is off, so "the model on the same side" no longer applies, 2026-11-23); a written reason that is not "the line moved"; the book's number re-checked in the same minute as the alert. An edge that exists only because of the agent's own estimated adjustment is not a Bet.
 - **Statuses:** Bet, Conditional (with the exact condition), Pass (with why, and the number that would change it).
 - **Sizing:** 1 unit per Bet, 0.5 for a Conditional, until the engine has 100 graded picks. Then revisit 0.5 to 3 units by edge.
 - **Totals** are not picked from ratings alone. The wind totals model (`models.wind_totals`, decision 0005) is computed in code and can make an Under a Conditional; anything else needs a specific sourced adjustment (quarterback, star out).
-- **Models earn their way in** one market at a time by beating the market on seasons they never saw (decision 0005, `engine model-test`). Failed so far: full-game sides, pace totals, matchup power number, first-half habit, early-number opener pricing (`docs/research/09-early-number-openers.md`). Props models (NFL and NBA): built, priced and graded against Pinnacle every read, testing only until each passes decision 0006's gate (`engine props`, `engine props --sport NBA`).
-- **Fast reads** (`engine burst`, every 10 minutes inside the `burst:` windows in `config.yaml`: NFL around practice reports and inactives, NBA around the 10am, 3pm and 5pm injury checks; full-game Wagerhouse and Pinnacle only, no alerts): measures how many minutes Wagerhouse trails Pinnacle after news (`engine wh-edge`).
+- **Models earn their way in** one market at a time by beating the market on seasons they never saw (decision 0005, `engine model-test`). Failed so far: full-game sides, pace totals, matchup power number, first-half habit, early-number opener pricing (`docs/research/09-early-number-openers.md`), the NFL injury report with practice status, college public rating systems, NBA rest and travel (`docs/research/14-deep-review.md`). No new full-game model without a new kind of input (decision 0017). Props models (NFL and NBA): built, priced and graded against Pinnacle every read, testing only until each passes decision 0006's gate (`engine props`, `engine props --sport NBA`).
+- **Fast reads** (`engine burst`, every 10 minutes inside the `burst:` windows in `config.yaml`: NFL around practice reports and inactives, College Friday afternoon and Saturday morning, NBA from 2 hours before the day's first tip; full-game Wagerhouse and Pinnacle only): measures how many minutes Wagerhouse trails Pinnacle after news (`engine wh-edge` section 4, keep/kill verdict per decision 0015). A new STALE NUMBER alert starts a research run for that sport (decision 0016).
+- **Research agent instructions:** `ops/agent_prompt.md` (shared) plus one guide per sport (`ops/agent_prompt_nfl.md`, `_college.md`, `_nba.md`). A Bet's reason is timestamped news Wagerhouse has not priced, or a tested model; matchup and luck numbers are context only.
+- **NFL Wong teasers (paper)** (`src/engine/picks/teasers.py`, decision 0014): eligible legs frozen at Wagerhouse's number every read, graded at +6, card `docs/cards/<date>-nfl-teasers.md`.
 - **NBA injury watcher** (`engine nba-watch`, 10am, 3pm and 5pm MT): ESPN report only; when a 22+ minute player crosses Out/Doubtful for a team playing within 30 hours, one Wagerhouse and Pinnacle read, a news message, and an NBA research run. It never prices the player; the number comes from Pinnacle against Wagerhouse.
 - **Betting splits** are logged and shown, never a reason.
 - **Get the early number.** The point is to be the one holding +10 before it becomes +6.5: numbers ready Sunday night for openers, injury and availability news checked hourly 7am to 5pm Mountain, and an alert within the hour when news lands and the book has not moved.
@@ -92,7 +94,7 @@ Built early at Kylor's request (2026-11-22): `src/engine/models/props.py`, decis
 - No reverse-line-movement or bets-versus-money signals; the evidence is against them.
 - "Favorites early, dogs late" is a question the log answers, not a rule.
 - Don't double-count: a factor already in a rating is not added again by hand.
-- Teasers: only 2-team 6.5-point at −120, NFL sides, both legs crossing 3 and 7. Everything else is flagged.
+- Teasers: only 2-team 6-point at −110 (Wagerhouse's "6/4 MIX") or 6.5-point at −120, NFL sides, both legs crossing 3 and 7 (Wong legs). Everything else is flagged.
 - Buying points: only on or off 3 in the NFL at 10 to 15 cents; on or off 7 at 10 cents is neutral; never in the NBA.
 
 ## Out of scope

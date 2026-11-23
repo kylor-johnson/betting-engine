@@ -197,7 +197,9 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
             from engine.picks import leans as _leans
             _leans.grade(cfg, con)      # paper Leans are graded quietly, shown on the board
             from engine import stale as _stale
-            _stale.grade(con)
+            _stale.grade(con, cfg=cfg)
+            from engine.picks import teasers as _teasers
+            _teasers.grade(con)
             for gl in grade.run(cfg, con):
                 if gl.startswith(("GRADED", "NOT GRADED")):
                     out.append(gl)
@@ -257,7 +259,21 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
                                       "Problems on this read:\n" + "\n".join(problems[:15])))
         snap.save(con, snaps)
         from engine import stale
-        out += stale.scan(cfg, env, con, snaps, now, send=send_alerts)
+        stale_msgs = stale.scan(cfg, env, con, snaps, now, send=send_alerts)
+        out += stale_msgs
+        try:   # NFL Wong teasers, paper only (decision 0014): freeze new legs and refresh this week's card
+            from engine.picks import teasers
+            out += teasers.scan(cfg, con, snaps, now)
+            day = now.astimezone(config.display_tz(cfg)).strftime("%Y-%m-%d")
+            (config.ROOT / "docs" / "cards" / f"{day}-nfl-teasers.md").write_text(teasers.card(con, cfg, now))
+        except Exception as e:
+            out.append(f"Teaser lane failed: {type(e).__name__}: {e}")
+        # run on change (decision 0016): a new stale number means Pinnacle moved and Wagerhouse has not; the agent looks for the reason
+        stale_sports = stale.new_sports(con, now)
+        if "NFL" in stale_sports:
+            triggers.append("stale number at Wagerhouse (NFL)")
+        if send_alerts:
+            out += stale.start_research(cfg, con, now, [sp for sp in stale_sports if sp != "NFL"])
         if triggers and send_alerts:
             from engine.picks import agent
             acfg = cfg.get("agent") or {}

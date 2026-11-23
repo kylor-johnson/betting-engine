@@ -419,11 +419,11 @@ def cmd_status(args) -> int:
         print("\n" + version.versions_text(con))
         from engine import readiness
         readiness.write(cfg, con)
-        print("\n" + readiness.NAMES[readiness.stage(readiness.metrics(con), readiness.settings(cfg))[0]] + "  (details: docs/lanes/READINESS.md)")
+        print("\n" + readiness.summary_line(cfg, con) + "  (details: docs/lanes/READINESS.md)")
         path = lanes.write_status_file(cfg, con)
         print(f"\nWritten: {path.relative_to(config.ROOT)}")
         if args.send:
-            telegram.send(config.load_env(), "LANE STATUS (all five lanes)\n" + lanes.table_text(cfg, con), kind="system")
+            telegram.send(config.load_env(), "LANE STATUS (all lanes)\n" + lanes.table_text(cfg, con), kind="system")
             print("Sent to Telegram.")
     finally:
         con.close()

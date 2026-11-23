@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+from engine import clv as clv_mod
 from engine import config
 from engine.odds import espn
 from engine.odds import snapshots as snap
@@ -22,6 +23,7 @@ CREATE TABLE IF NOT EXISTS engine_pick_grades (
   issued_utc TIMESTAMP, issued_line DOUBLE, price DOUBLE, units DOUBLE, pinnacle_close DOUBLE,
   clv_points DOUBLE, home_score INTEGER, away_score INTEGER, result VARCHAR, profit_units DOUBLE, graded_utc TIMESTAMP);
 """
+CHANCE_COL = "ALTER TABLE engine_pick_grades ADD COLUMN IF NOT EXISTS clv_chance DOUBLE"   # win chance vs the close (engine/clv.py)
 SUMMARY_URL = "https://site.api.espn.com/apis/site/v2/sports/{sport}/{slug}/summary?event={eid}"
 
 
@@ -67,6 +69,7 @@ def run(cfg, con=None, scorer=final_score) -> list[str]:
     out: list[str] = []
     try:
         con.execute(GRADES)
+        con.execute(CHANCE_COL)
         pc = cfg["picks"]
         events = con.execute("""
             SELECT pick_key, game, pick, status, book_line, price, ts_utc FROM engine_pick_events ORDER BY ts_utc""").fetchall()
@@ -98,11 +101,19 @@ def run(cfg, con=None, scorer=final_score) -> list[str]:
             units = pc["conditional_units"] if status == "Conditional" else pc["max_units"] if status == "Bet" else 0.0
             res = result(market, side, line, *score)
             clv = None if close is None else clv_points(market, side, line, close[0])
-            con.execute("INSERT INTO engine_pick_grades VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            con.execute("INSERT INTO engine_pick_grades (pick_key, game, pick, status, sport, market, issued_utc, issued_line, price, units, pinnacle_close, "
+                        "clv_points, home_score, away_score, result, profit_units, graded_utc) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                         [key, game, pick, status, sport, market, ts, line, price, units, None if close is None else close[0], clv, score[0], score[1],
                          res, profit(units, price, res) if units else 0.0, now])
-            tail = "closing-line value n/a (no Pinnacle line stored before kickoff)" if clv is None else f"{clv:+.1f} points vs Pinnacle close"
+            ch = None if close is None else clv_mod.chance(cfg, sport, market, side, line, close[0])
+            con.execute("UPDATE engine_pick_grades SET clv_chance=? WHERE pick_key=?", [ch, key])
+            tail = "closing-line value n/a (no Pinnacle line stored before kickoff)" if clv is None else (
+                f"{clv:+.1f} points vs Pinnacle close" + ("" if ch is None else f" ({100 * ch:+.1f}% win chance)"))
             out.append(f"GRADED {status} {pick} ({game}): {res}, {tail}")
+        for key, sport, market, iline, pclose in con.execute(      # older grades: fill win chance once
+                "SELECT pick_key, sport, market, issued_line, pinnacle_close FROM engine_pick_grades WHERE clv_chance IS NULL AND pinnacle_close IS NOT NULL").fetchall():
+            side = key.split("|")[2]
+            con.execute("UPDATE engine_pick_grades SET clv_chance=? WHERE pick_key=?", [clv_mod.chance(cfg, sport, market, side, iline, pclose), key])
     finally:
         if own:
             con.close()

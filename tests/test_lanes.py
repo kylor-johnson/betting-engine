@@ -12,9 +12,10 @@ def cfg():
     return config.load_config()
 
 
-def test_five_lanes_exist_in_the_charter_order():
+def test_lanes_exist_in_the_charter_order():
+    # the charter's five, plus the paper teaser lane Kylor approved 2026-11-23 (decision 0014)
     assert [l["short"] for l in cfg()["lanes"].values()] == [
-        "NFL sides/totals", "College sides/totals", "NBA sides/totals", "NFL props", "NBA props"]
+        "NFL sides/totals", "College sides/totals", "NBA sides/totals", "NFL teasers", "NFL props", "NBA props"]
 
 
 def test_inputs_are_read_as_switches_not_yaml_booleans():

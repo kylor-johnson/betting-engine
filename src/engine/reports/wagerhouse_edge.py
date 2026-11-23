@@ -9,7 +9,8 @@ Two questions, answered from our own line logger, no model involved:
 2. SPEED. Each time Pinnacle's line moved between two reads, how long until Wagerhouse showed the same number?
 
 Limits, stated on every report:
- * Reads are hourly, so speed is only visible to the hour, and a move can happen anywhere inside the hour before we see it.
+ * Hourly reads only show speed to the hour. Inside the fast-read windows (every ten minutes, `engine burst`) section 4 times moves to the
+   minute and judges the speed idea against the keep/kill rule approved 2026-11-23.
  * "Worth" turns points into probability with a normal curve whose spread scales with the part of the game (an approximation; real NFL key
    numbers and real half and quarter distributions are not modelled). The points and the juice are measured, not assumed; only the
    conversion between them is an approximation.
@@ -100,6 +101,49 @@ def lags(series: list[tuple[datetime, float, float]], min_move: float = 0.5) -> 
     return out
 
 
+MIN_MOVE = {"NFL": 0.5, "College": 0.5, "NBA": 1.0}     # a Pinnacle move this big counts (review 14, item 3)
+STALE_MINUTES = 20        # Wagerhouse still on the old number this long after we saw Pinnacle move = actionable by hand
+KEEP_SHARE, KILL_SHARE, NEED_MOVES = 0.30, 0.80, 60     # keep if 30%+ of moves stay stale 20+ minutes; kill if 80%+ caught within one fast read
+
+
+def lag_minutes(series: list[tuple[datetime, float, float]], kick: datetime, now: datetime, min_move: float = 0.5) -> list[dict]:
+    """Minute-level speed for full-game lines (fast reads every ten minutes plus the hourly reads).
+    For each Pinnacle move: `stale_min` = minutes from the read where we first saw Pinnacle's new number until the first read where Wagerhouse
+    showed the same move (0 = it already had). `gap_min` = minutes since the read before, i.e. how precisely the move is timed.
+    `status`: caught (Wagerhouse moved), never (kickoff came first), open (game not started, Wagerhouse still behind)."""
+    out = []
+    for m, (t, w, p) in zip(lags(series, min_move), [x for i, x in enumerate(series) if i and abs(x[2] - series[i - 1][2]) >= min_move]):
+        prev = max(x[0] for x in series if x[0] < t)
+        gap = (t - prev).total_seconds() / 60
+        if m["kind"] in ("already there", "same read"):
+            out.append({"status": "caught", "stale_min": 0.0, "gap_min": gap})
+        elif m["kind"] == "followed":
+            out.append({"status": "caught", "stale_min": m["hours"] * 60, "gap_min": gap})
+        else:
+            out.append({"status": "never" if kick <= now else "open", "stale_min": ((min(kick, now) - t).total_seconds() / 60), "gap_min": gap})
+    return out
+
+
+def lag_verdict(rows: list[dict]) -> tuple[str, str]:
+    """(word, sentence) against the rule approved 2026-11-23: keep the speed idea if, over 60+ moves, at least 30% left Wagerhouse on the old
+    number for 20+ minutes; kill it if Wagerhouse matched within one fast read (10 minutes) on 80%+ of moves. Only moves timed to within
+    15 minutes count (fast-read windows), since an hourly read cannot tell 5 minutes from 55."""
+    timed = [r for r in rows if r["gap_min"] <= 15 and r["status"] != "open"]
+    n = len(timed)
+    if not n:
+        return "no data", "No Pinnacle moves seen inside the fast-read windows yet."
+    stale = sum(r["stale_min"] >= STALE_MINUTES for r in timed) / n
+    quick = sum(r["status"] == "caught" and r["stale_min"] <= 10 for r in timed) / n
+    tail = f"{n} timed moves: {100 * stale:.0f}% left Wagerhouse behind {STALE_MINUTES}+ minutes, {100 * quick:.0f}% matched within 10 minutes."
+    if n < NEED_MOVES:
+        return "too early", f"{tail} Need {NEED_MOVES} before deciding."
+    if quick >= KILL_SHARE:
+        return "kill", f"{tail} Wagerhouse keeps up: the speed idea fails its test."
+    if stale >= KEEP_SHARE:
+        return "keep", f"{tail} Wagerhouse lags often enough to act by hand."
+    return "unclear", f"{tail} Between the keep and kill lines."
+
+
 def _read(con, sql, params=()):
     return con.execute(sql, list(params)).fetchall()
 
@@ -175,7 +219,7 @@ def group_name(market: str, period: str) -> str:
 def analyse(paired: dict, pin: dict, margin_sd: dict, now: datetime | None = None) -> dict:
     now = (now or datetime.now(timezone.utc)).replace(tzinfo=None)
     groups: dict = defaultdict(lambda: {"reads": 0, "games": set(), "gap": [], "hold_w": [], "hold_p": [], "ev": [], "flag_games": set(),
-                                        "flag_reads": 0, "clv_all": [], "clv_flag": [], "clv_games": set(), "lag": []})
+                                        "flag_reads": 0, "clv_all": [], "clv_flag": [], "clv_games": set(), "lag": [], "minutes": []})
     for (sport, gk, market, period, desc), d in paired.items():
         sl = slope(margin_sd[sport], market, period)
         g = groups[(sport, group_name(market, period))]
@@ -200,7 +244,9 @@ def analyse(paired: dict, pin: dict, margin_sd: dict, now: datetime | None = Non
                 g["clv_games"].add((gk, desc))
                 if flagged:
                     g["clv_flag"].append(c)
-        g["lag"].extend(lags(series))
+        g["lag"].extend(lags(series, min_move=MIN_MOVE.get(sport, 0.5)))
+        if period == "Game" and market in ("spread", "total"):
+            g["minutes"].extend(lag_minutes(series, d["kick"], now, min_move=MIN_MOVE.get(sport, 0.5)))
     return groups
 
 
@@ -250,5 +296,24 @@ def report(con, cfg: dict, now: datetime | None = None) -> str:
                    f"{sum(1 for x in fol if x <= 1.2)} | {sum(1 for x in fol if 1.2 < x <= 3.2)} | {sum(1 for x in fol if x > 3.2)} | "
                    f"{sum(x['kind'] == 'not yet' for x in L)} | {median(fol):.1f} |" if fol else
                    f"| {sport} | {name} | {len(L)} | {sum(x['kind'] == 'already there' for x in L)} | {sum(x['kind'] == 'same read' for x in L)} | 0 | 0 | 0 | {sum(x['kind'] == 'not yet' for x in L)} | n/a |")
-    out += [""]
+    out += ["", "## 4. Speed in minutes (full-game lines; fast reads every ten minutes)", "",
+            f"A Pinnacle move counts at {MIN_MOVE['NFL']:g} point in football and {MIN_MOVE['NBA']:g} in the NBA. **Timed** moves are those seen within 15 minutes "
+            "of the read before (inside a fast-read window); only they can say whether Wagerhouse was behind for minutes or for an hour. "
+            f"Rule approved 2026-11-23: over {NEED_MOVES}+ timed moves, keep the speed idea if {KEEP_SHARE:.0%} or more left Wagerhouse on the old number "
+            f"{STALE_MINUTES}+ minutes; kill it if {KILL_SHARE:.0%} or more were matched within 10 minutes.", "",
+            "| Sport | Market | Moves | Timed | Matched within 10 min | 10-30 min | 30-60 min | Over 60 min | Never before kickoff | Still behind now | Median minutes behind (caught) | Verdict |",
+            "|---|---|---|---|---|---|---|---|---|---|---|---|"]
+    for (sport, name), g in sorted(groups.items()):
+        M = g["minutes"]
+        if not M:
+            continue
+        T = [r for r in M if r["gap_min"] <= 15]
+        c = [r["stale_min"] for r in T if r["status"] == "caught"]
+        word, _ = lag_verdict(M)
+        out.append(f"| {sport} | {name} | {len(M)} | {len(T)} | {sum(x <= 10 for x in c)} | {sum(10 < x <= 30 for x in c)} | {sum(30 < x <= 60 for x in c)} | "
+                   f"{sum(x > 60 for x in c)} | {sum(r['status'] == 'never' for r in T)} | {sum(r['status'] == 'open' for r in T)} | "
+                   f"{median(c):.0f} | {word} |" if c else
+                   f"| {sport} | {name} | {len(M)} | {len(T)} | 0 | 0 | 0 | 0 | {sum(r['status'] == 'never' for r in T)} | {sum(r['status'] == 'open' for r in T)} | n/a | {word} |")
+    allm = [r for g in groups.values() for r in g["minutes"]]
+    out += ["", f"**All sports together:** {lag_verdict(allm)[1]}", ""]
     return "\n".join(out)

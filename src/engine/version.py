@@ -40,8 +40,8 @@ def props_version(cfg: dict) -> str:
 def commit_id() -> str:
     """Short id of the last commit that touched the code, settings or agent prompt (a docs-only commit is not a new version), with '+edited' when src/, config.yaml or the agent prompt have uncommitted changes."""
     try:
-        head = subprocess.run(["git", "log", "-1", "--format=%h", "--", "src", "config.yaml", "ops/agent_prompt.md"], cwd=config.ROOT, capture_output=True, text=True, timeout=20).stdout.strip()
-        dirty = subprocess.run(["git", "status", "--porcelain", "--", "src", "config.yaml", "ops/agent_prompt.md"],
+        head = subprocess.run(["git", "log", "-1", "--format=%h", "--", "src", "config.yaml", "ops/agent_prompt.md", "ops/agent_prompt_nfl.md", "ops/agent_prompt_college.md", "ops/agent_prompt_nba.md"], cwd=config.ROOT, capture_output=True, text=True, timeout=20).stdout.strip()
+        dirty = subprocess.run(["git", "status", "--porcelain", "--", "src", "config.yaml", "ops/agent_prompt.md", "ops/agent_prompt_nfl.md", "ops/agent_prompt_college.md", "ops/agent_prompt_nba.md"],
                                cwd=config.ROOT, capture_output=True, text=True, timeout=20).stdout.strip()
         return (head or "unknown") + ("+edited" if dirty else "")
     except Exception:

@@ -1,10 +1,11 @@
 """Fast reads in the windows where news lands (plan item 3, docs/research/12a-reading-2026-11-23.md).
 
 The hourly read cannot say how many minutes Wagerhouse trails Pinnacle after a move. In a few short windows this reads Wagerhouse and
-Pinnacle full-game lines every ten minutes (NFL only by default) and stores them as ordinary line snapshots, so the speed table in
+Pinnacle full-game lines every ten minutes (NFL, College and NBA) and stores them as ordinary line snapshots, so the speed table in
 `engine wh-edge` gets minute-level resolution and grading gets a nearer closing line.
 
-It is deliberately light: no DraftKings, no props, no research runs. The one thing it can send is a STALE NUMBER price alert (src/engine/stale.py). Windows are in `config.yaml` (`burst:`), Mountain time:
+It is deliberately light: no DraftKings, no props. The one thing it can send is a STALE NUMBER price alert (src/engine/stale.py); a new one starts a
+research run for that sport (decision 0016, cooldown applies) so the agent looks for the news behind it. Windows are in `config.yaml` (`burst:`), Mountain time:
 Wednesday to Friday afternoon for practice reports, Sunday and the weekday-night games for inactives (about 90 minutes before kickoff).
 A daily cap bounds the number of Wagerhouse sign-ins. A failed burst read is recorded in `burst_reads` and never alerts: the hourly
 heartbeat is the alarm, and a fast read is a measurement, not a safety net.
@@ -22,14 +23,22 @@ SCHEMA = "CREATE TABLE IF NOT EXISTS burst_reads (ts_utc TIMESTAMP, sport VARCHA
 DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 
 
-def in_window(cfg: dict, now: datetime, sport: str = "NFL") -> str | None:
+def in_window(cfg: dict, now: datetime, sport: str = "NFL", first_start: datetime | None = None) -> str | None:
     """The window ('HH:MM-HH:MM') this sport's fast reads are in right now (Mountain time), or None.
-    `burst.sports.<SPORT>.windows` maps weekday to windows."""
+    `burst.sports.<SPORT>.windows` maps weekday to fixed windows. `before_first_start: [before, after]` (minutes) adds a window around the day's
+    first start, for the NBA (review 14, approved 2026-11-23): the official injury report reposts every 15 minutes on game days, and the two hours
+    before the first tip are when Outs land. `first_start` is that day's earliest start (from our own line log)."""
     bc = cfg.get("burst") or {}
     if not bc.get("enabled"):
         return None
     local = now.astimezone(config.display_tz(cfg))
     sc = (bc.get("sports") or {}).get(sport) or {}
+    rel = sc.get("before_first_start")
+    if rel and first_start is not None:
+        a, b = first_start - timedelta(minutes=int(rel[0])), first_start + timedelta(minutes=int(rel[1]))
+        if a <= now <= b:
+            tz = config.display_tz(cfg)
+            return f"{a.astimezone(tz):%H:%M}-{b.astimezone(tz):%H:%M}"
     for w in (sc.get("windows") or {}).get(DAYS[local.weekday()], []) or []:
         a, b = (x.strip() for x in str(w).split("-"))
         start = local.replace(hour=int(a[:2]), minute=int(a[3:5]), second=0, microsecond=0)
@@ -67,6 +76,20 @@ def collect_light(wh: Wagerhouse, sport: str, now: datetime) -> tuple[list[snap.
     return snaps, problems
 
 
+def first_start_today(con, cfg: dict, now: datetime, sport: str) -> datetime | None:
+    """Earliest start today (Mountain date) for this sport among games in our line log. None if none is logged."""
+    tz = config.display_tz(cfg)
+    day = now.astimezone(tz).date()
+    try:
+        rows = con.execute("SELECT DISTINCT start_utc FROM line_snapshots WHERE sport=? AND start_utc BETWEEN ? AND ?",
+                           [sport, (now - timedelta(hours=14)).replace(tzinfo=None), (now + timedelta(hours=26)).replace(tzinfo=None)]).fetchall()
+    except Exception:
+        return None
+    starts = [r[0].replace(tzinfo=timezone.utc) for r in rows if r[0] is not None]
+    starts = [s for s in starts if s.astimezone(tz).date() == day]
+    return min(starts) if starts else None
+
+
 def reads_today(con, cfg: dict, now: datetime, sport: str = "NFL") -> int:
     con.execute(SCHEMA)
     local = now.astimezone(config.display_tz(cfg))
@@ -83,7 +106,7 @@ def run(force: bool = False) -> tuple[int, list[str]]:
     con = snap.connect(config.DB)
     try:
         for sport in configured:
-            if not force and in_window(cfg, now, sport) is None:
+            if not force and in_window(cfg, now, sport, first_start_today(con, cfg, now, sport)) is None:
                 continue
             used, cap = reads_today(con, cfg, now, sport), int(((bc["sports"][sport] or {}).get("max_reads_per_day", 40)))
             if used >= cap and not force:
@@ -114,6 +137,9 @@ def run(force: bool = False) -> tuple[int, list[str]]:
         con.executemany("INSERT INTO burst_reads VALUES (?,?,?,?,?,?)", rows)
         from engine import stale
         out += stale.scan(cfg, env, con, allsnaps, now)         # the only thing a fast read can send: a stale-number price alert
+        out += stale.start_research(cfg, con, now, stale.new_sports(con, now))   # run on change (decision 0016)
+        from engine.picks import teasers
+        out += teasers.scan(cfg, con, allsnaps, now)            # paper teaser legs (decision 0014)
     finally:
         con.close()
     return (0 if all(r[2] for r in rows) else 1), out
