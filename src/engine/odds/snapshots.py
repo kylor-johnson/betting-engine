@@ -27,10 +27,24 @@ WH, MKT, SHARP = "wagerhouse", "draftkings", "pinnacle"
 LOOKAHEAD_DAYS = {"NFL": 8, "College": 8, "NBA": 2}
 
 
-def connect(db: Path) -> duckdb.DuckDBPyConnection:
+def connect(db: Path, read_only: bool = False, wait: float = 180.0) -> duckdb.DuckDBPyConnection:
+    """Open the one database file. DuckDB allows one writer at a time across processes, and the hourly read,
+    the research agent, the injury watcher and any command you type all use it. A busy file is retried for
+    `wait` seconds (not failed at once). Pass read_only=True for anything that only looks; keep write connections short.
+    """
+    import time
     db.parent.mkdir(parents=True, exist_ok=True)
-    con = duckdb.connect(str(db))
-    con.execute(SCHEMA)
+    deadline = time.monotonic() + wait
+    while True:
+        try:
+            con = duckdb.connect(str(db), read_only=read_only)
+            break
+        except duckdb.IOException as e:
+            if "lock" not in str(e).lower() or time.monotonic() >= deadline:
+                raise
+            time.sleep(1.0)
+    if not read_only:
+        con.execute(SCHEMA)
     return con
 
 

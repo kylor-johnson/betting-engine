@@ -98,3 +98,31 @@ def test_board_section_shows_graded_picks(tmp_path, monkeypatch):
     con.close()
     html = board._grades_html(None)
     assert "H -2.5" in html and "+1.0" in html and "W" in html and "+0.91" in html
+
+
+def _hold_in_other_process(db, seconds):
+    import subprocess, sys, time
+    code = f"import duckdb,time; c=duckdb.connect(r'{db}'); print('held', flush=True); time.sleep({seconds})"
+    p = subprocess.Popen([sys.executable, "-I", "-c", code], stdout=subprocess.PIPE, text=True)
+    assert p.stdout.readline().strip() == "held"
+    return p
+
+
+def test_connect_waits_for_a_busy_file_then_succeeds(tmp_path):
+    import time
+    db = tmp_path / "busy.duckdb"
+    p = _hold_in_other_process(db, 2)
+    t = time.monotonic()
+    con = snap.connect(db, wait=15)
+    assert time.monotonic() - t >= 1.0
+    con.close()
+    p.wait()
+
+
+def test_connect_gives_up_after_the_wait(tmp_path):
+    import duckdb
+    db = tmp_path / "busy2.duckdb"
+    p = _hold_in_other_process(db, 5)
+    with pytest.raises(duckdb.IOException):
+        snap.connect(db, wait=2)
+    p.kill()

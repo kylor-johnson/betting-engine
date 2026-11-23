@@ -153,3 +153,14 @@ def test_merge_pull_replaces_refreshed_wagers_and_keeps_old_ones():
     assert sorted((r["TicketNumber"], r["v"], r["_bow"]) for r in m["rows"]) == [
         (1, "new", "2026-11-10"), (2, "keep", "2026-11-10"), (3, "new", "2026-11-17")]
     assert [(w["bow"], w["days"][0]) for w in m["weeks"]] == [("2026-11-10", 5), ("2026-11-17", 2)]
+
+
+def test_missed_agent_slot_is_found():
+    from datetime import datetime, timezone
+    from engine.poll import missed_agent_slots
+    cfg = {"timezone_display": "America/Denver", "agent": {"schedule": {"other": ["08:15", "15:15"], "sunday": ["08:15"]}}}
+    now = datetime(2026, 11, 23, 23, 30, tzinfo=timezone.utc)     # Mon 4:30pm MT
+    ran = [datetime(2026, 11, 23, 15, 16)]                        # 8:16am MT only
+    miss = missed_agent_slots(cfg, now, ran)
+    assert [m.hour for m in miss] == [22]                         # the 3:15pm MT slot (22:15 UTC)
+    assert missed_agent_slots(cfg, now, ran + [datetime(2026, 11, 23, 22, 20)]) == []

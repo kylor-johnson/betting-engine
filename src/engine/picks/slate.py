@@ -329,8 +329,9 @@ def _news_time(a: dict) -> datetime | None:
 def pinnacle_history(sport: str) -> dict:
     """Every Pinnacle read our logger stored, per ESPN event id: [(ts_utc, home_spread, total)], oldest first."""
     import duckdb
+    from engine.odds import snapshots
     try:
-        con = duckdb.connect(str(config.DB), read_only=True)
+        con = snapshots.connect(config.DB, read_only=True)
     except duckdb.Error:
         return {}
     try:
@@ -386,8 +387,9 @@ def dk_first_seen(sport: str) -> dict:
     'first seen by us', not the true opener; the card says so.
     """
     import duckdb
+    from engine.odds import snapshots
     try:
-        con = duckdb.connect(str(config.DB), read_only=True)
+        con = snapshots.connect(config.DB, read_only=True)
     except duckdb.Error:
         return {}
     try:

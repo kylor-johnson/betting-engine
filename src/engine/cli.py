@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from engine import config
+from engine.odds import snapshots as _db
 
 ROOT, DATA = config.ROOT, config.DATA
 MASTER = DATA / "raw" / "wagerhouse_graded_master.json"
@@ -332,7 +333,7 @@ def cmd_props(args) -> int:
     pc = (cfg.get("models") or {}).get("props") or {}
     if args.sport == "NBA":
         from engine.models import nba_props
-        con = duckdb.connect(str(config.DB))
+        con = _db.connect(config.DB)
         m = nba_props.NbaModel(now)
         rows = nba_props.evaluate_logged(con, m, now)
         graded = nba_props.grade(con)
@@ -344,7 +345,7 @@ def cmd_props(args) -> int:
         print(props.gate_line(sc, pc))
         return 0
     m = props.Model(now.year if now.month >= 3 else now.year - 1)
-    con = duckdb.connect(str(config.DB))
+    con = _db.connect(config.DB)
     rows = props.evaluate_logged(con, m, now)
     graded = props.grade(con, m.season)
     sc = props.scorecard(con, pc.get("edge", 0.05))
@@ -405,7 +406,7 @@ def cmd_reporters(args) -> int:
 
     from engine.picks import player_news
 
-    con = duckdb.connect(str(config.DB))
+    con = _db.connect(config.DB)
     now = datetime.now(timezone.utc)
     for sport in ("NFL", "NBA"):
         try:

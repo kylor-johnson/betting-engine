@@ -47,6 +47,21 @@ def _deliver(con, env: dict, alerts: list[rules.Alert], now: datetime, out: list
         con.execute("INSERT INTO alerts_sent VALUES (?,?,?,?,?)", [a.key, now.replace(tzinfo=None), a.kind, a.text, delivered])
 
 
+def missed_agent_slots(cfg: dict, now: datetime, run_times: list[datetime], grace_minutes: int = 60) -> list[datetime]:
+    """Scheduled research times earlier today that have no agent_runs row within `grace_minutes` after them (UTC)."""
+    sched = (cfg.get("agent") or {}).get("schedule") or {}
+    local = now.astimezone(config.display_tz(cfg))
+    out = []
+    for hhmm in sched.get("sunday" if local.weekday() == 6 else "other", []):
+        h, m = (int(x) for x in str(hhmm).split(":"))
+        slot = local.replace(hour=h, minute=m, second=0, microsecond=0).astimezone(timezone.utc)
+        if now - slot < timedelta(minutes=grace_minutes):
+            continue
+        if not any(slot <= t.replace(tzinfo=timezone.utc) < slot + timedelta(minutes=grace_minutes) for t in run_times):
+            out.append(slot)
+    return out
+
+
 def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
     """Returns (exit code, lines to print)."""
     cfg, env = config.load_config(), config.load_env()
@@ -64,6 +79,18 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
                 if last_run is None or last_run.replace(tzinfo=timezone.utc) < slot:
                     agent.spawn(f"scheduled {slot.astimezone(config.display_tz(cfg)):%a %-I:%M %p} run", "all")
                     out.append("Started the scheduled research run for all sports.")
+        if send_alerts and not force:
+            try:
+                from engine.picks import agent
+                con.execute(agent.SCHEMA)
+                since = (now - timedelta(hours=26)).replace(tzinfo=None)
+                times = [r[0] for r in con.execute("SELECT ts_utc FROM agent_runs WHERE ts_utc >= ?", [since]).fetchall()]
+                for slot in missed_agent_slots(cfg, now, times):
+                    when = slot.astimezone(config.display_tz(cfg))
+                    _deliver(con, env, [rules.Alert(f"missed-agent|{slot.isoformat()}", "gap",
+                                                    f"The {when:%a %-I:%M %p} research run did not start (no record of it). Check ~/Library/Logs/betting-engine/agent.log.")], now, out)
+            except Exception as e:
+                out.append(f"Could not check for missed research runs: {type(e).__name__}: {e}")
         if not force and not due(cfg, now, last_ok):
             return 0, out + ["Nothing read: outside the scheduled hours, or a read already ran in the last 45 minutes."]
         gap = rules.missed_reads(last_ok, now, cfg["missed_read_alert_hours"] + 12)

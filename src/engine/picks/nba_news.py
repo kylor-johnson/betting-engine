@@ -23,6 +23,7 @@ from datetime import datetime, timedelta, timezone
 
 from engine import config
 from engine.odds import espn
+from engine.odds import snapshots as _db
 from engine.odds.espn import SourceError
 
 REPORT_URL = "https://site.api.espn.com/apis/site/v2/sports/basketball/nba/injuries"
@@ -382,7 +383,7 @@ def run(force: bool = False, send: bool = True) -> tuple[int, list[str]]:
     report = parse_report(_get(REPORT_URL, "ESPN NBA injury report"))
     impact = impact_with_last_season(_get(STATS_URL, "ESPN NBA player stats"))
     min_minutes = w.get("min_minutes", 22)
-    con = duckdb.connect(str(config.DB))
+    con = _db.connect(config.DB)
     lines: list[str] = []
     try:
         changes, first = check(con, now, report, impact, persist=send)
