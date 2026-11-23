@@ -582,7 +582,12 @@ def cmd_playbook(args) -> int:
     else:
         con = _db.connect(config.DB)
     try:
-        lines, card = playbook.run(cfg, env, con, now, send=not args.dry_run)
+        ctx = None
+        if ((cfg.get("models") or {}).get("props") or {}).get("enabled"):
+            from engine.models import props
+            pm = props.Model(now.year if now.month >= 3 else now.year - 1)
+            ctx = (pm, props.evaluate_logged(con, pm, now))
+        lines, card = playbook.run(cfg, env, con, now, send=not args.dry_run, props_ctx=ctx)
     finally:
         con.close()
     print("\n".join(lines))

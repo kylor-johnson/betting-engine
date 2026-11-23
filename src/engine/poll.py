@@ -166,6 +166,7 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
         except Exception as e:
             problems.append(f"Period/team-total/prop logging failed: {type(e).__name__}: {e}")
         rw_new, rw_first = [], False
+        nfl_props_ctx = None
         try:   # reporter news (Rotoworld posts each beat-writer and insider item minutes after the tweet)
             from engine.picks import player_news
             rw_new, rw_first = player_news.update(con, "NFL", now)
@@ -177,6 +178,7 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
                 from engine.models import props
                 pm = props.Model(now.year if now.month >= 3 else now.year - 1)
                 priced = props.evaluate_logged(con, pm, now)
+                nfl_props_ctx = (pm, priced)
                 graded = props.grade(con, pm.season)
                 out.append(f"Props model priced {len(priced)} Pinnacle props, graded {graded}.")
                 _paper_props(con, cfg, "NFL", pm, priced, now, out)
@@ -272,7 +274,7 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
             out.append(f"Teaser lane failed: {type(e).__name__}: {e}")
         try:   # playbook picks, NFL full-game markets (decisions 0018, 0019)
             from engine.picks import playbook
-            pb_lines, pb_card = playbook.run(cfg, env, con, now, send=send_alerts)
+            pb_lines, pb_card = playbook.run(cfg, env, con, now, send=send_alerts, props_ctx=nfl_props_ctx)
             out += [l for l in pb_lines if not l.startswith("NFL · PLAYBOOK")] + [f"playbook pick issued: {l.splitlines()[1]}" for l in pb_lines if l.startswith("NFL · PLAYBOOK")]
             if pb_card:
                 (config.ROOT / "docs" / "cards" / f"{day}-nfl-playbook.md").write_text(pb_card)

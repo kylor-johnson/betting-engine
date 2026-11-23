@@ -32,9 +32,10 @@ CREATE TABLE IF NOT EXISTS playbook_grades (
   pick_key VARCHAR PRIMARY KEY, home_score INTEGER, away_score INTEGER, result VARCHAR, profit_units DOUBLE, pinnacle_close DOUBLE,
   clv_points DOUBLE, clv_chance DOUBLE, graded_utc TIMESTAMP);
 """
-DEFAULTS = {"enabled": True, "weights": {"team_total": 0.4, "total": 0.35, "side": 0.25},
-            "min_edge": {"team_total": 0.03, "total": 0.03, "side": 0.03},
-            "check_points": {"team_total": 4.0, "total": 4.0, "side": 3.0},
+DEFAULTS = {"enabled": True, "weights": {"team_total": 0.4, "total": 0.35, "side": 0.25, "prop": 0.5},
+            "min_edge": {"team_total": 0.03, "total": 0.03, "side": 0.03, "prop": 0.04},
+            "check_points": {"team_total": 4.0, "total": 4.0, "side": 3.0, "prop": 0.15},
+            "props_per_game": 2, "props_per_week": 10,
             "units": {"A": 1.0, "B": 0.5}, "half_size_weeks": 3, "live_since": "2026-11-24", "stop_loss_units": 10.0,
             "max_per_week": 5, "show_c": 5, "team_total_sd": 9.0}
 
@@ -165,7 +166,80 @@ def load_checks(now: datetime, cfg: dict) -> dict:
     return out
 
 
+# ---------- props (PLAYBOOK step 3, item 1) ----------
+
+def american(dec: float) -> int:
+    return int(round((dec - 1) * 100)) if dec >= 2 else int(round(-100 / (dec - 1)))
+
+
+def prop_candidates(games: list[dict], pm, priced: list[dict], st: dict) -> list[dict]:
+    """Props from the NFL props model with the game script fed in: the player's projection is re-scaled from the market's implied team points
+    to our blended team points (same power the props model fitted per stat), re-priced on the props model's own distribution, then blended
+    with Pinnacle's no-vig chance at the playbook's prop weight. Prices are Pinnacle's: Wagerhouse prop lines are not readable (decision 0011),
+    so each pick carries the worst Wagerhouse line and price at which it is still a bet."""
+    by_teams = {(g["away"], g["home"]): g for g in games}
+    w, wt = st["weights"]["prop"], st["weights"]["team_total"]
+    out = []
+    for r in priced:
+        g = by_teams.get((r["away"], r["home"]))
+        stat = r["stat"]
+        if g is None or stat not in pm.params or r.get("projection") is None:
+            continue
+        is_home = r["team"] == _abbr(g["home"])
+        imp = g["mkt_home"] if is_home else g["mkt_away"]
+        own = g["own_home"] if is_home else g["own_away"]
+        ours_pts = imp + wt * (own - imp)
+        alpha = pm.params[stat][1]
+        proj = r["projection"] * ((ours_pts / imp) ** alpha if imp > 0 and ours_pts > 0 else 1.0)
+        model_p = pm.dists[stat].p_over(proj, r["line"])
+        mkt = r["market_p_over"]
+        our_over = mkt + w * (model_p - mkt)
+        for side, price, p in (("over", r["over_price"], our_over), ("under", r["under_price"], 1 - our_over)):
+            if price is None:
+                continue
+            e = p - chance_needed(price)
+            worst = american(1 / max(1e-6, p - st["min_edge"]["prop"] / 2))
+            label = r.get("label") or stat.replace("_", " ")
+            out.append({"event_id": g["event_id"], "game": f"{g['away']} at {g['home']}", "kick": g["kick"], "home": g["home"], "away": g["away"],
+                        "market": "prop", "side": side, "player_id": r["player_id"], "stat": stat, "line": r["line"], "price": price,
+                        "pick": f"{r['player']} {side} {r['line']:g} {label}", "edge": e, "p": p, "our_line": proj, "market_line": mkt,
+                        "own_line": model_p, "check": abs(model_p - mkt) >= st["check_points"]["prop"], "worst_price": worst,
+                        "team_note": f"{r['team']} at {ours_pts:.1f} points in our script against {imp:.1f} in the market",
+                        "model_note": f"typical outcome {pm.dists[stat].median(proj):g} against a line of {r['line']:g}; chance over: ours {100 * our_over:.0f}%, "
+                                      f"Pinnacle {100 * mkt:.0f}%" + (f"; {r['news']}" if r.get("news") else "")})
+    return out
+
+
+def _abbr(name: str) -> str | None:
+    from engine.models.props import TEAM_NAMES
+    return TEAM_NAMES.get(name)
+
+
+def prop_key(c: dict) -> str:
+    return f"prop|{c['player_id']}|{c['stat']}|{c['side']}|{c['line']:g}|{c['event_id']}"
+
+
+def grade_props(cands: list[dict], st: dict, checks: dict | None = None) -> list[dict]:
+    """B if it clears the prop edge and is not CHECK (or CHECK cleared); one side per player and stat. Pure."""
+    checks = checks or {}
+    best: dict[tuple, dict] = {}
+    for c in cands:
+        clears = c["edge"] >= st["min_edge"]["prop"]
+        v = checks.get(prop_key(c)) or {}
+        cleared = c["check"] and str(v.get("verdict", "")).lower() == "clear"
+        c["grade"] = "B" if clears and (not c["check"] or cleared) else "C"
+        c["note"] = ("CHECK cleared: " + str(v.get("why", ""))) if cleared else \
+            (("CHECK held: " + str(v.get("why", ""))) if v else "CHECK: the model and Pinnacle disagree by 15+ points of chance; held until researched") \
+            if clears and c["check"] else ""
+        k = (c["player_id"], c["stat"])
+        if k not in best or (c["grade"], -c["edge"]) < (best[k]["grade"], -best[k]["edge"]):
+            best[k] = c
+    return sorted(best.values(), key=lambda c: (c["grade"], -c["edge"]))
+
+
 def why(c: dict) -> str:
+    if c["market"] == "prop":
+        return f"{c['model_note']}; {c['team_note']}. Win chance {100 * c['p']:.1f}% against {100 * chance_needed(c['price']):.1f}% at Pinnacle's price."
     h, a = c["home"], c["away"]
     ours = f"our handicap {a} {c['own_away']:.1f}, {h} {c['own_home']:.1f}" if c.get("own_home") is not None else "our handicap"
     mkt = f"market {a} {c['mkt_away']:.1f}, {h} {c['mkt_home']:.1f}" if c.get("mkt_home") is not None else ""
@@ -260,7 +334,7 @@ def nfl_week(kick: datetime) -> str:
     return w(kick)
 
 
-def run(cfg: dict, env: dict, con, now: datetime, send: bool = True) -> tuple[list[str], str]:
+def run(cfg: dict, env: dict, con, now: datetime, send: bool = True, props_ctx: tuple | None = None) -> tuple[list[str], str]:
     """Price, grade, freeze and alert. Returns (log lines, card text). Never raises into the read."""
     st = settings(cfg)
     if not st["enabled"]:
@@ -272,7 +346,9 @@ def run(cfg: dict, env: dict, con, now: datetime, send: bool = True) -> tuple[li
         lands = stale.landings("NFL", cfg)
         games, problems = live_games(con, now)
         out += problems
-        graded = grade_all(candidates(games, st, lands), st, checks=load_checks(now, cfg))
+        checks = load_checks(now, cfg)
+        graded = grade_all(candidates(games, st, lands), st, checks=checks)
+        props_graded = grade_props(prop_candidates(games, props_ctx[0], props_ctx[1], st), st, checks) if props_ctx else []
         down = con.execute("SELECT coalesce(sum(profit_units), 0) FROM playbook_grades").fetchone()[0]
         rv = version.stamp(cfg, con)
         unit = config.unit_for(cfg, "NFL")
@@ -302,9 +378,39 @@ def run(cfg: dict, env: dict, con, now: datetime, send: bool = True) -> tuple[li
             if send and units > 0:
                 from engine.alerts import telegram
                 telegram.send(env, msg, "nfl_sides_totals", kind="bet")
-        return out, card(con, cfg, graded, st, now)
+        out += _issue_props(con, cfg, env, props_graded, st, now, down, unit, rv, tz, send)
+        return out, card(con, cfg, graded, st, now, props_graded)
     except Exception as e:
         return out + [f"playbook failed: {type(e).__name__}: {e}"], ""
+
+
+def _issue_props(con, cfg, env, props_graded, st, now, down, unit, rv, tz, send) -> list[str]:
+    out = []
+    for c in props_graded:
+        if c["grade"] not in ("A", "B"):
+            continue
+        key = prop_key(c)
+        if con.execute("SELECT 1 FROM playbook_picks WHERE pick_key LIKE ?", [f"prop|{c['player_id']}|{c['stat']}|%|{c['event_id']}"]).fetchone():
+            continue
+        if con.execute("SELECT count(*) FROM playbook_picks WHERE market='prop' AND event_id=?", [c["event_id"]]).fetchone()[0] >= st["props_per_game"]:
+            continue
+        week = nfl_week(c["kick"])
+        if con.execute("SELECT count(*) FROM playbook_picks WHERE market='prop' AND nfl_week=? AND units > 0", [week]).fetchone()[0] >= st["props_per_week"]:
+            out.append(f"playbook: weekly props cap reached ({st['props_per_week']}); not issued: {c['pick']}")
+            continue
+        units, dollars, note = stake(st, c["grade"], now, down, unit)
+        dbp = f"{c['side']} {c['line']:g} at {c['worst_price']:+d} or better" + (" (a lower line is fine)" if c["side"] == "over" else " (a higher line is fine)")
+        con.execute("INSERT INTO playbook_picks VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    [key, now.replace(tzinfo=None), "NFL", c["event_id"], c["game"], "prop", c["side"], c["pick"], c["line"], c["price"], c["grade"],
+                     c["edge"], c["our_line"], c["market_line"], c["own_line"], units, dollars, dbp,
+                     c["kick"].astimezone(timezone.utc).replace(tzinfo=None), week, why(c), rv])
+        msg = (f"NFL · PLAYBOOK PROP ({c['grade']})\n{c['pick']} (Pinnacle {int(c['price']):+d})\n{c['game']}, {c['kick'].astimezone(tz):%a %-I:%M %p} MT\n"
+               f"Stake: ${dollars:g} ({note})\nAt Wagerhouse (Bet Builder): {dbp}.\nWhy: {why(c)}" + (f"\n{c['note']}" if c.get("note") else ""))
+        out.append(msg)
+        if send and units > 0:
+            from engine.alerts import telegram
+            telegram.send(env, msg, "nfl_props", kind="bet")
+    return out
 
 
 def _show(c: dict, lim: float) -> str:
@@ -316,7 +422,7 @@ def _show(c: dict, lim: float) -> str:
     return f"{c['pick'].rsplit(' ', 1)[0]} {lim:g}"
 
 
-def card(con, cfg: dict, graded: list[dict], st: dict, now: datetime) -> str:
+def card(con, cfg: dict, graded: list[dict], st: dict, now: datetime, props_graded: list[dict] | None = None) -> str:
     tz = config.display_tz(cfg)
     issued = con.execute("SELECT pick, game, grade, price, dollars, dont_bet_past, kickoff_utc, why FROM playbook_picks WHERE kickoff_utc > ? "
                          "ORDER BY kickoff_utc", [now.replace(tzinfo=None)]).fetchall()
@@ -345,6 +451,15 @@ def card(con, cfg: dict, graded: list[dict], st: dict, now: datetime) -> str:
                        f"{c['note'] or 'under the minimum edge'} | `{key_of(c)}` |")
     else:
         out.append("None.")
+    prest = [c for c in (props_graded or []) if c["grade"] == "C"][: st["show_c"] * 2]
+    out += ["", "## Props: best of the rest (C: shown, not staked)", ""]
+    if prest:
+        out += ["| Prop | Game | Edge | Why | Note | Key |", "|---|---|---|---|---|---|"]
+        for c in prest:
+            out.append(f"| {c['pick']} (Pinnacle {int(c['price']):+d}) | {c['game']} | {100 * c['edge']:+.1f}% | {c['model_note']} | "
+                       f"{c['note'] or 'under the minimum edge'} | `{prop_key(c)}` |")
+    else:
+        out.append("None (props are priced on each hourly read)." if props_graded is not None else "Props not priced on this run.")
     return "\n".join(out) + "\n"
 
 
@@ -366,9 +481,23 @@ def grade(con, cfg: dict, scorer=None) -> list[str]:
     con.execute(SCHEMA)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     out = []
-    for key, eid, market, side, line, price, units, kick in con.execute(
-            "SELECT pick_key, event_id, market, side, line, price, units, kickoff_utc FROM playbook_picks WHERE kickoff_utc <= ? "
+    for key, eid, market, side, line, price, units, kick, game in con.execute(
+            "SELECT pick_key, event_id, market, side, line, price, units, kickoff_utc, game FROM playbook_picks WHERE kickoff_utc <= ? "
             "AND pick_key NOT IN (SELECT pick_key FROM playbook_grades)", [now]).fetchall():
+        if market == "prop":
+            _, pid, stat, side_, line_s, _ = key.split("|")
+            away, home = game.split(" at ", 1)
+            row = con.execute("SELECT outcome FROM prop_evals WHERE player_id=? AND stat=? AND away=? AND home=? AND outcome IS NOT NULL LIMIT 1",
+                              [pid, stat, away, home]).fetchone() \
+                if con.execute("SELECT count(*) FROM information_schema.tables WHERE table_name='prop_evals'").fetchone()[0] else None
+            if row is None:
+                continue
+            v = (row[0] - line) if side_ == "over" else (line - row[0])
+            res = "W" if v > 0 else "L" if v < 0 else "P"
+            prof = g.profit(units, price, res) if units else 0.0
+            con.execute("INSERT INTO playbook_grades VALUES (?,?,?,?,?,?,?,?,?)", [key, None, None, res, prof, None, None, None, now])
+            out.append(f"PLAYBOOK GRADED {key}: {res} ({prof:+.2f} units)")
+            continue
         score = scorer("NFL", eid)
         if score is None:
             continue

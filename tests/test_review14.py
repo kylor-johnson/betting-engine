@@ -168,3 +168,27 @@ def test_teaser_tickets_pair_open_legs_from_different_games(monkeypatch):
     out = teasers.tickets_to_send(cfg, con, now, sender=lambda env, text, lane, kind: sent.append((lane, kind)))
     assert len(out) == 1 and "TEASER BET (A)" in out[0] and "$12.5" in out[0] and sent == [("nfl_teasers", "bet")]
     assert teasers.tickets_to_send(cfg, con, now) == []          # legs already used
+
+
+def test_prop_candidates_feed_the_script_and_blend():
+    from engine.picks import playbook as pb
+
+    class D:
+        def p_over(self, proj, line): return 0.70 if proj > line else 0.30
+        def median(self, proj): return round(proj)
+
+    class PM:
+        params = {"receptions": (0.85, 1.0)}
+        dists = {"receptions": D()}
+
+    g = _game(home="Philadelphia Eagles", away="Dallas Cowboys", own_home=36.0, mkt_home=24.0)
+    priced = [{"away": "Dallas Cowboys", "home": "Philadelphia Eagles", "team": "PHI", "stat": "receptions", "projection": 5.0, "line": 5.5,
+               "market_p_over": 0.45, "over_price": -110, "under_price": -110, "player": "A Receiver", "player_id": "p1", "label": "Receptions"}]
+    st = pb.settings({})
+    cands = pb.prop_candidates([g], PM(), priced, st)
+    over = next(c for c in cands if c["side"] == "over")
+    assert abs(over["our_line"] - 5.0 * (24 + 0.4 * 12) / 24) < 1e-9       # script lifts the projection past the line
+    assert abs(over["p"] - (0.45 + 0.5 * 0.25)) < 1e-9 and over["check"] is True
+    assert pb.grade_props(cands, st)[0]["grade"] == "C"                    # held: CHECK
+    key = pb.prop_key(over)
+    assert pb.grade_props(cands, st, {key: {"verdict": "clear", "why": "x"}})[0]["grade"] == "B"
