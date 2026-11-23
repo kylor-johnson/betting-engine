@@ -36,6 +36,31 @@ PROMPT_FILE = config.ROOT / "ops" / "agent_prompt.md"
 LOG_DIR = Path.home() / "Library" / "Logs" / "betting-engine"
 
 
+WIND_LOG = """
+CREATE TABLE IF NOT EXISTS wind_forecasts (
+  ts_utc TIMESTAMP, event_id VARCHAR, game VARCHAR, kickoff_utc TIMESTAMP, hours_to_kickoff DOUBLE, wind_mph DOUBLE, temp_f DOUBLE,
+  precip_mm DOUBLE, model_points DOUBLE, used BOOLEAN, book_total DOUBLE, pinnacle_total DOUBLE);
+"""
+
+
+def log_wind(con, sheet: dict, ts) -> int:
+    """Store the forecast the wind model used at each read, with the totals at that moment. Audit item 24: the wind model was tested on
+    realized wind; this builds the history needed to test it on the forecast that was actually available at bet time."""
+    con.execute(WIND_LOG)
+    n = 0
+    for g in sheet.get("games", []):
+        for m in g["markets"]:
+            w = m.get("wind_model") if m["market"] == "total" else None
+            if not w:
+                continue
+            con.execute("INSERT INTO wind_forecasts VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                        [ts, g["event_id"], g["game"], datetime.fromisoformat(g["start_utc"]).astimezone(timezone.utc).replace(tzinfo=None),
+                         w.get("hours_to_kickoff"), w.get("wind_mph"), w.get("temp_f"), w.get("precip_mm"), w.get("points"), bool(w.get("used")),
+                         m.get("book_line"), m.get("pinnacle_line")])
+            n += 1
+    return n
+
+
 def today_mt(cfg) -> str:
     return datetime.now(config.display_tz(cfg)).strftime("%Y-%m-%d")
 
@@ -181,6 +206,10 @@ def finalize(cfg, env, day: str, sport: str = "NFL", send: bool = True, reason: 
             props_line = (props_line + "\n" if props_line else "") + lean_lines[0]
         from engine import version
         rv = version.stamp(cfg, con)
+        try:
+            log_wind(con, sheet, ts)
+        except Exception:        # a log must never block a pick
+            pass
         pin = {g["event_id"]: g["markets"][0].get("pinnacle_line") for g in sheet["games"]}
         for r in rows:
             key = f"{r['event_id']}|{r['market']}|{r['side']}"

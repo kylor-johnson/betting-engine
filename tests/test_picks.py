@@ -164,3 +164,15 @@ def test_one_position_per_game_keeps_the_stronger_and_passes_the_other(tmp_path)
     assert [r["pick"] for r in live] == ["Chargers -2.5"]           # value 0.06 beats 0.03
     cut = [r for r in rows if r["pick"] == "Under 45"][0]
     assert cut["status"] == "Pass" and cut["dollars"] == 0 and "One position per game" in cut["downgraded"]
+
+
+def test_wind_forecasts_are_logged_with_the_totals_at_that_moment():
+    import duckdb
+    from datetime import datetime
+    from engine.picks import agent
+    con = duckdb.connect()
+    sheet = {"games": [{"event_id": "9", "game": "A at B", "start_utc": "2026-11-29T18:00:00+00:00", "markets": [
+        {"market": "spread"},
+        {"market": "total", "book_line": 41.5, "pinnacle_line": 41.0, "wind_model": {"wind_mph": 18, "temp_f": 40, "precip_mm": 0, "points": -2.1, "used": True, "hours_to_kickoff": 30.0}}]}]}
+    assert agent.log_wind(con, sheet, datetime(2026, 11, 28, 12)) == 1
+    assert con.execute("select wind_mph, model_points, book_total, pinnacle_total, used from wind_forecasts").fetchone() == (18, -2.1, 41.5, 41.0, True)

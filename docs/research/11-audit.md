@@ -23,7 +23,7 @@ Rule for the marks, from the checklist: **pass** has evidence in a file; **fail*
 | 4 Reliability diagram on an unused season | **pass for the landing tables (new)**; props pass; wind untested | `docs/research/11a-calibration.md`. Props backtest checks "when it says 60%" (`props.py` docstring). |
 | 5 Blend test | pass | Test A in `04-evaluation.md` blended the model with the market; the model got no weight, so it is off. Props gate requires the blend to lower error. |
 | 6 ROI on a pre-fixed rule, with sample size | pass | Gates are fixed in config (300 props, 100 picks). |
-| 7 Search disclosed | untested | Thresholds and knots tried for wind are listed in `wind_totals.py` (`KNOTS`, `THRESHOLDS`) but the count tried before the one used is not stated in a write-up. |
+| 7 Search disclosed | partial | Wind search space: 4 knots (6, 8, 10, 12 mph) by 3 thresholds (1, 1.5, 2 points) = 12 variants (`wind_totals.py`), plus a fitted slope. Disclosed here; the write-up `05-model-first-picks.md` should be read with that count in mind. |
 | 8 Vig removal fits the market | pass | Multiplicative for near-even spreads and totals (`odds/math.py`); no lopsided moneylines are priced. |
 | 9 Kelly on residual edge, correlated bets as one | pass (flat stakes); **correlation fixed** | Flat 1 unit, 0.5 for a Conditional, cap until 100 graded (`config.yaml`). No Kelly is used. One position per game now enforced in `card.py`, with a test. |
 | 10 Decision time declared | pass | Every pick is logged at issue and graded against Pinnacle's last line before kickoff (`grade.py`); a Lean is fixed at issue (`leans.py`). |
@@ -78,7 +78,9 @@ Items 44 to 49: **n/a** (no own NBA model). Item 47: the flat back-to-back adjus
 1. **Freeze stamp.** Every pick, flagged Pass event and Lean now records the commit and a fingerprint of the settings that decide picks (`src/engine/version.py`, `rule_versions` table). A change to rules or settings starts a new version, shown on the board and in `engine status`. Picks made on uncommitted code are stamped "+edited".
 2. **Landing-table calibration** (`engine calib-test`, `11a-calibration.md`). Passed for NFL sides, NFL totals, NBA sides, NBA totals.
 3. **One position per game** (`card.py`): a side and a total in the same game are not independent, so only the stronger stays live; the other becomes a Pass with the reason on the card.
-4. **Open items, unchanged:** wind on the forecast (needs forecast history we do not store), Wagerhouse prop lines, NFL teammate-out minutes for props, a team-level feasibility check for NBA props. None blocks grading week; none affects a Bet.
+4. **Wind forecast logging (fixed going forward).** Each research run now stores the wind forecast the model used, with the book and Pinnacle totals at that moment (`wind_forecasts` table, `agent.log_wind`). History cannot be rebuilt, so the forecast-based test of item 24 becomes possible after a few NFL weeks, not today.
+5. **Props models deliberately not touched.** The NFL teammate-out minutes and NBA feasibility gaps stay open: changing a model during its forward test would mix two versions into one 300-prop score. Revisit after the gate decides.
+6. **Open items:** Wagerhouse prop lines, NFL teammate-out minutes for props, a team-level feasibility check for NBA props. None blocks grading week; none affects a Bet.
 
 ## What this audit cannot tell you
 
