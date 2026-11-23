@@ -1,0 +1,127 @@
+# Playbook: how this engine picks bets
+
+**DRAFT for Kylor's approval, written 2026-11-23.** Once approved, this file sits next to `CHARTER.md` and outranks every handoff, prompt and research note on *how a pick is chosen*. The charter still owns the locked rules (Wagerhouse only, no paid data, the engine never places bets, $25 unit, code owns every number).
+
+## 1. What changed and why
+
+Until now the engine treated Pinnacle's line as the truth and looked for places where Wagerhouse disagreed with it. That is a price checker. It produces almost no picks, and when it does, they are about the book, not the game.
+
+**From here on, the engine handicaps the game and picks the bets its own handicap says are good.** Other books are one input. They are a sanity check and a price filter, never the reason for a pick and never the thing that decides it.
+
+## 2. The method in one paragraph
+
+First, predict how each game will play out (the **game script**): who leads, by how much, how many plays, how often each team passes. Then adjust that script for injuries, weather, rest and travel. Then price every market that script touches (team totals, game total, side, player props, halves), using the engine's own numbers. Bet the ones where our number beats Wagerhouse's by enough, starting with the markets where the method has the most room: props and team totals first, sides last.
+
+## 3. Step by step (what code does for every game)
+
+### Step 1: the script
+
+| Piece | How it is built | Data we have |
+|---|---|---|
+| Implied team points | From the spread and total (Bills −16.5, total 45 → 30.75 to 14.25) | Wagerhouse lines, every read |
+| Expected lead path | Implied margin, plus how often teams with this margin lead at halftime | nflverse play-by-play 2015+ |
+| Plays per team | Neutral-situation pace (seconds per play when the score is within 7), adjusted for the expected lead: leaders slow down, trailers speed up | Play-by-play |
+| Pass rate | Pass rate over expected (PROE) in neutral situations, then shifted by the expected lead (trailing teams throw more) | Play-by-play has `pass_oe` and `xpass` |
+| Throw out outliers | Games against the league's top and bottom 3 defenses get half weight in a team's averages | Play-by-play |
+
+### Step 2: adjust the script
+
+| Adjustment | Rule | Status |
+|---|---|---|
+| Quarterback out | Backup's own numbers if he has 100+ dropbacks; otherwise a league-average replacement-level drop | Measured: QB news moves lines about 2.5 to 2.7 points (research 14, 2b) |
+| Injury clusters | Two or more starters out in one unit (OL, DL, secondary) shift that matchup: rushing efficiency up against a gutted defensive line, targets up against backup corners | Not tested yet; tracked from day one |
+| Who absorbs the volume | A player out → his targets, carries or minutes go to teammates by their recent share. A player returning → the others lose share | Built in both props models; the history says the target bump is smaller than people expect (research 06) |
+| Wind | 8 mph or more starts to matter; scaled per mph | Tested: 10 to 19 mph Unders hit 56 to 60% (research 04, 05); effect weaker since 2024 |
+| Rain | Fewer passing yards | Not tested yet; Open-Meteo has rain history, so it can be |
+| Rest and travel | Short week, off a bye, long trip, altitude | NBA tested and already priced (research 14, 2d); NFL not tested |
+| Referees | Crew penalty and total history | Small samples; **only used after a walk-forward test passes** |
+| Look-ahead and trap spots | Rivalry or big game next week | Folklore until tested; tracked, zero weight |
+
+### Step 3: our number for every market
+
+From the adjusted script, the engine prices:
+
+1. **Player props**: usage (target share, carries, snap share, air yards; minutes for the NBA) × the script's plays and pass rate × efficiency against this defense's coverage type, read off the median (books price the median, not the average).
+2. **Team totals**: each offense's scoring per drive against this defense, times the script's drives.
+3. **Game total**: the two team totals added up, plus weather.
+4. **Side**: the difference between the team totals, priced with how real games land (3 and 7 matter).
+5. **First half and quarters**: the script's early part (how often this favorite leads early).
+
+### Step 4: decide
+
+For each market, **edge = our chance of winning − the chance Wagerhouse's price needs** (52.4% at −110).
+
+| Market | Minimum edge to be a pick | Why this order |
+|---|---|---|
+| Player props | 4% | Where the script method lives; smaller limits, softer lines |
+| Team totals | 3% | One offense against one defense is the cleanest read |
+| Game totals | 3% | Script plus weather |
+| First half and quarters | 4% | Thinner data |
+| Sides | 3% | The hardest market; also the one most tests have failed in |
+
+**Where the market comes in, and only here:**
+- **Price filter.** Never bet a number worse than ours. If another book has a better number than Wagerhouse, the card says so (you can't bet it, but it tells you Wagerhouse is worse).
+- **Sanity check, not a veto.** If our number is far from the market (3+ points on a side, 4+ on a total, 15+ points of chance on a prop), the pick is marked **CHECK**. A gap that big usually means news we don't have. The research agent must find what the market knows before it can go out. If it finds nothing, the pick stands and is graded.
+- **Blend.** Our number is pulled part of the way toward the market before the edge is computed. That is the one lesson every serious modeller agrees on (Benter: a model that ignores the market loses to it). Starting weight on **our** number: props 0.5, team totals 0.4, totals 0.35, sides 0.25. Each weight is re-fitted every 4 weeks on graded picks and goes up when our picks beat the market.
+
+### Step 5: always produce picks
+
+**Every slate gets a pick list.** For each lane, it shows the top picks by edge (up to 5 a week for NFL and college, up to 2 a day for the NBA) with a grade:
+
+- **A**: clears the minimum edge, no CHECK flag, and the principle behind it has passed a test.
+- **B**: clears the minimum edge; the principle is untested or the pick is CHECK-cleared.
+- **C**: the best the model has that day, under the minimum edge. Shown so you always see what the model thinks; never staked.
+
+"No pick" is never the whole message. If nothing clears the bar, you see the best C picks and why they fell short.
+
+## 4. Staking and grading
+
+- Every pick is frozen at the Wagerhouse number when issued, with a "don't bet past" number, and graded on the result and against the closing number.
+- **Stakes (Kylor decides; proposal):** A picks 1 unit ($25), B picks half a unit, C picks nothing. During the first 3 weeks, everything is half size.
+- **Every principle keeps its own record.** After 4 weeks and 40 picks, a principle whose picks lose against the closing number is cut to zero weight, with a note and a message (charter drift guard). A principle that wins gets more weight.
+- Results alone take thousands of bets to prove anything, so the closing number is the scorecard week to week, and results are shown next to it.
+
+## 5. Per sport
+
+### NFL
+The full method above. Strongest areas: props from usage and script, team totals, wind totals. Inputs we have free: play-by-play (pace, PROE, EPA, success rate), snap counts, target share and air yards, coverage type (nflverse participation file), blitz and box counts (FTN charting), injury reports, Open-Meteo weather. Not free: route participation, first-read rate, yards per route run. We use snap share times pass plays as the stand-in.
+
+### College football
+Script from the spread and total; pace and efficiency from CollegeFootballData (free tier: lines, scores, basic stats, PPA). Quarterback news is the biggest single adjustment; bowl season adds opt-outs. No scheme data (stacked box, pressure) without paying, so college picks lean on totals and quarterback situations. Early season: last year's ratings mislead since the transfer portal (research 14, 2c); weight current-season numbers from week 3.
+
+### NBA
+The script is pace and minutes: the expected margin sets blowout risk (starters sit), pace sets possessions, and injuries move minutes and shots to teammates. The props model already does most of this. Sides and totals come from team pace and efficiency adjusted for who plays. Rest and travel are already in the market; they move the script (minutes), but they are not a reason on their own.
+
+## 6. Red team: what we take from published methods, and what we don't
+
+We copy methods, never picks. Warren Sharp's write-ups are one example; Walters, Benter and the academic work are others (research 14 and 14a).
+
+| Claim in the wild | What we do with it |
+|---|---|
+| Game script drives props and totals | **Core of this playbook** |
+| Team totals over game totals | Adopted (Step 4 order) |
+| Pace and PROE project plays and passes | Adopted. Note: our full-game pace totals model failed against the close (research 02), so here it feeds team totals and props, where it has not been tested yet |
+| "Teams with a 100-yard rusher went 48-6" | Hindsight: the rushing came *because* they led. We use the real mechanism (leaders run more) through the script, not the stat |
+| "8 of 10 passing leaders won by one score" | Descriptive, not predictive. The mechanism (close games keep passing volume up) is in the script |
+| Wind matters from about 8 mph; 15+ is already priced | Matches our own data (strongest at 10 to 19 mph, nothing proven at 20+) |
+| Referee ATS records (e.g. 26-47-2) | Small samples. Zero weight until a walk-forward test passes |
+| Look-ahead and trap games | Zero weight until tested |
+| Correlated parlays on one script | Not now: Wagerhouse's same-game pricing graded as a leak in your audit. Revisit with data |
+| Line moves as a signal | The current line is an input to the script (it is where the market thinks the game goes). A move by itself is never a reason (charter) |
+| Line shopping across five books | Not available: Wagerhouse only. Other books show as a price check |
+
+## 7. What this replaces
+
+- **Pinnacle is no longer the fair line.** It becomes the sanity check and price filter in Step 4.
+- **"A Bet needs news Pinnacle hasn't moved for"** is replaced by Step 4's edge and grades.
+- **The stale-number alerts** stay as a price note on the card. They are no longer Telegram messages unless they line up with a model pick.
+- **The research agent's job changes.** It no longer hunts for reasons to pass on a price gap. It checks the script's inputs (injuries, who is playing, weather, news the market has), clears CHECK flags, and writes the handicap in plain words. It still cannot type a number.
+
+## 8. Build order (after approval)
+
+1. **NFL script engine** (pace, PROE, implied team points, lead path) and **team totals and game totals** priced from it, back-tested walk-forward on 2019 to 2025 to set the starting weights honestly. About 2 to 3 days.
+2. **NFL props wired to the script** (the props model exists; it gets plays and pass rate from the script instead of only the spread and total), plus coverage-type splits. About 2 days.
+3. **Pick list with A/B/C grades on the card and Telegram, every slate.** About 1 day. Picks start flowing here.
+4. **NBA**: script from pace and minutes; props already exist. About 2 days.
+5. **College**: script from CollegeFootballData; totals and QB situations first. About 2 days.
+6. Per-principle records and re-fitting every 4 weeks.
