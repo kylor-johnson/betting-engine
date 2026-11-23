@@ -347,8 +347,12 @@ def cmd_props(args) -> int:
         m = nba_props.NbaModel(now)
         rows = nba_props.evaluate_logged(con, m, now)
         graded = nba_props.grade(con)
-        sc = props.scorecard(con, pc.get("edge", 0.05), sport="NBA")
-        path = props.write_sheet(rows, sc, pc, m, now, sport="NBA", about=nba_props.ABOUT, kinds=nba_props.KIND)
+        from engine import version
+        pv = version.props_version(cfg)
+        props.stamp_versions(con, pv)
+        sc = props.scorecard(con, pc.get("edge", 0.05), sport="NBA", version=pv)
+        path = props.write_sheet(rows, sc, pc, m, now, sport="NBA", about=nba_props.ABOUT, kinds=nba_props.KIND,
+                                 paper=props.paper_text(props.paper_record(con, "NBA", pv)))
         con.close()
         print(f"Props sheet: {path}")
         print(f"Priced {len(rows)} NBA props from the latest Pinnacle read (box scores through {m.through}); graded {graded} new.")
@@ -358,8 +362,11 @@ def cmd_props(args) -> int:
     con = _db.connect(config.DB)
     rows = props.evaluate_logged(con, m, now)
     graded = props.grade(con, m.season)
-    sc = props.scorecard(con, pc.get("edge", 0.05))
-    path = props.write_sheet(rows, sc, pc, m, now)
+    from engine import version
+    pv = version.props_version(cfg)
+    props.stamp_versions(con, pv)
+    sc = props.scorecard(con, pc.get("edge", 0.05), version=pv)
+    path = props.write_sheet(rows, sc, pc, m, now, paper=props.paper_text(props.paper_record(con, "NFL", pv)))
     con.close()
     print(f"Props sheet: {path}")
     print(f"Priced {len(rows)} props from the latest Pinnacle read (stats through week {m.through_week}); graded {graded} new.")

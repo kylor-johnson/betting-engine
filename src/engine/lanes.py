@@ -69,12 +69,15 @@ def record(con, cfg: dict, lane: dict) -> dict:
         from engine.models import props
         pc = (cfg.get("models") or {}).get("props") or {}
         try:
-            sc = props.scorecard(con, pc.get("edge", 0.05), sport=sport)
+            from engine import version
+            pv = version.props_version(cfg)
+            sc = props.scorecard(con, pc.get("edge", 0.05), sport=sport, version=pv)
             n = sc.get("graded", 0)
+            paper = props.paper_text(props.paper_record(con, sport, pv))
         except Exception as e:
             return {**out, "line": f"Props record unavailable: {type(e).__name__}"}
         need = pc.get("min_graded", 300)
-        out.update(graded=n, line=f"No picks. {n} of {need} props graded in the forward test.")
+        out.update(graded=n, line=f"No bets. {n} of {need} props graded for the current model version. {paper}")
         return out
     try:
         w, l, p, units, clv = con.execute(

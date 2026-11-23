@@ -23,6 +23,20 @@ def settings_hash(cfg: dict) -> str:
     return hashlib.sha256(blob.encode()).hexdigest()[:10]
 
 
+PROPS_FILES = ("src/engine/models/props.py", "src/engine/models/nba_props.py", "src/engine/models/props_news.py")
+
+
+def props_version(cfg: dict) -> str:
+    """Fingerprint of the props models: their code plus `models.props` in config. Editing either is a tune, and a tune is a new version:
+    the paper record and the 300-prop gate count only props priced by the current version, so a tuned model is never judged on
+    predictions made by its earlier self."""
+    h = hashlib.sha256(json.dumps((cfg.get("models") or {}).get("props"), sort_keys=True, default=str).encode())
+    for f in PROPS_FILES:
+        p = config.ROOT / f
+        h.update(p.read_bytes() if p.exists() else b"")
+    return "p" + h.hexdigest()[:8]
+
+
 def commit_id() -> str:
     """Short id of the last commit that touched the code, settings or agent prompt (a docs-only commit is not a new version), with '+edited' when src/, config.yaml or the agent prompt have uncommitted changes."""
     try:

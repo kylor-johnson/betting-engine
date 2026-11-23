@@ -48,6 +48,24 @@ def _deliver(con, env: dict, alerts: list[rules.Alert], now: datetime, out: list
         con.execute("INSERT INTO alerts_sent VALUES (?,?,?,?,?)", [a.key, now.replace(tzinfo=None), a.kind, a.text, delivered])
 
 
+def _paper_props(con, cfg: dict, sport: str, model, priced: list, now: datetime, out: list) -> None:
+    """Stamp this read's props with the model version, freeze new paper suggestions, refresh the props card. Never blocks a read."""
+    from engine import version
+    from engine.models import props
+    pc = (cfg.get("models") or {}).get("props") or {}
+    pv = version.props_version(cfg)
+    props.stamp_versions(con, pv)
+    n = props.log_paper(con, sport, pc.get("edge", 0.05), pv, now)
+    sc = props.scorecard(con, pc.get("edge", 0.05), sport=sport, version=pv)
+    if sport == "NBA":
+        from engine.models import nba_props
+        kw = {"about": nba_props.ABOUT, "kinds": nba_props.KIND}
+    else:
+        kw = {}
+    props.write_sheet(priced, sc, pc, model, now, sport=sport, paper=props.paper_text(props.paper_record(con, sport, pv)), **kw)
+    out.append(f"{sport} props: {n} new paper suggestion(s) frozen.")
+
+
 def missed_agent_slots(cfg: dict, now: datetime, run_times: list[datetime], grace_minutes: int = 60) -> list[datetime]:
     """Scheduled research times earlier today that have no agent_runs row within `grace_minutes` after them (UTC)."""
     sched = (cfg.get("agent") or {}).get("schedule") or {}
@@ -161,6 +179,7 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
                 priced = props.evaluate_logged(con, pm, now)
                 graded = props.grade(con, pm.season)
                 out.append(f"Props model priced {len(priced)} Pinnacle props, graded {graded}.")
+                _paper_props(con, cfg, "NFL", pm, priced, now, out)
         except Exception as e:
             problems.append(f"Props model failed: {type(e).__name__}: {e}")
         try:   # NBA props model: same forward test, its own scorecard (decision 0006)
@@ -170,6 +189,7 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
                 priced = nba_props.evaluate_logged(con, nm, now)
                 graded = nba_props.grade(con)
                 out.append(f"NBA props model priced {len(priced)} Pinnacle props, graded {graded}.")
+                _paper_props(con, cfg, "NBA", nm, priced, now, out)
         except Exception as e:
             problems.append(f"NBA props model failed: {type(e).__name__}: {e}")
         try:   # grade finished engine picks as games end; a failure is reported, never silent

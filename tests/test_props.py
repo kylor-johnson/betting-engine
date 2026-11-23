@@ -54,7 +54,7 @@ def _graded(rows):
     con = duckdb.connect()
     con.execute(props.SCHEMA)
     for i, (mp, qp, outcome) in enumerate(rows):
-        con.execute("INSERT INTO prop_evals VALUES (?, 'S', 'A', 'H', 'P', ?, 'T', 'receptions', 4.5, -110, -110, ?, ?, 4, 4, 2026, 11, ?, ?, NULL, 'NFL')",
+        con.execute("INSERT INTO prop_evals (ts_utc, start_utc, away, home, player, player_id, team, stat, line, over_price, under_price, market_p_over, model_p_over, model_median, projection, season, through_week, outcome, graded_utc, news, sport) VALUES (?, 'S', 'A', 'H', 'P', ?, 'T', 'receptions', 4.5, -110, -110, ?, ?, 4, 4, 2026, 11, ?, ?, NULL, 'NFL')",
                     [datetime(2026, 11, 22), f"p{i}", mp, qp, outcome, datetime(2026, 11, 23)])
     return con
 
@@ -115,3 +115,37 @@ def test_injuries_lookup_by_name_and_team():
     inj = props.Injuries([P("Jordan Addison", "Minnesota Vikings", "Out"), P("Brock Bowers", "Las Vegas Raiders", "Questionable")])
     assert inj.of("Jordan Addison", "MIN") == "Out" and inj.of("brock bowers", "LV") == "Questionable"
     assert inj.of("Jordan Addison", "LV") == ""
+
+
+def test_paper_picks_are_frozen_at_first_sight_graded_at_that_price_and_split_by_version():
+    from datetime import timedelta
+    con = duckdb.connect()
+    con.execute(props.SCHEMA)
+    now = datetime(2026, 11, 22, 12, 0)
+    future = (now + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    cols = ("ts_utc, start_utc, away, home, player, player_id, team, stat, line, over_price, under_price, market_p_over, model_p_over, "
+            "model_median, projection, season, through_week, sport")
+
+    def read(ts, line, q):
+        con.execute(f"INSERT INTO prop_evals ({cols}) VALUES (?,?,'A','H','P','p1','T','receptions',?,-110,-110,0.5,?,4,4,2026,11,'NFL')", [ts, future, line, q])
+    read(now, 4.5, 0.62)                                     # model says 62% over against 52% break-even: a paper Over
+    assert props.log_paper(con, "NFL", 0.05, "pA", now) == 1
+    read(now + timedelta(hours=1), 5.5, 0.30)                # later reads never change a frozen pick
+    props.log_paper(con, "NFL", 0.05, "pB", now + timedelta(hours=1))
+    picks = con.execute("SELECT side, line, model_version FROM prop_paper_picks ORDER BY first_seen_utc").fetchall()
+    assert picks[0] == ("Over", 4.5, "pA") and ("Under", 5.5, "pB") in picks
+    con.execute("UPDATE prop_evals SET outcome = 7")          # he caught 7: the Over at 4.5 won, the Under at 5.5 lost
+    rec = props.paper_record(con, "NFL")
+    assert (rec["graded"], rec["won"], rec["lost"]) == (2, 1, 1) and rec["versions"] == 2
+    assert props.paper_record(con, "NFL", "pA")["won"] == 1 and props.paper_record(con, "NFL", "pB")["lost"] == 1
+    assert "Paper suggestions" in props.paper_text(rec)
+
+
+def test_scorecard_can_count_only_the_current_version():
+    con = duckdb.connect()
+    con.execute(props.SCHEMA)
+    for i, v in enumerate(("old", "new", "new")):
+        con.execute("INSERT INTO prop_evals (ts_utc, start_utc, away, home, player, player_id, team, stat, line, over_price, under_price, market_p_over, model_p_over, "
+                    "model_median, projection, season, through_week, outcome, sport, model_version) VALUES "
+                    "(?, 'S','A','H','P',?,'T','receptions',4.5,-110,-110,0.5,0.6,4,4,2026,11,6,'NFL',?)", [datetime(2026, 11, 22), f"p{i}", v])
+    assert props.scorecard(con)["graded"] == 3 and props.scorecard(con, version="new")["graded"] == 2

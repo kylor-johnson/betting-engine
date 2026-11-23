@@ -513,7 +513,79 @@ CREATE TABLE IF NOT EXISTS prop_evals (
   outcome DOUBLE, graded_utc TIMESTAMP);
 ALTER TABLE prop_evals ADD COLUMN IF NOT EXISTS news VARCHAR;
 ALTER TABLE prop_evals ADD COLUMN IF NOT EXISTS sport VARCHAR;
+ALTER TABLE prop_evals ADD COLUMN IF NOT EXISTS model_version VARCHAR;
+CREATE TABLE IF NOT EXISTS prop_paper_picks (
+  pick_key VARCHAR PRIMARY KEY, first_seen_utc TIMESTAMP, sport VARCHAR, player VARCHAR, player_id VARCHAR, stat VARCHAR, side VARCHAR,
+  line DOUBLE, price DOUBLE, model_p DOUBLE, market_p DOUBLE, gap DOUBLE, model_version VARCHAR, start_utc VARCHAR, game VARCHAR);
 """
+
+
+def stamp_versions(con, version: str) -> None:
+    """Rows priced in this read get the current props version. Rows from before stamping existed (Nov 22 to 23) are assigned the
+    version in force at the first stamp; the props files had not changed since they were written (git log, Nov 22 commits)."""
+    con.execute(SCHEMA)
+    con.execute("UPDATE prop_evals SET model_version = ? WHERE model_version IS NULL", [version])
+
+
+def log_paper(con, sport: str, edge: float, version: str, now: datetime) -> int:
+    """Freeze every disagreement of `edge` or more the first time the model shows it, for games not yet started.
+    This is the paper pick: the number and price as first seen, never updated, graded when the game is played."""
+    con.execute(SCHEMA)
+    rows = con.execute("""
+        SELECT player, player_id, stat, line, over_price, under_price, market_p_over, model_p_over, start_utc, away, home FROM (
+          SELECT *, row_number() OVER (PARTITION BY player_id, stat, start_utc ORDER BY ts_utc DESC) AS rn
+          FROM prop_evals WHERE outcome IS NULL AND coalesce(sport, 'NFL') = ?) WHERE rn = 1""", [sport]).fetchall()
+    stamp = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+    n = 0
+    for player, pid, stat, line, po, pu, mp, q, start, away, home in rows:
+        if str(start) <= stamp:
+            continue
+        for side, p, price, m in (("Over", q, po, mp), ("Under", 1 - q, pu, 1 - mp)):
+            if price is None or p - implied_prob(price) < edge:
+                continue
+            key = f"{sport}|{pid}|{stat}|{start}|{side}"
+            if con.execute("SELECT 1 FROM prop_paper_picks WHERE pick_key=?", [key]).fetchone():
+                continue
+            con.execute("INSERT INTO prop_paper_picks VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                        [key, now.replace(tzinfo=None), sport, player, pid, stat, side, line, price, p, m, p - implied_prob(price), version, start, f"{away} at {home}"])
+            n += 1
+    return n
+
+
+def paper_record(con, sport: str, version: str | None = None) -> dict:
+    """Paper picks graded at the price they were first shown, one flat unit each (pushes void). By side and by model version."""
+    con.execute(SCHEMA)
+    q = "SELECT side, price, line, player_id, stat, start_utc, model_version FROM prop_paper_picks WHERE sport = ?"
+    args = [sport]
+    if version:
+        q += " AND model_version = ?"
+        args.append(version)
+    picks = con.execute(q, args).fetchall()
+    out = {"issued": len(picks), "graded": 0, "won": 0, "lost": 0, "units": 0.0, "by_side": {}, "versions": len({p[6] for p in picks})}
+    for side, price, line, pid, stat, start, _ in picks:
+        r = con.execute("SELECT outcome FROM prop_evals WHERE player_id=? AND stat=? AND start_utc=? AND outcome IS NOT NULL LIMIT 1", [pid, stat, start]).fetchone()
+        if r is None or r[0] == line:
+            continue
+        won = (r[0] > line) if side == "Over" else (r[0] < line)
+        u = (100 / -price if price < 0 else price / 100) if won else -1.0
+        out["graded"] += 1
+        out["won"] += won
+        out["lost"] += not won
+        out["units"] += u
+        b = out["by_side"].setdefault(side, [0, 0, 0.0])
+        b[0] += won
+        b[1] += not won
+        b[2] += u
+    out["units"] = round(out["units"], 1)
+    return out
+
+
+def paper_text(rec: dict) -> str:
+    if not rec["issued"]:
+        return "Paper suggestions: none recorded yet."
+    sides = "; ".join(f"{k.lower()}s {a}-{b} ({u:+.1f} u)" for k, (a, b, u) in rec["by_side"].items())
+    return (f"Paper suggestions (the 5%+ disagreements, frozen at first sight, one flat unit each, never bet): {rec['issued']} issued, "
+            f"{rec['graded']} graded, {rec['won']}-{rec['lost']}, {rec['units']:+.1f} units at the first-seen price" + (f" ({sides})" if sides else "") + ".")
 
 
 def game_implied(away: str, home: str, at, con, sport: str = "NFL") -> tuple[float, float] | None:
@@ -634,13 +706,15 @@ def grade(con, season: int) -> int:
     return n
 
 
-def scorecard(con, edge: float = 0.05, sport: str = "NFL") -> dict:
-    """Model against Pinnacle on graded props, using each prop's last read before kickoff."""
+def scorecard(con, edge: float = 0.05, sport: str = "NFL", version: str | None = None) -> dict:
+    """Model against Pinnacle on graded props, using each prop's last read before kickoff.
+    `version` limits it to props priced by that model version (a tuned model starts a fresh count)."""
     con.execute(SCHEMA)
     rows = con.execute("""
         SELECT line, over_price, under_price, market_p_over, model_p_over, outcome FROM (
           SELECT *, row_number() OVER (PARTITION BY player_id, stat, start_utc ORDER BY ts_utc DESC) AS rn
-          FROM prop_evals WHERE outcome IS NOT NULL AND coalesce(sport, 'NFL') = ?) WHERE rn = 1 AND outcome <> line""", [sport]).fetchall()
+          FROM prop_evals WHERE outcome IS NOT NULL AND coalesce(sport, 'NFL') = ?
+          AND (? IS NULL OR model_version = ?)) WHERE rn = 1 AND outcome <> line""", [sport, version, version]).fetchall()
     n = len(rows)
     if n == 0:
         return {"graded": 0}
@@ -691,7 +765,7 @@ def passes_gate(sc: dict, pc: dict) -> bool:
 
 
 def write_sheet(rows: list[dict], sc: dict, pc: dict, model, now: datetime, sport: str = "NFL",
-                about: str | None = None, kinds: dict | None = None) -> Path:
+                about: str | None = None, kinds: dict | None = None, paper: str = "") -> Path:
     from zoneinfo import ZoneInfo
     tz = ZoneInfo("America/Denver")
     local = now.astimezone(tz)
@@ -705,6 +779,8 @@ def write_sheet(rows: list[dict], sc: dict, pc: dict, model, now: datetime, spor
            "Every prop is graded after the game to find out whether the model knows anything Pinnacle does not.")
     out = [f"# {sport} props: model against Pinnacle ({local:%a %b %-d, %-I:%M %p} MT)", "",
            f"**{gate_line(sc, pc)}**", "", about, ""]
+    if paper:
+        out += [f"**{paper}**", ""]
     lean = []
     for r in rows:
         for side, p, price in (("Over", r["model_p_over"], r["over_price"]), ("Under", 1 - r["model_p_over"], r["under_price"])):
@@ -712,7 +788,7 @@ def write_sheet(rows: list[dict], sc: dict, pc: dict, model, now: datetime, spor
             if gap >= edge:
                 lean.append((gap, side, p, price, r))
     lean.sort(key=lambda x: -x[0])
-    out += ["## Where the model disagrees with Pinnacle's price by 5% or more", ""]
+    out += ["## Paper suggestions: where the model disagrees with Pinnacle's price by 5% or more (not bets)", ""]
     if lean:
         out += ["| Kick (MT) | Player | Prop | Pinnacle price | Model chance | Pinnacle chance (no vig) | Model median | News the model used |", "|---|---|---|---|---|---|---|---|"]
         for gap, side, p, price, r in lean[:40]:
