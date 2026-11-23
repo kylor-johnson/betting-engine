@@ -2,7 +2,7 @@
 
 **NFL: Stage 0 · College: Stage 0 · NBA: Stage 0**
 
-Settings last changed Nov 23, 2026 UTC; 1 rule version(s) recorded in all. Engine picks since then: 0 graded, +0.00 units (a result is not evidence; the closing-line value is).
+Settings last changed Nov 23, 2026 UTC; 7 rule version(s) recorded in all. Engine picks since then: 0 graded, +0.00 units (a result is not evidence; the closing-line value is).
 
 Each sport is judged on its own picks and thresholds (`go_live.per_sport` in config.yaml). Closing-line value is win chance gained against Pinnacle's close: +2.0% means the number you got was worth two percentage points of win chance (src/engine/clv.py).
 
@@ -48,8 +48,8 @@ Each sport is judged on its own picks and thresholds (`go_live.per_sport` in con
 ## What each stage allows
 
 - **Stage 0:** no money. Everything is logged and graded.
-- **Stage 1:** $12.5 on a Bet (status Bet only) in that sport, at the Wagerhouse number or better than its "don't bet past", re-checked just before you place it. At most 2 units staked per week across all picks and sports. Log it with `engine bet add`.
-- **Stage 2:** the full $25 unit; the sizing review the spec already requires after 100 graded.
+- **Stage 1:** $25 on a Bet (status Bet only) in that sport, at the Wagerhouse number or better than its "don't bet past", re-checked just before you place it. At most 2 units staked per week across all picks and sports. Log it with `engine bet add`.
+- **Stage 2:** the full $50 unit; the sizing review the spec already requires after 100 graded.
 - **Never bet at any stage:** Conditionals, wind totals, paper Leans (until 50 are graded with average closing-line value above zero), props (until a model passes its gate), paper teasers (until the teaser lane is judged), anything past the "don't bet past" number, anything in the first few minutes after a change of rule version.
 
 ## Pause rules (back to Stage 0, per sport)
