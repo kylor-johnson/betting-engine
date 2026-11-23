@@ -3,7 +3,8 @@
 Each pick is graded three ways: the result at the number it was issued at, the points gained or lost
 against Pinnacle's last line before kickoff (a compass, not proof), and units won or lost, shown next
 to Kylor's own record. Flagged Passes are graded too, so the hit rate is not measured on bets alone.
-A game with no final score yet, or no Pinnacle close, is left ungraded and says why. Nothing is guessed.
+A game with no final score yet is left ungraded and says why. With no Pinnacle close the result is still graded and the
+closing-line value is left blank ("n/a"); a missing close must never hide a result. Nothing is guessed.
 """
 from __future__ import annotations
 
@@ -90,20 +91,18 @@ def run(cfg, con=None, scorer=final_score) -> list[str]:
             col = "home_spread" if market == "spread" else "total"
             close = con.execute(f"SELECT {col} FROM line_snapshots WHERE event_id=? AND source=? AND ts_utc<=? AND {col} IS NOT NULL "
                                 "ORDER BY ts_utc DESC LIMIT 1", [eid, snap.SHARP, start]).fetchone()
-            if close is None:
-                out.append(f"NOT GRADED {pick} ({game}): no Pinnacle line stored before kickoff")
-                continue
             score = scorer(sport, eid)
             if score is None:
                 out.append(f"waiting: {pick} ({game}) has no final score yet")
                 continue
             units = pc["conditional_units"] if status == "Conditional" else pc["max_units"] if status == "Bet" else 0.0
             res = result(market, side, line, *score)
-            clv = clv_points(market, side, line, close[0])
+            clv = None if close is None else clv_points(market, side, line, close[0])
             con.execute("INSERT INTO engine_pick_grades VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                        [key, game, pick, status, sport, market, ts, line, price, units, close[0], clv, score[0], score[1],
+                        [key, game, pick, status, sport, market, ts, line, price, units, None if close is None else close[0], clv, score[0], score[1],
                          res, profit(units, price, res) if units else 0.0, now])
-            out.append(f"GRADED {status} {pick} ({game}): {res}, {clv:+.1f} points vs Pinnacle close")
+            tail = "closing-line value n/a (no Pinnacle line stored before kickoff)" if clv is None else f"{clv:+.1f} points vs Pinnacle close"
+            out.append(f"GRADED {status} {pick} ({game}): {res}, {tail}")
     finally:
         if own:
             con.close()
@@ -120,7 +119,15 @@ def summary(con, cfg) -> list[str]:
             "avg(clv_points), coalesce(sum(profit_units),0) FROM engine_pick_grades WHERE status=?", [status]).fetchone()
         if n:
             tail = f", {units:+.2f} units" if status != "Pass" else " (not bet; shows what passing was worth)"
-            lines.append(f"{status}: {w}-{l}-{p}, average {clv:+.2f} points vs Pinnacle close{tail}")
+            clv_txt = "closing-line value n/a" if clv is None else f"average {clv:+.2f} points vs Pinnacle close"
+            lines.append(f"{status}: {w}-{l}-{p}, {clv_txt}{tail}")
+    try:
+        issued = con.execute("SELECT count(DISTINCT pick_key) FROM engine_pick_events").fetchone()[0]
+    except Exception:
+        issued = 0
+    done = con.execute("SELECT count(*) FROM engine_pick_grades").fetchone()[0]
+    lines.append(f"Picks logged (Bets, Conditionals and flagged Passes): {issued}. Graded: {done}. "
+                 + ("Not graded yet: " + str(issued - done) + " (game not finished, or no stored line)." if issued > done else "None waiting."))
     graded = con.execute("SELECT count(*) FROM engine_pick_grades WHERE status IN ('Bet','Conditional')").fetchone()[0]
     avg = con.execute("SELECT avg(clv_points) FROM engine_pick_grades WHERE status IN ('Bet','Conditional')").fetchone()[0]
     if graded >= 100 and avg is not None and avg <= 0:

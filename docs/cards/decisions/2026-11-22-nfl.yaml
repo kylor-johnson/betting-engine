@@ -1,73 +1,19 @@
 # The agent's decisions for this card. Status and reasons only: every number on the
 # card comes from the slate sheet. A Bet the numbers do not support is refused.
 slate_note: >
-  Sunday 8:15am run, under three hours before the early kickoffs. The numbers flag five sides
-  (Saints, Lions, Panthers, Jaguars and the Chiefs over) and none has a reason the market has
-  not already priced, so all five are Passes. The Kansas City wind forecast eased slightly and
-  that adjustment was trimmed. Sharp Football Analysis had no Week 12 NFL articles posted, so
-  there is no second opinion on matchups today.
+  Sunday night run. Only Monday night's Bengals at Commanders game is left, and the numbers flag
+  no side. The earlier wind-model Under is withdrawn: the kickoff wind forecast has eased below
+  the stated condition and the wind model no longer applies. Burrow and Jayden Daniels are both
+  listed active.
 decisions:
-  - game: "New Orleans Saints at Chicago Bears"
-    market: spread
-    side: away
-    status: Pass
-    why_pass: >
-      The move toward the Bears now has an explanation: ESPN lists three Saints offensive
-      linemen out (center Erik McCoy, tackles Taliese Fuaga and Asim Richards) plus cornerback
-      Martin Emerson, all ruled out Friday. The slow market rating that likes the Saints does
-      not know that; the line does. The Bears have also been unlucky (few fumbles recovered,
-      poor turnover margin), which argues against fading them. It would change only if one of
-      those linemen turned out to be active.
-  - game: "Tennessee Titans at Dallas Cowboys"
-    market: spread
-    side: home
-    status: Pass
-    why_pass: >
-      A thin edge (under a point) that means laying the half point above 7, the wrong side of a
-      key number. Nothing found on injuries or matchup that the price is missing.
-  - game: "Tampa Bay Buccaneers at Detroit Lions"
-    market: spread
-    side: home
-    status: Pass
-    why_pass: >
-      The model likes Detroit only because its ratings are behind the news. The Lions put
-      Aidan Hutchinson on injured reserve Nov 18 and center Cade Mays on Nov 21, with Jack
-      Campbell already there, and Baker Mayfield is slated to play (Rapoport, this morning).
-      The line moved a point toward Tampa Bay for those reasons and Pinnacle sits on the same
-      number as your book. It is also a lay of the half point above 3. It would change if
-      Mayfield were scratched before kickoff and the book did not move.
-  - game: "Arizona Cardinals at Kansas City Chiefs"
+  - game: "Cincinnati Bengals at Washington Commanders"
     market: total
-    side: over
+    side: under
     status: Pass
     why_pass: >
-      A total needs a specific sourced reason and the only one here points the other way:
-      wind at Arrowhead of about 14 to 16 mph sustained, plus Arizona starting its third
-      quarterback. The over is flagged only because the ratings total is higher than the
-      market, and ratings alone are not a reason for a total. It would change only with a
-      sourced reason for more scoring, and I found none.
-  - game: "Baltimore Ravens at Carolina Panthers"
-    market: spread
-    side: home
-    status: Pass
-    why_pass: >
-      Your book now offers the number under 3, but at a higher price than Pinnacle charges for
-      the same number, so the price advantage from the earlier run is gone. The edge still
-      depends on my own 3-point estimate for Lamar Jackson's absence; without it there is none.
-      The luck numbers also lean against Carolina: the Panthers have recovered most fumbles and
-      run a good turnover margin, the Ravens the reverse. Saturday's news (Panthers lost
-      Christensen, Brooks and Simmons, got Mike Jackson back) is small and public. It would
-      change if Brissett were ruled out.
-  - game: "Jacksonville Jaguars at New York Giants"
-    market: spread
-    side: away
-    status: Pass
-    why_pass: >
-      Your book is half a point behind Pinnacle and DraftKings, and the model agrees with the
-      Jaguars without any adjustment of mine. But that is the whole case: the book has not
-      followed a move, and I still cannot say why the line moved 4.5 points from the opener.
-      Jacksonville is missing its center (Hainsey) and two defensive ends, with a third
-      downgraded to out Saturday, which points the other way, and its results are flattered by
-      a large turnover margin. Wind at MetLife is light. The number stops being playable half
-      a point from here. It would change with late news against the Giants that the book does
-      not follow, such as McCarthy being ruled out.
+      Withdrawn. This was the wind model's Conditional on the forecast staying at or above 13 mph;
+      the latest Open-Meteo forecast is about 11 mph, so the wind model is no longer used and
+      the numbers no longer flag the Under. Nothing else supports it: Cincinnati's offense is #1
+      in EPA per play over the last four games, and Washington's defense is #30 in red-zone
+      touchdown rate this season. It would come back only if the forecast rises to 13 mph or more
+      and the sheet flags it again.

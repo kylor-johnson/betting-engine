@@ -76,8 +76,8 @@ def collect(wh: Wagerhouse, sports: list[str], now: datetime) -> tuple[list[Snap
         today = now.date()
         events = espn.upcoming(sport, today - timedelta(days=1), today + timedelta(days=LOOKAHEAD_DAYS[sport]))
         sharp_by_event = {}
-        if sport in ("NFL", "College"):
-            from engine.picks import sources
+        from engine.picks import sources
+        if sport in sources.PINNACLE_LEAGUES:
             try:
                 for sl in sources.pinnacle(sport):
                     near = [e for e in events if abs((e.start - sl.start).total_seconds()) < 12 * 3600]

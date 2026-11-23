@@ -78,7 +78,10 @@ def test_run_says_why_when_no_pinnacle_close():
                 [datetime.utcnow() - timedelta(hours=9), snap.WH, "NFL", "E1", "A", "H", datetime.utcnow() - timedelta(hours=5),
                  -3.0, -110, -110, None, None, 44.0, -110, -110])
     out = grade.run(CFG, con, scorer=lambda *a: (27, 20))
-    assert any("no Pinnacle line stored" in l for l in out)
+    assert any("closing-line value n/a" in l and l.startswith("GRADED") for l in out)
+    bet = con.execute("SELECT result, clv_points, pinnacle_close FROM engine_pick_grades WHERE status='Bet'").fetchone()
+    assert bet == ("W", None, None)        # the result is graded; only the closing-line value is blank
+    assert "closing-line value n/a" in " ".join(grade.summary(con, CFG))
 
 
 def test_board_section_shows_graded_picks(tmp_path, monkeypatch):
