@@ -546,7 +546,7 @@ def main(argv=None) -> int:
     a.set_defaults(func=cmd_nba_props_test)
     a = sub.add_parser("props-test", help="held-out test of the props model")
     a.set_defaults(func=cmd_props_test)
-    a = sub.add_parser("nba-watch", help="NBA injury watcher (launchd runs it every 10 minutes)")
+    a = sub.add_parser("nba-watch", help="NBA injury watcher (launchd runs it at 10am, 3pm and 5pm Mountain)")
     a.add_argument("--force", action="store_true", help="run outside the watch hours")
     a.add_argument("--dry-run", action="store_true", help="print, do not message or start a research run")
     a.set_defaults(func=cmd_nba_watch)

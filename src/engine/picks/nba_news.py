@@ -1,6 +1,7 @@
 """NBA injury watcher: catch a status change for a player who matters before Wagerhouse moves its line.
 
-Runs every 10 minutes on game days (launchd, `engine nba-watch`), inside the hours in config `nba_watch`.
+Runs three times a day (10:00, 15:00 and 17:00 Mountain; launchd, `engine nba-watch`; times in config `nba_watch.run_times`).
+Each run compares today's injury report with the one stored at the previous run, so the 10:00 run catches overnight and morning changes.
 Each run:
   1. reads ESPN's public NBA injury report (no account, no Wagerhouse);
   2. compares it with the last stored report;
@@ -272,9 +273,17 @@ def check(con, now: datetime, report: list[Listed], impact: dict[str, dict], per
 
 
 def in_window(cfg: dict, now: datetime) -> bool:
+    """True within 30 minutes after one of the scheduled check times (config nba_watch.run_times, Mountain)."""
     w = cfg.get("nba_watch") or {}
+    if not w.get("enabled"):
+        return False
     local = now.astimezone(config.display_tz(cfg))
-    return bool(w.get("enabled")) and w.get("start_hour", 9) <= local.hour < w.get("end_hour", 21)
+    for hhmm in w.get("run_times", ["10:00", "15:00", "17:00"]):
+        h, m = (int(x) for x in str(hhmm).split(":"))
+        slot = local.replace(hour=h, minute=m, second=0, microsecond=0)
+        if timedelta(0) <= local - slot < timedelta(minutes=30):
+            return True
+    return False
 
 
 def book_reads_today(con, cfg: dict, now: datetime) -> int:

@@ -71,12 +71,11 @@ models:
     max_status: Conditional    # even then, half a unit, and only at Wagerhouse at or better than Pinnacle's line
 
 
-# NBA injury watcher (engine nba-watch, launchd every 10 minutes). Reads ESPN's public report only; reads
+# NBA injury watcher (engine nba-watch, launchd at the times below, Mountain). Changed 2026-11-23 from every 10 minutes: the point is early news and morning Outs, not minute-by-minute. Reads ESPN's public report only; reads
 # Wagerhouse and Pinnacle once when a player who matters changes between playing and not playing.
 nba_watch:
   enabled: true
-  start_hour: 9                # Mountain; NBA reports update through the afternoon and up to tip-off
-  end_hour: 21
+  run_times: ["10:00", "15:00", "17:00"]   # Mountain; the plist fires at these times and the command refuses to read outside 30 minutes after them
   min_minutes: 22              # a player matters if he averages this many minutes (3+ games this season)
   star_minutes: 28             # a Questionable -> playing report matters only for players with this many minutes
   max_book_reads_per_day: 12   # extra Wagerhouse reads the watcher may make in a day

@@ -63,3 +63,13 @@ def test_sport_cooldown_ignores_other_sports():
     now = datetime(2026, 11, 22, 21, tzinfo=timezone.utc)
     assert not agent.cooled_down(con, now, 20)
     assert agent.cooled_down(con, now, 20, sport="NBA")
+
+
+def test_watch_only_reads_just_after_the_scheduled_times():
+    from datetime import datetime, timedelta, timezone
+    from engine.picks.nba_news import in_window
+    cfg = {"timezone_display": "America/Denver", "nba_watch": {"enabled": True, "run_times": ["10:00", "15:00", "17:00"]}}
+    mt = lambda h, m: datetime(2026, 11, 23, tzinfo=timezone.utc) + timedelta(hours=h + 7, minutes=m)      # MST = UTC-7
+    assert in_window(cfg, mt(10, 0)) and in_window(cfg, mt(15, 20)) and in_window(cfg, mt(17, 29))
+    assert not in_window(cfg, mt(9, 59)) and not in_window(cfg, mt(10, 31)) and not in_window(cfg, mt(12, 0))
+    assert not in_window({**cfg, "nba_watch": {**cfg["nba_watch"], "enabled": False}}, mt(10, 0))

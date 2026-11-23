@@ -14,8 +14,13 @@
     <key>PATH</key><string>/Users/kylorjohnson/.nvm/versions/node/v25.2.1/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
     <key>HOME</key><string>/Users/kylorjohnson</string>
   </dict>
-  <!-- every 10 minutes; the command itself only reads inside nba_watch hours in config.yaml -->
-  <key>StartInterval</key><integer>600</integer>
+  <!-- 10:00, 15:00 and 17:00 Mountain (the Mac's clock); the command also checks config nba_watch.run_times -->
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict><key>Hour</key><integer>10</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Hour</key><integer>15</integer><key>Minute</key><integer>0</integer></dict>
+    <dict><key>Hour</key><integer>17</integer><key>Minute</key><integer>0</integer></dict>
+  </array>
   <key>StandardOutPath</key><string>/Users/kylorjohnson/Library/Logs/betting-engine/nba-watch.log</string>
   <key>StandardErrorPath</key><string>/Users/kylorjohnson/Library/Logs/betting-engine/nba-watch.err.log</string>
 </dict>

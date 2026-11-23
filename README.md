@@ -51,7 +51,7 @@ Research runs happen on a schedule (Sunday 8:15am, 6:45pm and 8:45pm; Monday and
 
 ## Running on a schedule (launchd)
 
-Four jobs: line and news reads every 30 minutes (the command itself only reads in scheduled hours), research runs on the schedule above, the weekly report Tuesday 9:00, and the NBA injury watcher every 10 minutes (9am to 9pm Mountain, set in `config.yaml` under `nba_watch`).
+Four jobs: line and news reads every 30 minutes (the command itself only reads in scheduled hours), research runs on the schedule above, the weekly report Tuesday 9:00, and the NBA injury watcher three times a day (10am, 3pm and 5pm Mountain, set in `config.yaml` under `nba_watch.run_times`).
 
 ```sh
 cp ops/launchd/*.plist ~/Library/LaunchAgents/
