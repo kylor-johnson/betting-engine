@@ -8,6 +8,8 @@ An agent that does the handicapping research on a schedule and tells me when the
 
 It is not a bet tracker and it is not a price checker. Those are plumbing.
 
+This repository is the betting engine only. Nothing else lives here: my DFS model has its own folder and its own repository, and the two never share code, data or settings.
+
 ## The five lanes
 
 The engine is five separate lanes. Each has its own model, its own status, its own record and its own messages.
@@ -79,6 +81,7 @@ Do not reopen these without asking me.
 - **One session owns the code at a time.** Other sessions may read and write research, but do not edit `src/`, `config.yaml` or `adjustments.yaml` while another session is mid-change.
 - **Commit before you hand off.** No session leaves uncommitted work for the next one to guess at.
 - **Start by running `git status` and `git log`.** If there is uncommitted work you did not write, stop and ask me.
+- **Logins live in `.env`** in this folder (Wagerhouse, Sharp Football Analysis, Telegram, CollegeFootballData). Every session reads them from there, so nobody retypes them. `.env` is never committed and never pushed.
 - **Explain in plain English.** I'm technical but not a quant.
 - **When I'm reading on my phone, the first line tells me what to do.**
 
