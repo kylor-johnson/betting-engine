@@ -304,6 +304,20 @@ def cmd_model_test(args) -> int:
     elif args.model == "first-half":
         from engine.models import first_half
         print(json.dumps(first_half.run(), indent=1))
+    elif args.model == "openers":
+        from engine.models import openers
+        for league in ("NFL", "College"):
+            for source in ("close", "result"):
+                for lag in (0, 7):
+                    print(f"\n{league}: our number from earlier {'closing lines' if source == 'close' else 'final scores'}"
+                          f"{', opener assumed a week earlier' if lag else ''}")
+                    for kind, res in openers.run(league, source, lag).items():
+                        for t, bets in res["bets"].items():
+                            x = openers.summarize(bets)
+                            if x["n"]:
+                                print(f"  {kind} gap {t:g}+: {x['won']}-{x['lost']} at the opener ({100 * x['pct']:.1f}%), "
+                                      f"{x['units']:+.1f} units, line moved our way {x['moved_our_way']} / against {x['moved_against']}, "
+                                      f"average {x['avg_clv']:+.2f} points")
     return 0
 
 
@@ -519,8 +533,8 @@ def main(argv=None) -> int:
     a.set_defaults(func=cmd_matchup)
     a = sub.add_parser("spread-test", help="test the engine's own NFL power number against closing spreads")
     a.set_defaults(func=cmd_spread_test)
-    a = sub.add_parser("model-test", help="walk-forward test of a candidate model: wind or first-half")
-    a.add_argument("model", choices=["wind", "first-half"])
+    a = sub.add_parser("model-test", help="walk-forward test of a candidate model: wind, first-half or openers")
+    a.add_argument("model", choices=["wind", "first-half", "openers"])
     a.set_defaults(func=cmd_model_test)
     a = sub.add_parser("props", help="props model vs Pinnacle's props: price, grade, write the testing sheet")
     a.add_argument("--sport", choices=["NFL", "NBA"], default="NFL")
