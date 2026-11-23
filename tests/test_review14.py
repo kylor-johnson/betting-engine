@@ -112,3 +112,13 @@ def test_stage_zero_messages_never_ask_for_money():
     assert bet.split("\n")[0].endswith("PAPER BET (Stage 0: tracked, no money yet)") and "Stake: $0" in bet
     live = agent.changes({}, [{**r, "status": "Bet", "dollars": 25}], ZoneInfo("America/Denver"), "College", "", 1)[0]
     assert "BET NOW" in live and "Stake: $25" in live
+
+
+def test_script_blend_weight_and_ridge():
+    from engine.models import script
+    assert script.fit_weight([1, 2, 3], [0, 0, 0], [1, 2, 3]) == 1.0
+    assert script.fit_weight([1, 2, 3], [0, 0, 0], [0, 0, 0]) == 0.0
+    X = [[float(i), float(i % 3)] for i in range(50)]
+    y = [2.0 * r[0] + 1.0 for r in X]
+    m = script.ridge(X, y, 0.0)
+    assert abs(script.predict(m, [10.0, 1.0]) - 21.0) < 1e-6
