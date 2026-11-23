@@ -72,7 +72,7 @@ Do not reopen these without asking me.
 - No paid data.
 - The engine never places bets. I place every bet by hand.
 - Pregame only. NFL, college football and NBA.
-- Unit is $25.
+- Units: NFL $50, NBA $25 (changed 2026-11-23, decision 0020); college $25 until I say otherwise.
 - Code owns every number. The agent owns research and judgment, and cannot type a line, a price or a stake.
 - Every pick has a "don't bet past" number.
 - Betting splits and reverse line movement are never a reason for a pick.
@@ -83,7 +83,7 @@ Do not reopen these without asking me.
 
 **Leans: decided 2026-11-23, paper only.** Built in `src/engine/picks/leans.py`. The agent's best handicapped opinions, never staked, at most 3 per lane per week, each with a code-stamped Wagerhouse number and "don't bet past" number and one of three reasons (timestamped news Pinnacle has not moved for, a forecast of where the line goes, a wind or weather case). Graded on closing-line value, result, and whether I bet it. Not to be bet until 50 are graded and the average closing-line value is above zero. They show on the board and cards, never in Telegram.
 
-**Real money from the start (2026-11-23, replaces the Stage 0 rule).** Playbook picks are staked from the first one: A picks 1 unit ($25), B picks half a unit, C picks nothing; for the first 3 weeks everything is half size ($12.50 and $6.25). Bankroll protection kept from decision 0012: if playbook picks are down 10 units, picks go back to paper until I say otherwise. Decision 0018.
+**Real money from the start (2026-11-23, replaces the Stage 0 rule).** Playbook picks are staked from the first one: A picks 1 unit, B picks half a unit, C picks nothing; for the first 3 weeks everything is half size. Units by sport: NFL $50, NBA $25 (decision 0020). Bankroll protection kept from decision 0012: if playbook picks are down 10 units, picks go back to paper until I say otherwise. Decision 0018.
 
 **Telegram is for bets only (2026-11-23).** Playbook A and B picks ping; C picks stay on the board (decision 0018). Before the playbook picks go live, Telegram pings only for a Bet, a Conditional or a cancellation (`telegram.send_kinds` in `config.yaml`), plus alerts that the engine itself is broken. NO BETS summaries, openers, news, price gaps, the Monday lane table and grades stay on the cards and `board.html`. This replaces the drift guard's rule 2 for Telegram; the table is on the board and in `docs/lanes/STATUS.md`.
 

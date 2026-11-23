@@ -118,7 +118,7 @@ def tickets_to_send(cfg: dict, con, now: datetime, send: bool = True, sender=Non
         if j is None:
             break
         b = legs.pop(j)
-        units, dollars, note = playbook.stake(playbook.settings(cfg), "A", now, down, cfg.get("unit", 25))
+        units, dollars, note = playbook.stake(playbook.settings(cfg), "A", now, down, config.unit_for(cfg, "NFL"))
         fav, dog = st["favorite"], st["underdog"]
         lines = []
         for leg in (a, b):

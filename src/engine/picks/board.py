@@ -161,7 +161,7 @@ def build() -> Path:
                 f"<div class=why><b>What kills it:</b> {_e(' '.join(str(d['reasons']['kills_it']).split()))}</div></div>")
 
     parts = [f"<h1>Betting board</h1><div class=sub>Updated {now:%A %b %-d, %-I:%M %p} Mountain. This page refreshes itself. "
-             f"Unit ${cfg['unit']}. You place every bet yourself.</div>"]
+             f"Units: NFL ${config.unit_for(cfg, 'NFL'):g}, NBA ${config.unit_for(cfg, 'NBA'):g}, college ${config.unit_for(cfg, 'College'):g}. You place every bet yourself.</div>"]
     if stale:
         parts.append(f"<div class=sub>Note: {_e('; '.join(stale))}.</div>")
     parts.append("<h2>Bet now</h2>")

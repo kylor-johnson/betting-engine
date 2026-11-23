@@ -18,6 +18,11 @@ def load_config() -> dict:
     return yaml.safe_load((ROOT / "config.yaml").read_text())
 
 
+def unit_for(cfg: dict, sport: str | None) -> float:
+    """Dollars per unit for a sport (`units_by_sport`, Kylor 2026-11-23: NFL $50, NBA $25), else the default `unit`."""
+    return float(((cfg.get("units_by_sport") or {}).get(sport)) or cfg.get("unit", 25))
+
+
 def load_env() -> dict[str, str]:
     env: dict[str, str] = {}
     if ENV_FILE.exists():

@@ -89,7 +89,8 @@ def build(sheet: dict, decisions: dict, note: str, cfg: dict, strict: bool = Tru
     support becomes a Pass marked "value gone" instead of an error."""
     tz = ZoneInfo(cfg["timezone_display"])
     pc = cfg["picks"]
-    unit = cfg["unit"]
+    from engine import config as _config
+    unit = _config.unit_for(cfg, sheet.get("sport"))
     built = datetime.fromisoformat(sheet["built_utc"]).astimezone(tz)
     picks, passes, rows = [], [], []
     for g in sheet["games"]:

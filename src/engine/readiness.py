@@ -112,7 +112,7 @@ def summary_line(cfg: dict, con) -> str:
 def report(cfg: dict, con, now: datetime | None = None) -> str:
     rules = settings(cfg)
     m = metrics(con, now)
-    unit = cfg.get("unit", 25)
+    unit = config.unit_for(cfg, "NFL")
     out = ["# Betting readiness (generated; do not edit)", "", f"**{summary_line(cfg, con)}**", ""]
     if m["freeze_utc"]:
         out.append(f"Settings last changed {m['freeze_utc']:%b %-d, %Y} UTC; {m['versions']} rule version(s) recorded in all. Engine picks since then: {m['graded']} graded, "

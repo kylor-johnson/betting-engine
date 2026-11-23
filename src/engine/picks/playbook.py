@@ -275,7 +275,7 @@ def run(cfg: dict, env: dict, con, now: datetime, send: bool = True) -> tuple[li
         graded = grade_all(candidates(games, st, lands), st, checks=load_checks(now, cfg))
         down = con.execute("SELECT coalesce(sum(profit_units), 0) FROM playbook_grades").fetchone()[0]
         rv = version.stamp(cfg, con)
-        unit = cfg.get("unit", 25)
+        unit = config.unit_for(cfg, "NFL")
         tz = config.display_tz(cfg)
         for c in graded:
             if c["grade"] not in ("A", "B"):

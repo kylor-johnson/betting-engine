@@ -1,5 +1,8 @@
 # Money
-unit: 25            # dollars
+unit: 25            # dollars; the default for any sport not listed below
+units_by_sport:     # Kylor 2026-11-23 (decision 0020): NFL $50, NBA $25; college stays at the default until he says otherwise
+  NFL: 50
+  NBA: 25
 max_units: 2        # cap per bet, in units
 bankroll: 2500      # implied by a $25 unit at 1% a bet; change if this is wrong
 
