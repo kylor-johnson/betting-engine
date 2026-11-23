@@ -16,7 +16,7 @@ STATUS_WORDS = {
     "passed_weak": "passed a test, weaker lately",
     "testing": "still being tested",
     "failed": "tested, failed, switched off",
-    "overridden": "ON by Kylor's choice; its walk-forward test gave it no weight",
+    "overridden": "staked by Kylor's choice (decisions 0019, 0022); judged on its graded record",
     "shown": "picks shown on the card, not staked; its walk-forward test lost",
 }
 

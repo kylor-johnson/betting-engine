@@ -151,14 +151,14 @@ lanes:
       playbook_script: {status: shown, switch: playbook.enabled, doc: docs/research/16-nba-college-scripts.md, note: "pace and points per possession; lost against the close (research 16)"}
     not_evaluating: ["rest, travel and back-to-backs as a pick on their own (priced, research 14 2d)", "staked full-game picks from its own script (shown only, research 16)", "betting splits and line movement (never a reason)"]
   nfl_teasers:
-    title: NFL Wong teasers (paper)
+    title: NFL Wong teasers
     short: NFL teasers
     sport: NFL
     kind: teaser
     inputs:
       wagerhouse_spreads: {enabled: true, text: "Wagerhouse's NFL spreads and totals: favorites of -7.5 to -8.5 and underdogs of +1.5 to +2.5 with the total at 49 or lower, frozen at first sight."}
     models:
-      wong_teasers: {status: testing, switch: teasers.enabled, doc: docs/research/14-deep-review.md, note: "2-team 6-point at -110; 75.8% of legs won in 2023-2026, break-even 72.4%"}
+      wong_teasers: {status: overridden, switch: teasers.enabled, doc: docs/research/14-deep-review.md, note: "2-team 6-point at -110; 75.8% of legs won in 2023-2026, break-even 72.4%"}
     not_evaluating: ["college or NBA teasers (neither clears break-even)", "13-point or 3+ team teasers (leaks)", "legs outside the Wong ranges or with totals over 49"]
   nfl_props:
     title: NFL player props
