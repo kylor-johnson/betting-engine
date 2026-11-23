@@ -129,3 +129,22 @@ def test_flagged_side_without_a_decision_fails_loudly(tmp_path):
 def test_decisions_cannot_carry_numbers_or_skip_reasons(tmp_path, bad):
     with pytest.raises(SourceError):
         decide(tmp_path, [bad])
+
+
+def _card_text(use_model):
+    sheet = {**SHEET, "settings": {"use_model_leg": use_model, "market_weight": 0.55}}
+    return card.build(sheet, {}, "", CFG, strict=False)[0]
+
+
+def test_card_sentence_about_fair_line_follows_the_setting():
+    off, on = _card_text(False), _card_text(True)
+    assert "55%" not in off and "100%" in off and "switched off" in off
+    assert "55% Pinnacle" in on and "45% model" in on
+
+
+def test_card_sentence_matches_the_real_config():
+    from engine import config
+    pc = config.load_config()["picks"]
+    sentence = card.fair_sentence({"settings": {"use_model_leg": bool(pc.get("use_model_leg", False)),
+                                                "market_weight": pc["market_weight"]}}, pc)
+    assert ("100%" in sentence) == (not pc.get("use_model_leg", False))

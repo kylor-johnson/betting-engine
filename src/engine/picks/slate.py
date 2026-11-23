@@ -156,6 +156,7 @@ def build(sport: str = "NFL", now: datetime | None = None, days_ahead: int | Non
             problems.append(f"Matchup numbers unavailable: {ex}")
 
     wind_cfg = (cfg.get("models") or {}).get("wind_totals") or {}
+    first_seen = dk_first_seen(sport)
     games = []
     for e in listed:
         home, away = e.home["displayName"], e.away["displayName"]
@@ -204,7 +205,7 @@ def build(sport: str = "NFL", now: datetime | None = None, days_ahead: int | Non
             m.update(pinnacle_line=s.home_spread, pinnacle_home_price=s.home_spread_price,
                      pinnacle_away_price=s.away_spread_price, pinnacle_fair=round(sharp_fair, 2), fair_line=round(fair, 2))
         if dkc and dkc.home_spread is not None:
-            m["draftkings_line"], m["draftkings_open"] = dkc.home_spread, dk.open.home_spread
+            m["draftkings_line"], m["draftkings_open"] = dkc.home_spread, first_seen.get((e.event_id, "spread"))
         if b.home_spread is not None:
             m["book_line"] = b.home_spread
         if b.home_spread is not None and fair is not None:
@@ -249,7 +250,7 @@ def build(sport: str = "NFL", now: datetime | None = None, days_ahead: int | Non
         if wind:
             mt["wind_model"] = wind
         if dkc and dkc.total is not None:
-            mt["draftkings_line"], mt["draftkings_open"] = dkc.total, dk.open.total
+            mt["draftkings_line"], mt["draftkings_open"] = dkc.total, first_seen.get((e.event_id, "total"))
         if b.total is not None:
             mt["book_line"] = b.total
         if b.total is not None and fair_t is not None:
@@ -301,9 +302,36 @@ def build(sport: str = "NFL", now: datetime | None = None, days_ahead: int | Non
         problems.append(f"{len(flagged)} sides cleared the numbers; only the top {cap} by value were sent for research.")
 
     return {"sport": sport, "built_utc": now.isoformat(),
-            "settings": {"home_field": hfa, "market_weight": pc["market_weight"], "min_value": pc["min_value"],
+            "settings": {"home_field": hfa, "market_weight": pc["market_weight"], "use_model_leg": use_model,
+                         "public_systems_available": bool(public), "min_value": pc["min_value"],
                          "games_behind_ratings": hist.games_used, "games_not_posted_at_book": not_posted, "history_note": hist.note},
             "problems": problems, "games": games, "adjustments_used": adjustments}
+
+
+def dk_first_seen(sport: str) -> dict:
+    """First DraftKings number OUR logger saw for each game, keyed (event_id, market).
+
+    ESPN's own 'open' for NFL is a lookahead line from the spring, so it is not used.
+    The logger only started on 2026-11-21, so for a game already posted that day this is
+    'first seen by us', not the true opener; the card says so.
+    """
+    import duckdb
+    try:
+        con = duckdb.connect(str(config.DB), read_only=True)
+    except duckdb.Error:
+        return {}
+    try:
+        rows = con.execute(
+            "select event_id, arg_min(home_spread, ts_utc), arg_min(total, ts_utc) from line_snapshots "
+            "where source='draftkings' and sport=? group by event_id", [sport]).fetchall()
+    except duckdb.Error:
+        return {}
+    finally:
+        con.close()
+    out = {}
+    for eid, sp, tot in rows:
+        out[(eid, "spread")], out[(eid, "total")] = sp, tot
+    return out
 
 
 def wind_adjustment(sport: str, e, now: datetime, wc: dict, problems: list[str]) -> dict | None:

@@ -55,6 +55,18 @@ def _fmt(x, signed=True):
     return f"{x:+g}" if signed else f"{x:g}"
 
 
+def fair_sentence(sheet: dict, pc: dict) -> str:
+    """Describes how 'Fair' was built, from the same setting the number came from."""
+    st = sheet.get("settings", {})
+    use_model = st.get("use_model_leg", pc.get("use_model_leg", False))
+    if use_model:
+        w = st.get("market_weight", pc["market_weight"])
+        return f"\"Fair\" is {round(100 * w)}% Pinnacle with the vig removed and {round(100 * (1 - w))}% model."
+    return ("\"Fair\" is Pinnacle's line with the vig removed, 100%, moved only by this week's sourced adjustments "
+            "(the model is switched off because it did not beat the closing line in testing). "
+            "\"DraftKings first seen by us\" is the first number our own logger recorded (it began 2026-11-21), not a true opener.")
+
+
 def build(sheet: dict, decisions: dict, note: str, cfg: dict, strict: bool = True) -> tuple[str, list[dict]]:
     """strict=False is for re-pricing an existing card: a Bet the fresh numbers no longer
     support becomes a Pass marked "value gone" instead of an error."""
@@ -138,9 +150,9 @@ def build(sheet: dict, decisions: dict, note: str, cfg: dict, strict: bool = Tru
             "Spreads are from the home team's side (negative means the home team is favored). "
             "\"Market ratings\" is what the market's own closing lines said about these teams before this week. "
             "\"Public systems\" is the average of about 50 published computer ratings. "
-            "\"Model\" is those two averaged, plus this week's adjustments. "
-            f"\"Fair\" is {round(100 * pc['market_weight'])}% Pinnacle with the vig removed and {round(100 * (1 - pc['market_weight']))}% model.", "",
-            "| Game | Market ratings | Public systems | Adjust | Model | Pinnacle | Fair | Your book | DraftKings open → now |", "|---|---|---|---|---|---|---|---|---|"]
+            "\"Model\" is those two averaged, plus this week's adjustments, shown for context only. " + fair_sentence(sheet, pc) + "",
+            "",
+            "| Game | Market ratings | Public systems | Adjust | Model | Pinnacle | Fair | Your book | DraftKings first seen by us → now |", "|---|---|---|---|---|---|---|---|---|"]
     for g in sheet["games"]:
         sp = g["markets"][0]
         out.append(f"| {g['game']} | {_fmt(sp['rating_line'])} | {_fmt(sp['public_systems_line'])} | {_fmt(-sp['adjustment_points']) if sp['adjustment_points'] else '0'} | "
@@ -154,6 +166,8 @@ def build(sheet: dict, decisions: dict, note: str, cfg: dict, strict: bool = Tru
                 "| Game | Wind (mph) | Temp (F) | Rain (mm) | Total change | Used |", "|---|---|---|---|---|---|"]
         for game, w in winds:
             out.append(f"| {game} | {w['wind_mph']:g} | {_fmt(w['temp_f'], False)} | {_fmt(w['precip_mm'], False)} | {w['points']:+.1f} | {'yes' if w['used'] else 'no'} |")
+    if sheet.get("sport") in ("NFL", "College") and not sheet.get("settings", {}).get("public_systems_available", True):
+        out += ["", "Public systems: n/a. The weekly ratings file has not been published for this week yet, so that column is blank."]
     out += ["", "Totals are picked only from a tested model (wind) or a specific, sourced reason "
             "(a quarterback change, a star ruled out) entered as an adjustment.", ""]
     if sheet.get("settings", {}).get("history_note"):
