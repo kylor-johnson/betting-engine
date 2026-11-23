@@ -98,3 +98,17 @@ def test_college_is_a_stale_sport_with_a_landing_table():
     assert "College" in stale.DEFAULTS["sports"]
     ls, lt = stale.landings("College", {})
     assert 0.3 < ls.probs(-7.0, -7.0, "home")[0] < 0.6
+
+
+def test_stage_zero_messages_never_ask_for_money():
+    from zoneinfo import ZoneInfo
+    from engine.picks import agent
+    r = {"event_id": "e", "market": "spread", "side": "home", "status": "Conditional", "pick": "UCLA +7", "price": -110, "game": "USC at UCLA",
+         "kick": datetime(2030, 1, 1, tzinfo=UTC), "dollars": 12.5, "dont_bet_past": "UCLA +7",
+         "decision": {"condition": "QB confirmed", "summary": "why"}}
+    wait = agent.changes({}, [r], ZoneInfo("America/Denver"), "College", "", 0)[0]
+    assert "Bet $" not in wait and "Paper only" in wait
+    bet = agent.changes({}, [{**r, "status": "Bet", "dollars": 25}], ZoneInfo("America/Denver"), "College", "", 0)[0]
+    assert bet.split("\n")[0].endswith("PAPER BET (Stage 0: tracked, no money yet)") and "Stake: $0" in bet
+    live = agent.changes({}, [{**r, "status": "Bet", "dollars": 25}], ZoneInfo("America/Denver"), "College", "", 1)[0]
+    assert "BET NOW" in live and "Stake: $25" in live

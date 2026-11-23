@@ -123,26 +123,38 @@ def _why(d: dict) -> str:
     return " ".join(str(text).split())
 
 
-def message(r: dict, kind: str, tz, sport: str, next_check: str = "") -> str:
-    """One pick message. The first line is always the instruction."""
+def message(r: dict, kind: str, tz, sport: str, next_check: str = "", stage: int | None = None) -> str:
+    """One pick message. The first line is always the instruction.
+    `stage` is this sport's betting-readiness stage (readiness.py). Below Stage 1 nothing is staked, and Conditionals are never staked at any
+    stage, so the message must not tell Kylor to put money on them (fixed 2026-11-23: it said "Bet $12.5 ONLY IF" on a paper Conditional)."""
     d = r["decision"]
     bet = f"{r['pick']} ({int(r['price']):+d})"
     game = f"{r['game']}, {_when(r['kick'], tz)}"
+    paper = stage is not None and stage < 1
     if kind in ("bet", "now_bet"):
-        head = "BET NOW" if kind == "bet" else "BET NOW (the condition was met)"
-        return (f"{sport} · {head}\n{bet}\n{game}\nStake: ${r['dollars']:g}\n"
+        if paper:
+            head = "PAPER BET (Stage 0: tracked, no money yet)" + (" (the condition was met)" if kind == "now_bet" else "")
+            stake = f"Stake: $0 for now. At Stage 1 this would be ${r['dollars'] / 2:g}; see docs/lanes/READINESS.md."
+        else:
+            head = "BET NOW" if kind == "bet" else "BET NOW (the condition was met)"
+            stake = f"Stake: ${r['dollars']:g}"
+        return (f"{sport} · {head}\n{bet}\n{game}\n{stake}\n"
                 f"Check your book first. Skip it if the number is worse than {_limit(r)}.\nWhy: {_why(d)}")
     if kind in ("wait", "now_wait"):
         head = "WAIT, DO NOT BET YET" if kind == "wait" else "HOLD OFF: this is no longer a bet until the condition below is met"
         cond = " ".join(str(d["condition"]).split())
-        follow = f"\nI will message again{next_check} with BET NOW or CANCELLED." if True else ""
-        return (f"{sport} · {head}\n{bet}\n{game}\nBet ${r['dollars']:g} ONLY IF: {cond}\n"
+        follow = f"\nI will message again{next_check} with BET NOW or CANCELLED."
+        if stage is not None:
+            what = (f"Paper only (Conditionals are never staked under the readiness rules). It turns into a {'paper ' if paper else ''}Bet ONLY IF: {cond}")
+        else:
+            what = f"Bet ${r['dollars']:g} ONLY IF: {cond}"
+        return (f"{sport} · {head}\n{bet}\n{game}\n{what}\n"
                 f"Even then, skip it if your book is worse than {_limit(r)}.{follow}\nWhy: {_why(d)}")
     why = r.get("downgraded") or " ".join(str(d.get("why_pass", "")).split())
     return f"{sport} · CANCELLED, DO NOT BET\n{r['pick']}\n{r['game']}\n{why}"
 
 
-def changes(prev: dict[str, dict], rows: list[dict], tz=None, sport: str = "", next_check: str = "") -> list[str]:
+def changes(prev: dict[str, dict], rows: list[dict], tz=None, sport: str = "", next_check: str = "", stage: int | None = None) -> list[str]:
     """Messages for what changed since the last card. prev: pick_key -> {status, pick}."""
     from zoneinfo import ZoneInfo
     tz = tz or ZoneInfo("America/Denver")
@@ -153,9 +165,9 @@ def changes(prev: dict[str, dict], rows: list[dict], tz=None, sport: str = "", n
         new = r["status"]
         live_old, live_new = old in ("Bet", "Conditional"), new in ("Bet", "Conditional")
         if live_new and not live_old:
-            out.append(message(r, "bet" if new == "Bet" else "wait", tz, sport, next_check))
+            out.append(message(r, "bet" if new == "Bet" else "wait", tz, sport, next_check, stage))
         elif live_old and live_new and old != new:
-            out.append(message(r, "now_bet" if new == "Bet" else "now_wait", tz, sport, next_check))
+            out.append(message(r, "now_bet" if new == "Bet" else "now_wait", tz, sport, next_check, stage))
         elif live_old and not live_new:
             out.append(message(r, "cancel", tz, sport))
     return out
@@ -191,7 +203,12 @@ def finalize(cfg, env, day: str, sport: str = "NFL", send: bool = True, reason: 
         prev = {r[0]: {"status": r[1], "pick": r[2]} for r in con.execute(
             "SELECT pick_key, status, pick FROM engine_picks WHERE kickoff_utc > ?", [ts]).fetchall()}
         tz = config.display_tz(cfg)
-        alerts = changes(prev, rows, tz, lanes.tag(cfg, sport), next_check_text(cfg, datetime.now(tz)))
+        try:
+            from engine import readiness
+            stage = readiness.stage(readiness.metrics(con, sport=sport), readiness.settings(cfg, sport))[0]
+        except Exception:
+            stage = 0           # if readiness cannot be read, never tell Kylor to stake money
+        alerts = changes(prev, rows, tz, lanes.tag(cfg, sport), next_check_text(cfg, datetime.now(tz)), stage)
         props_line = lanes.props_footer(cfg, con, sport)
         try:        # paper Leans: stamped by code, never staked, never a Telegram ping (kind "info")
             from engine.picks import leans
