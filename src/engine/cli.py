@@ -536,6 +536,19 @@ def cmd_lean(args) -> int:
     return 0
 
 
+def cmd_wh_edge(args) -> int:
+    from engine.reports import wagerhouse_edge
+    cfg = config.load_config()
+    con = _db.connect(config.DB, read_only=True)
+    try:
+        text = wagerhouse_edge.report(con, cfg)
+    finally:
+        con.close()
+    (ROOT / "docs" / "research" / "12-wagerhouse-vs-pinnacle.md").write_text(text)
+    print(text)
+    return 0
+
+
 def cmd_calib(args) -> int:
     from engine.models import calibration
     calibration.run_all()
@@ -621,6 +634,8 @@ def main(argv=None) -> int:
     a.add_argument("--bet", metavar="KEY")
     a.add_argument("--not-bet", metavar="KEY")
     a.set_defaults(func=cmd_lean)
+    a = sub.add_parser("wh-edge", help="where Wagerhouse is soft against Pinnacle and how fast it follows (writes docs/research/12-...md)")
+    a.set_defaults(func=cmd_wh_edge)
     a = sub.add_parser("calib-test", help="walk-forward reliability check of the landing tables (writes docs/research/11a-calibration.md)")
     a.set_defaults(func=cmd_calib)
     a = sub.add_parser("telegram-setup", help="find the chat id and send a test message")
