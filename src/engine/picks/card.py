@@ -146,18 +146,28 @@ def build(sheet: dict, decisions: dict, note: str, cfg: dict, strict: bool = Tru
     else:
         out += ["None needed a second look.", ""]
 
+    use_model = sheet.get("settings", {}).get("use_model_leg", False)
     out += ["## Every game, every number", "",
-            "Spreads are from the home team's side (negative means the home team is favored). "
-            "\"Market ratings\" is what the market's own closing lines said about these teams before this week. "
-            "\"Public systems\" is the average of about 50 published computer ratings. "
-            "\"Model\" is those two averaged, plus this week's adjustments, shown for context only. " + fair_sentence(sheet, pc) + "",
-            "",
-            "| Game | Market ratings | Public systems | Adjust | Model | Pinnacle | Fair | Your book | DraftKings first seen by us → now |", "|---|---|---|---|---|---|---|---|---|"]
+            "Spreads are from the home team's side (negative means the home team is favored). "]
+    if use_model:
+        out[-1] += ("\"Market ratings\" is what the market's own closing lines said about these teams before this week. "
+                    "\"Public systems\" is the average of about 50 published computer ratings. "
+                    "\"Model\" is those two averaged, plus this week's adjustments. ")
+    out[-1] += fair_sentence(sheet, pc)
+    out.append("")
+    if use_model:
+        out += ["| Game | Market ratings | Public systems | Adjust | Model | Pinnacle | Fair | Your book | DraftKings first seen by us → now |", "|---|---|---|---|---|---|---|---|---|"]
+    else:
+        out += ["| Game | Adjust counted | Pinnacle | Fair | Your book | DraftKings first seen by us → now |", "|---|---|---|---|---|---|"]
     for g in sheet["games"]:
         sp = g["markets"][0]
-        out.append(f"| {g['game']} | {_fmt(sp['rating_line'])} | {_fmt(sp['public_systems_line'])} | {_fmt(-sp['adjustment_points']) if sp['adjustment_points'] else '0'} | "
-                   f"{_fmt(sp['model_line'])} | {_fmt(sp.get('pinnacle_line'))} | {_fmt(sp['fair_line'])} | {_fmt(sp.get('book_line'))} | "
-                   f"{_fmt(sp.get('draftkings_open'))} → {_fmt(sp.get('draftkings_line'))} |")
+        adj = _fmt(-sp['adjustment_points']) if sp['adjustment_points'] else '0'
+        dk = f"{_fmt(sp.get('draftkings_open'))} → {_fmt(sp.get('draftkings_line'))}"
+        if use_model:
+            out.append(f"| {g['game']} | {_fmt(sp['rating_line'])} | {_fmt(sp['public_systems_line'])} | {adj} | "
+                       f"{_fmt(sp['model_line'])} | {_fmt(sp.get('pinnacle_line'))} | {_fmt(sp['fair_line'])} | {_fmt(sp.get('book_line'))} | {dk} |")
+        else:
+            out.append(f"| {g['game']} | {adj} | {_fmt(sp.get('pinnacle_line'))} | {_fmt(sp['fair_line'])} | {_fmt(sp.get('book_line'))} | {dk} |")
     winds = [(g["game"], m["wind_model"]) for g in sheet["games"] for m in g["markets"] if m.get("wind_model")]
     if winds:
         out += ["", "## Wind model (open-air stadiums)", "",
@@ -166,22 +176,23 @@ def build(sheet: dict, decisions: dict, note: str, cfg: dict, strict: bool = Tru
                 "| Game | Wind (mph) | Temp (F) | Rain (mm) | Total change | Used |", "|---|---|---|---|---|---|"]
         for game, w in winds:
             out.append(f"| {game} | {w['wind_mph']:g} | {_fmt(w['temp_f'], False)} | {_fmt(w['precip_mm'], False)} | {w['points']:+.1f} | {'yes' if w['used'] else 'no'} |")
-    if sheet.get("sport") in ("NFL", "College") and not sheet.get("settings", {}).get("public_systems_available", True):
+    if use_model and sheet.get("sport") in ("NFL", "College") and not sheet.get("settings", {}).get("public_systems_available", True):
         out += ["", "Public systems: n/a. The weekly ratings file has not been published for this week yet, so that column is blank."]
     out += ["", "Totals are picked only from a tested model (wind) or a specific, sourced reason "
             "(a quarterback change, a star ruled out) entered as an adjustment.", ""]
     if sheet.get("settings", {}).get("history_note"):
         out += [sheet["settings"]["history_note"], ""]
-    auto = [f"- {a['game']}: {a['team']} {float(a['points']):+g} points. {a['reason']}" for g in sheet["games"] for a in g.get("adjustments", []) if a.get("source") == "schedule"]
-    adj = sheet.get("adjustments_used") or []
-    out += ["## Adjustments used", ""]
-    if adj:
-        for a in adj:
+    entered = [(g["game"], a) for g in sheet["games"] for a in g.get("adjustments", [])]
+    out += ["## Adjustments entered, and how much still counts", "",
+            "An injury or news adjustment counts only for the part Pinnacle's line has not already moved for. "
+            "Where Pinnacle has moved, the news is priced and nothing is added on top.", ""]
+    if entered:
+        for game, a in entered:
             who = f"{a['team']} " if a["market"] == "spread" else "total "
-            out.append(f"- {a['game']}: {who}{float(a['points']):+g} points. {a['reason']} ([source]({a['source']}), added {a['added']})")
+            out.append(f"- {game}: {who}{float(a['points']):+g} entered, {float(a.get('applied_points', 0)):+g} counted. {a.get('status', '')}. "
+                       f"{a['reason']} ([source]({a['source']}), added {a['added']})")
     else:
         out.append("None entered by hand.")
-    out += auto
     notes = [f"- {g['game']}: {n}" for g in sheet["games"] for n in g["notes"]]
     if notes:
         out += ["", "## Notes", ""] + notes

@@ -48,7 +48,6 @@ picks:
   max_units: 1               # cap until the engine has 100 graded picks
   conditional_units: 0.5
   max_flagged: 12            # at most this many sides per sport go to research (strongest first)
-  nba_back_to_back: -1.2     # points for the second night of a back-to-back
 
 # Models that passed a walk-forward test on seasons they never saw (docs/decisions/0005).
 # Each one moves the fair line in code; none is typed by the agent.

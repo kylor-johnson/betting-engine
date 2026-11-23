@@ -134,7 +134,7 @@ def build(sport: str = "NFL", now: datetime | None = None, days_ahead: int | Non
     not_posted = len(events) - len(listed)
     no_public = sum(1 for e in listed if e.event_id not in public) if sport in sources.TRACKER else 0
     no_sharp = [e for e in listed if e.event_id not in sharp]
-    if no_public:
+    if no_public and use_model:
         problems.append(f"{no_public} game(s) had no public-systems number; their model used market ratings alone.")
     for e in no_sharp[:8]:
         problems.append(f"No Pinnacle price for {e.away['displayName']} at {e.home['displayName']}: no fair line, no pick possible.")
@@ -157,6 +157,7 @@ def build(sport: str = "NFL", now: datetime | None = None, days_ahead: int | Non
 
     wind_cfg = (cfg.get("models") or {}).get("wind_totals") or {}
     first_seen = dk_first_seen(sport)
+    pin_hist = pinnacle_history(sport)
     games = []
     for e in listed:
         home, away = e.home["displayName"], e.away["displayName"]
@@ -171,12 +172,18 @@ def build(sport: str = "NFL", now: datetime | None = None, days_ahead: int | Non
             g["notes"].append("No market rating for one of these teams (too few lined games).")
         my_adj = [a for a in adjustments if espn.norm(a["game"]) == espn.norm(g["game"])]
         g["adjustments"] = list(my_adj)
-        auto = []
         for tid in b2b.get(e.event_id, set()):
             team = home if tid == str(e.home["id"]) else away
-            auto.append({"game": g["game"], "team": team, "market": "spread", "points": pc["nba_back_to_back"],
-                         "reason": "Second night of a back-to-back (from the schedule).", "source": "schedule", "added": "automatic"})
-        g["adjustments"] += auto
+            g["notes"].append(f"{team} is on the second night of a back-to-back. Pinnacle's line already prices it, so no adjustment is made.")
+        pin_rows = pin_hist.get(e.event_id, [])
+        now_sp = s.home_spread if s else None
+        now_tot = s.total if s else None
+        applied: list[dict] = []          # adjustment entries with the part that still counts
+        for a in my_adj:
+            sign = 1 if a["market"] != "spread" or espn.norm(a["team"]) in _names(e.home) else -1
+            left, status = unpriced_part(a, pin_rows, now_sp, now_tot, sign)
+            applied.append({**a, "applied_points": left, "status": status})
+        g["adjustments"] = applied
 
         # ---- spread (all numbers are the HOME spread; negative = home favored)
         game_hfa = 0.0 if e.neutral else hfa
@@ -185,9 +192,9 @@ def build(sport: str = "NFL", now: datetime | None = None, days_ahead: int | Non
         rating_line = -(hist.spread_rating[hk] - hist.spread_rating[ak] + game_hfa) if rated else None
         public_line = -t["avg_home_margin"] if t else None
         adj_pts = 0.0
-        for a in my_adj + auto:
+        for a in applied:
             if a["market"] == "spread":      # points are a change to that team's strength
-                adj_pts += float(a["points"]) * (1 if espn.norm(a["team"]) in _names(e.home) else -1)
+                adj_pts += a["applied_points"] * (1 if espn.norm(a["team"]) in _names(e.home) else -1)
         parts = [x for x in (rating_line, public_line) if x is not None]
         model = (sum(parts) / len(parts) - adj_pts) if parts else None
         m = {"market": "spread", "rating_line": None if rating_line is None else round(rating_line, 2),
@@ -230,7 +237,7 @@ def build(sport: str = "NFL", now: datetime | None = None, days_ahead: int | Non
 
         # ---- total
         rating_total = (hist.avg_total + hist.total_tendency[hk] + hist.total_tendency[ak]) if rated and hist.avg_total is not None else None
-        adj_t = sum(float(a["points"]) for a in my_adj if a["market"] == "total")
+        adj_t = sum(a["applied_points"] for a in applied if a["market"] == "total")
         wind = wind_adjustment(sport, e, now, wind_cfg, problems)
         model_t = None if rating_total is None else rating_total + adj_t
         mt = {"market": "total", "rating_line": None if rating_total is None else round(rating_total, 2),
@@ -306,6 +313,69 @@ def build(sport: str = "NFL", now: datetime | None = None, days_ahead: int | Non
                          "public_systems_available": bool(public), "min_value": pc["min_value"],
                          "games_behind_ratings": hist.games_used, "games_not_posted_at_book": not_posted, "history_note": hist.note},
             "problems": problems, "games": games, "adjustments_used": adjustments}
+
+
+def _news_time(a: dict) -> datetime | None:
+    """When the news broke, from the entry's 'news_at' ('YYYY-MM-DD HH:MM MT'). 'added' is NOT used: an entry written
+    today about news from last week would look fresh and be counted on top of a line that priced it days ago."""
+    from zoneinfo import ZoneInfo
+    raw = str(a.get("news_at") or "").replace(" MT", "").strip()
+    try:
+        return datetime.strptime(raw, "%Y-%m-%d %H:%M").replace(tzinfo=ZoneInfo("America/Denver")).astimezone(timezone.utc)
+    except ValueError:
+        return None
+
+
+def pinnacle_history(sport: str) -> dict:
+    """Every Pinnacle read our logger stored, per ESPN event id: [(ts_utc, home_spread, total)], oldest first."""
+    import duckdb
+    try:
+        con = duckdb.connect(str(config.DB), read_only=True)
+    except duckdb.Error:
+        return {}
+    try:
+        rows = con.execute("select event_id, ts_utc, home_spread, total from line_snapshots "
+                           "where source='pinnacle' and sport=? order by ts_utc", [sport]).fetchall()
+    except duckdb.Error:
+        return {}
+    finally:
+        con.close()
+    out: dict = {}
+    for eid, ts, sp, tot in rows:
+        out.setdefault(eid, []).append((ts.replace(tzinfo=timezone.utc), sp, tot))
+    return out
+
+
+def unpriced_part(a: dict, history_rows: list, now_spread, now_total, home_sign: int) -> tuple[float, str]:
+    """How much of an entered adjustment is NOT yet in Pinnacle's number, as (points to apply, one-line status).
+
+    Pinnacle's line already carries news the market has seen. Adding the agent's points on top counted the
+    same injury twice (that produced the 'edge, then Pass' flags). So: compare Pinnacle's line now with its
+    last line at or before the news. The share of the expected move that has already happened is 'priced'.
+    No stored Pinnacle line from before the news means we cannot show the news is unpriced, so nothing is applied.
+    """
+    pts = float(a["points"])
+    when = _news_time(a)
+    if when is None:
+        return 0.0, "not applied: no news_at time on the entry, so it cannot be shown unpriced"
+    base = [r for r in history_rows if r[0] <= when]
+    if not base:
+        return 0.0, "not applied: no Pinnacle line stored from before the news, so it cannot be shown unpriced"
+    if a["market"] == "spread":
+        b0, now = base[-1][1], now_spread
+        expected = -pts * home_sign      # change in the HOME spread if the market fully priced it
+    else:
+        b0, now = base[-1][2], now_total
+        expected = pts
+    if b0 is None or now is None or expected == 0:
+        return 0.0, "not applied: no comparable Pinnacle number"
+    done = max(0.0, min(1.0, (now - b0) / expected))
+    left = pts * (1 - done)
+    if done >= 0.999:
+        return 0.0, f"priced: Pinnacle moved {now - b0:+g} since the news"
+    if done == 0:
+        return left, "unpriced: Pinnacle has not moved since the news"
+    return left, f"partly priced: Pinnacle moved {now - b0:+g} of the {expected:+g} expected, {left:+g} points still applied"
 
 
 def dk_first_seen(sport: str) -> dict:
