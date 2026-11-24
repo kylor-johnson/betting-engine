@@ -17,7 +17,8 @@ him. Decisions 0027 to 0032 in one evening:
 - **0030** `engine check` (daily, one Telegram line on failure), "News on this card" and `engine news`, the sport parity table and rule,
   NBA news picks.
 - **0031** college quarterback value measured (research 21, about 3.5 points); tracker page rebuilt after picks and hourly at night.
-- **0032** the college wind-totals result (research 20) and what it switched.
+- **0032** college wind totals failed on day-before forecasts (research 20: 57-53 at a 1-point edge, 2024-2026); nothing switched on,
+  the wiring prepared in case it passed was removed, the college weather parity cell says failed.
 
 Kylor's standing complaints that this work answers, in his words: Telegram "is the place where i use this whole model to place the bets you
 find, that is the source of truth"; "CFB has been HEAVILY neglected"; "we keep losing focus between all three sports"; keep tracker.html up

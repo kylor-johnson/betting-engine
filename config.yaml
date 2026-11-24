@@ -138,7 +138,8 @@ lanes:
       ratings_sides: {status: failed, doc: docs/research/04-evaluation.md, note: "market ratings and public systems did not beat the close"}
       outside_ratings_openers: {status: failed, doc: docs/research/14-deep-review.md, note: "public rating systems against the close and the opener: no edge (research 14, 2c)"}
       playbook_script: {status: shown, switch: playbook.enabled, doc: docs/research/16-nba-college-scripts.md, note: "points scored and allowed; lost against the close (research 16)"}
-    not_evaluating: ["staked full-game picks from its own script alone (shown only, research 16)", "weather and wind (college wind test running, research 20)", "props (no college props model)", "betting splits and line movement (never a reason)"]
+      college_wind_totals: {status: failed, doc: docs/research/20-college-wind.md, note: "wind on day-before forecasts, 2024-2026: no better than the closing total (research 20)"}
+    not_evaluating: ["staked full-game picks from its own script alone (shown only, research 16)", "props (no college props model)", "betting splits and line movement (never a reason)"]
   nba_sides_totals:
     title: NBA spreads and totals
     short: NBA sides/totals
@@ -249,7 +250,7 @@ parity:
     NBA: {status: live, note: "official injury PDF, reporter relay, ESPN; watcher at 10am, 3pm, 5pm; fast reads before first tip"}
   weather:
     NFL: {status: live, note: "wind totals passed, weaker since 2024; in the NFL script (research 05, 17)"}
-    College: {status: testing, note: "wind totals on day-before forecasts, 2024-2026 (research 20, running Nov 23)"}
+    College: {status: failed, note: "wind totals on day-before forecasts, 2024-2026: 57-53 at 1 point, closing total already prices it (research 20)"}
     NBA: {status: not_applicable, note: "indoor"}
   props_model:
     NFL: {status: live, note: "nflverse usage model, forward test vs Pinnacle (decision 0006, research 06)"}
