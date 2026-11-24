@@ -38,7 +38,7 @@ alerts:
 # 30 minutes; it only reads when the hour is listed for that day.
 read_hours:
   sunday: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]   # news all day, openers in the evening
-  other: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]                    # news breaks 7am to 5pm
+  other: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]   # to 9pm every day since decision 0036: evening NBA and college games get resends, CANCELLED and a closing read
 missed_read_alert_hours: 8   # poll.py adds 12 for the overnight gap, so the alert fires after 20 hours without a good read
 opener_messages: [NFL]     # sports that get a "your book posted new games" message on the log and board (kind info, held back from Telegram)
 
@@ -85,7 +85,7 @@ models:
 # Wagerhouse and Pinnacle once when a player who matters changes between playing and not playing.
 nba_watch:
   enabled: true
-  run_times: ["10:00", "15:00", "17:00"]   # Mountain; the plist fires at these times and the command refuses to read outside 30 minutes after them
+  run_times: ["10:00", "15:00", "17:00", "18:30"]   # Mountain (18:30 added by decision 0036); the plist fires at these times and the command refuses to read outside 30 minutes after them
   min_minutes: 22              # a player matters if he averages this many minutes (3+ games this season)
   star_minutes: 28             # a Questionable -> playing report matters only for players with this many minutes
   max_book_reads_per_day: 12   # extra Wagerhouse reads the watcher may make in a day
@@ -224,7 +224,7 @@ playbook:
   min_edge: {side: 0.03, total: 0.03, team_total: 0.03}   # win chance above what Wagerhouse's price needs
   check_points: {side: 3.0, total: 4.0, team_total: 4.0}  # our own number this far from the market = CHECK (held until researched)
   units: {A: 1.0, B: 0.5}
-  live_since: "2026-11-24"
+  live_since: "2026-11-23"   # decision 0036: the stop and the review line count every staked pick since the first one (Nov 23)
   half_size_weeks: 0          # Kylor 2026-11-23: full units starting now (decision 0020)
   stop_loss_units: 10.0       # per sport, in units
   show_c: 5
@@ -241,10 +241,12 @@ playbook:
   # props_stake: false = props issued and graded at $0. Current state (decision 0026, kept by 0027): NFL full-game, NFL props and NBA props
   # staked; NBA and college full-game staked too since decision 0035 (Kylor's choice, Nov 24). Research 18's restart numbers are the yardstick for keeping a lane staked.
   sports:
-    NFL: {full_game: stake, props: true, props_stake: true, period: week, max_per_period: 5, props_per_period: 10, props_per_game: 2}
-    NBA: {full_game: stake, news_picks: true, props: true, props_stake: true, period: day, max_per_period: 2, props_per_period: 4, props_per_game: 2}
+    # weights.prop per sport (decision 0036): the blend weight the forward test supports (research 24: NFL 0.15 on 199 props, NBA 0.25 on 563)
+    NFL: {full_game: stake, props: true, props_stake: true, period: week, max_per_period: 5, props_per_period: 10, props_per_game: 2, weights: {prop: 0.15}}
+    # NBA full-game back to shown only, no money, news picks included (decision 0036): the NBA script cannot see who is injured
+    NBA: {full_game: show, news_picks: false, props: true, props_stake: true, period: day, max_per_period: 2, props_per_period: 4, props_per_game: 2, weights: {prop: 0.25}}
     # news_picks (decision 0029): only matters in a shown-only lane, where a pick is staked only when unpriced sourced news is what clears the bar.
-    # NBA and college full-game are staked by Kylor's choice since Nov 24 (decision 0035), like the NFL (0019), so every B pick is staked.
+    # College full-game is staked by Kylor's choice since Nov 24 (decision 0035), like the NFL (0019), so every B pick is staked.
     College: {full_game: stake, news_picks: true, props: false, period: week, max_per_period: 5}
 
 # Sport parity (decision 0030; Kylor, Nov 23: "we keep losing focus between all three sports"). The same components for every sport. A cell

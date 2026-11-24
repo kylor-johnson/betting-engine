@@ -5,7 +5,8 @@ For every team in every game this builds, from play-by-play of EARLIER games onl
     regression weighs one against the other; each game's numbers are also corrected for the opponent's form, ADJUST);
   * pace: drives per game (own and allowed);
   * pass rate over expected in neutral situations (score within 7, first three quarters);
-  * the game's situation: home, starting quarterback different from the team's usual starter, wind and rain at kickoff.
+  * the game's situation: home, starting quarterback different from the team's usual starter. Wind is a separate term fitted on
+    day-before forecasts (decision 0036); actual weather is not used.
 
 It then predicts each team's points. Two numbers are reported:
   * `own`: our number from the handicap alone (no market input);
@@ -313,7 +314,18 @@ BASE_FEATURES = ("o_epa", "o_sr", "o_ppd", "o_drives", "o_proe", "d_epa", "d_sr"
                  "home", "backup_qb", "wind6", "rain")
 CLUSTER_FEATURES = ("ol_out", "sk_out", "opp_dl_out", "opp_lb_out", "opp_db_out")
 REF_FEATURES = ("ref_total",)
-FEATURES = BASE_FEATURES          # injury clusters and referees tested and left out (research 17); live uses this
+# Decision 0036: wind and rain at kickoff were fitted on the weather that actually happened (research 18: that was the totals "lead"), so
+# the script is fitted without them. Wind comes back as a separate term fitted on day-before FORECASTS only (2024-2025, 317 outdoor
+# games), which lowered 2026 error on our own total (148.73 against 151.85, 81 games; scripts/research24/nfl_forecast_weather.py).
+FEATURES = tuple(f for f in BASE_FEATURES if f not in ("wind6", "rain"))   # clusters and referees tested and left out (research 17)
+FORECAST_WIND = {"slope": -0.273, "knot": 6.0}   # points of game total per mph of forecast wind above the knot; outdoor games only
+
+
+def forecast_wind_points(wind_mph: float | None) -> float:
+    """The forecast-wind change to our game total (negative), 0 indoors or with no forecast."""
+    if wind_mph is None:
+        return 0.0
+    return FORECAST_WIND["slope"] * max(0.0, wind_mph - FORECAST_WIND["knot"])
 
 
 def vector(r: dict, features: tuple | None = None) -> list[float] | None:

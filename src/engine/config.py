@@ -23,6 +23,14 @@ def unit_for(cfg: dict, sport: str | None) -> float:
     return float(((cfg.get("units_by_sport") or {}).get(sport)) or cfg.get("unit", 25))
 
 
+def units_text(units: float, dollars: float) -> str:
+    """Units first, dollars after (decision 0036): "½ unit ($12.50)", "1 unit ($50)", "0 units ($0)"."""
+    u = float(units or 0)
+    word = "½ unit" if abs(u - 0.5) < 1e-9 else "1 unit" if abs(u - 1) < 1e-9 else f"{u:g} units"
+    d = float(dollars or 0)
+    return f"{word} (${d:,.2f})" if d and d != int(d) else f"{word} (${d:,.0f})"
+
+
 def load_env() -> dict[str, str]:
     env: dict[str, str] = {}
     if ENV_FILE.exists():

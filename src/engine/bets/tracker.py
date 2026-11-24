@@ -19,6 +19,7 @@ import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from types import SimpleNamespace
 
 from engine import config
 from engine.bets.history import Wager, load_wagers
@@ -303,6 +304,11 @@ def report(con, cfg: dict, now: datetime | None = None) -> str:
     m_net = sum(r.model_dollars or 0 for r in graded)
     m_risk = sum(r.dollars for r in recs)
     p_net = sum(r.model_dollars or 0 for r in pg)
+    # units first (decision 0036): each pick's result in its own sport's units
+    m_u = sum(r.profit_units or 0 for r in graded)
+    m_risk_u = sum(r.dollars / r.unit for r in recs if r.unit)
+    p_u = sum((r.model_dollars or 0) / r.unit for r in pg if r.unit)
+    luck_u = luck_dollars([SimpleNamespace(result=r.result, dollars=r.dollars / r.unit, price=r.price) for r in graded if r.unit])
     followed = [r for r in recs if r.matched]
     f_net = sum(w.net for r in followed for w in r.matched if w.status in ("W", "L", "X"))
     o_set = [w for w in own if w.status in ("W", "L", "X")]
@@ -316,10 +322,11 @@ def report(con, cfg: dict, now: datetime | None = None) -> str:
            "## Scoreboard", "",
            "| | Bets | Record | Net | Notes |", "|---|---|---|---|---|",
            f"| **Model** (every staked pick, at the stake and number sent) | {len(recs)} sent, {len(graded)} graded | {mw}-{ml}-{mp} | "
-           f"{'+' if m_net >= 0 else '−'}${abs(m_net):,.2f} | ${m_risk:,.2f} recommended in all; luck range ±${luck_dollars(graded):,.2f} |",
+           f"{m_u:+.2f}u ({'+' if m_net >= 0 else '−'}${abs(m_net):,.2f}) | {m_risk_u:g} units (${m_risk:,.2f}) recommended in all; "
+           f"luck range ±{luck_u:.2f}u (±${luck_dollars(graded):,.2f}) |",
            f"| **Model, paper picks** (not sent; graded at the stake they would carry) | {len(paper)} issued, {len(pg)} graded | "
            f"{sum(r.result == 'W' for r in pg)}-{sum(r.result == 'L' for r in pg)}-{sum(r.result == 'P' for r in pg)} | "
-           f"{'+' if p_net >= 0 else '−'}${abs(p_net):,.2f} | not sent: paper lanes, the one-unit-a-game cap, the weekly cap, a stop |",
+           f"{p_u:+.2f}u ({'+' if p_net >= 0 else '−'}${abs(p_net):,.2f}) | not sent: paper lanes, the one-unit-a-game cap, the weekly cap, a stop |",
            f"| **You, on the model's picks** | {sum(len(r.matched) for r in followed)} | "
            f"{sum(w.status == 'W' for r in followed for w in r.matched)}-{sum(w.status == 'L' for r in followed for w in r.matched)} | "
            f"{'+' if f_net >= 0 else '−'}${abs(f_net):,.2f} | followed {len(followed)} of {len(recs)} picks |",
@@ -366,7 +373,12 @@ def money_lines(con, cfg: dict, now: datetime) -> list[str]:
         return []
     cap = (cfg.get("playbook") or {}).get("weekly_cap_dollars", playbook.DEFAULTS["weekly_cap_dollars"])
     cap_txt = f" of the ${float(cap):,.0f} weekly cap" if cap else " (no weekly cap)"
-    out = ["## Money rules", "", f"- This week (Monday to Sunday MT): ${week:,.2f} recommended{cap_txt}."]
+    try:
+        week_u = playbook.week_staked_units(con, cfg, now)
+    except Exception:
+        week_u = None
+    wtxt = f"{week_u:g} units (${week:,.2f})" if week_u is not None else f"${week:,.2f}"
+    out = ["## Money rules", "", f"- This week (Monday to Sunday MT): {wtxt} recommended{cap_txt}."]
     for sport in ((cfg.get("playbook") or {}).get("sports") or playbook.SPORT_DEFAULTS):
         st = playbook.settings(cfg, sport)
         if st["full_game"] != "stake" and not (st.get("props") and st.get("props_stake", True)):
@@ -408,7 +420,7 @@ def not_sent_line(con, now: datetime) -> str:
         return "Not sent in the last 24 hours: none."
     why: dict[str, int] = {}
     for (t,) in rows:
-        m = re.search(r"Stake: \$0 \((paper: )?([^;)(]*)", t or "")
+        m = re.search(r"Stake: (?:\$0|0 units \(\$0\)) \((paper: )?([^;)(]*)", t or "")
         k = (m.group(2).strip() if m else "paper").split(" (decision")[0]
         k = re.sub(r"\$[\d.,]+ (is )?already", "already", k)
         why[k] = why.get(k, 0) + 1
@@ -424,9 +436,9 @@ def recap(con, cfg: dict) -> str:
         cells = [c.strip() for c in l.strip("|").split("|")]
         keep.append(f"{cells[0].replace('**', '').split(' (')[0]}: {cells[2]}, {cells[3]} ({cells[1]})")
     now = datetime.now(timezone.utc)
-    lk = re.search(r"luck range ±\$([\d,.]+)", text)
+    lk = re.search(r"luck range (±[\d.]+u \(±\$[\d,.]+\))", text)
     if lk:      # CLAUDE.md: results always come with the luck range (audit 24: the recap had none)
-        keep.append(f"Luck range on the model's graded picks: ±${lk.group(1)} (a result inside it can be chance)")
+        keep.append(f"Luck range on the model's graded picks: {lk.group(1)} (a result inside it can be chance)")
     extra = [not_sent_line(con, now)] + [l.removeprefix("- ") for l in money_lines(con, cfg, now) if l.startswith("- ")]
     return "TRACKER (since Nov 23)\n" + "\n".join(keep + [x for x in extra if x]) + "\nDetails: docs/lanes/TRACKER.md and the board."
 

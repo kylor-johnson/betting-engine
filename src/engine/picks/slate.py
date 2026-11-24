@@ -387,11 +387,16 @@ def unpriced_part(a: dict, history_rows: list, now_spread, now_total, home_sign:
         # Pinnacle often takes a game down on news, and a read may not have run since: an unchanged line then proves nothing
         # (research 22, finding 4). The next read with a Pinnacle line decides.
         return 0.0, "not applied: no Pinnacle read since the news yet, so it cannot be shown unpriced"
+    # The "before" line is Pinnacle's EARLIEST read in the 12 hours before news_at, not the last one (decision 0036): news_at is typed by
+    # the agent, and if it is late, the move since the real news was already in the last read and the full adjustment counted again.
+    # With no read in that window, the last read before the news is used.
+    window = [r for r in base if r[0] >= when - timedelta(hours=12)]
+    ref = window[0] if window else base[-1]
     if a["market"] == "spread":
-        b0, now = base[-1][1], now_spread
+        b0, now = ref[1], now_spread
         expected = -pts * home_sign      # change in the HOME spread if the market fully priced it
     else:
-        b0, now = base[-1][2], now_total
+        b0, now = ref[2], now_total
         expected = pts
     if b0 is None or now is None or expected == 0:
         return 0.0, "not applied: no comparable Pinnacle number"

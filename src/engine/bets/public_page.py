@@ -52,7 +52,7 @@ def data(con, cfg: dict, now: datetime | None = None) -> dict:
         picks.append({"sport": r.sport, "market": MARKETS.get(r.market, r.market), "pick": r.pick, "game": r.game,
                       "price": r.price, "limit": r.limit or "", "stake": r.dollars, "units": round(r.dollars / r.unit, 2) if r.unit else None,
                       "sent": r.sent.astimezone(tz).isoformat(), "kick": kick.isoformat(), "day": kick.date().isoformat(),
-                      "status": status, "result": {"W": "won", "L": "lost", "P": "push"}.get(r.result or ""),
+                      "status": status, "result": {"W": "won", "L": "lost", "P": "push", "V": "void"}.get(r.result or ""),
                       "net": r.model_dollars if r.kind == "pick" else (None if r.profit_units is None else round(r.profit_units * r.unit, 2)),
                       "net_units": None if r.profit_units is None else round(r.profit_units, 2), "clv": clv.get(r.key)})
     picks.sort(key=lambda p: p["kick"], reverse=True)

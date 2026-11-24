@@ -71,7 +71,7 @@ def data(con, cfg: dict, now: datetime | None = None) -> dict:
                                                                      "teaser": "Teaser"}.get(r.market, r.market),
             "pick": r.pick, "game": r.game, "sent": r.sent.astimezone(tz).isoformat(), "kick": kick_local.isoformat(),
             "day": kick_local.date().isoformat(), "week": _week_label(kick_local), "price": r.price, "limit": r.limit or "",
-            "stake": r.dollars, "status": status, "result": {"W": "won", "L": "lost", "P": "push"}.get(r.result or "", None),
+            "stake": r.dollars, "unit": r.unit, "status": status, "result": {"W": "won", "L": "lost", "P": "push", "V": "void"}.get(r.result or "", None),
             "model_net": r.model_dollars, "clv": clv.get(r.key), "bet": bool(mine), "follow": follow.replace("bet: ", "") if mine else "not bet",
             "flags": flags, "you_risk": round(sum(m["risk"] for m in mine), 2),
             "you_net": round(sum(m["net"] for m in settled_mine), 2) if mine and len(settled_mine) == len(mine) else None, "wagers": mine})
@@ -148,6 +148,8 @@ let S={range:'all',sport:'all',tab:'open'};
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const $=s=>document.querySelector(s), fmt$=v=>v==null?'—':(v<0?'−':'+')+'$'+Math.abs(v).toFixed(2).replace(/\.00$/,''), plain$=v=>'$'+(+v).toFixed(2).replace(/\.00$/,'');
 const cls=v=>v==null?'':v>0?'pos':v<0?'neg':'', price=p=>p==null?'':(p>0?'+':'')+p;
+// units first, dollars after (decision 0036); u = a list's model result in units, each pick in its own sport's unit
+const uOf=L=>L.reduce((a,p)=>a+(p.model_net||0)/(p.unit||1),0), fmtU=(u,d)=>(u<0?'−':'+')+Math.abs(u).toFixed(2)+'u ('+fmt$(d)+')', stakeU=p=>(+(p.stake/(p.unit||1)).toFixed(2))+'u ('+plain$(p.stake)+')';
 const tFmt=iso=>{const d=new Date(iso);return d.toLocaleString([], {weekday:'short',hour:'numeric',minute:'2-digit'})};
 const dayFmt=s=>{const d=new Date(s+'T12:00:00');return d.toLocaleDateString([], {weekday:'long',month:'short',day:'numeric'})};
 function inRange(x,dayKey){if(S.range==='all')return true;if(S.range==='today')return x[dayKey||'day']===D.today||x.status==='live';return x.week===D.week}
@@ -165,7 +167,7 @@ function kpis(){const P=rows(),set=P.filter(p=>p.status==='settled'),mNet=set.re
  const mOut=P.filter(p=>p.status!=='settled').reduce((a,p)=>a+p.stake,0), yOut=bet.filter(p=>p.you_net==null).reduce((a,p)=>a+p.you_risk,0);
  const big=(n,net,out)=>n?`<div class="big ${cls(net)}">${fmt$(net)}</div>`:`<div class="big" style="color:var(--muted)">${plain$(out)}<span style="font-size:14px;font-weight:500"> out, none settled</span></div>`;
  $('#kpis').innerHTML=`
- <div class="kpi"><div class="lab">Model</div>${big(set.length,mNet,mOut)}
+ <div class="kpi"><div class="lab">Model</div>${set.length?`<div class="big ${cls(mNet)}">${fmtU(uOf(set),mNet)}</div>`:big(0,mNet,mOut)}
   <div class="row"><span>${rec(set,'result')} · ${set.length} settled</span><span>${mRisk?((mNet/mRisk)*100).toFixed(1)+'% ROI':''}</span></div>
   <div class="row"><span>${P.length} picks sent</span><span>${clv==null?'':'CLV '+(clv*100).toFixed(1)+'%'}</span></div>
   ${(()=>{const Q=paperRows(),qs=Q.filter(p=>p.status==='settled'),qn=qs.reduce((a,p)=>a+(p.model_net||0),0);return Q.length?`<div class="row"><span>Paper: ${rec(qs,'result')} · ${Q.length} issued</span><span class="${cls(qn)}">${qs.length?fmt$(qn):''}</span></div>`:''})()}</div>
@@ -183,20 +185,20 @@ function card(p){const w=p.wagers.map(x=>`${plain$(x.risk)} ${x.line!=null?'at '
  return `<div class="card"><div><div class="pick">${esc(p.pick)}${p.price!=null&&p.kind==='pick'?' <span class="game">('+price(p.price)+')</span>':''}</div>
   <div class="game">${esc(p.game)} · ${tFmt(p.kick)}</div><div class="meta"><span class="tag">${p.sport}</span><span class="tag">${p.market}</span>
   ${p.limit?`<span class="tag">don't bet past: ${esc(p.limit)}</span>`:''}<span class="tag">sent ${tFmt(p.sent)}</span></div></div>
-  <div class="right">${badge(p)}<div class="money">${p.paper?'<span class="tag">paper</span> ':''}Model ${p.model_net==null?plain$(p.stake)+(p.paper?' would-be':'')+' stake':`<span class="${cls(p.model_net)}">${fmt$(p.model_net)}</span>`}</div></div>
+  <div class="right">${badge(p)}<div class="money">${p.paper?'<span class="tag">paper</span> ':''}Model ${p.model_net==null?stakeU(p)+(p.paper?' would-be':'')+' stake':`<span class="${cls(p.model_net)}">${fmtU(p.model_net/(p.unit||1),p.model_net)}</span>`}</div></div>
   <div class="you"><span>You: ${grade(p)}</span>${p.bet?`<span>${w}</span><span>${esc(p.follow)}</span>`:''}</div></div>`}
 function grouped(list,keyFn,labelFn){const g={};list.forEach(p=>{(g[keyFn(p)]=g[keyFn(p)]||[]).push(p)});return Object.keys(g).sort().map(k=>`<div class="group">${labelFn(k)} · ${g[k].length}</div>`+g[k].map(card).join('')).join('')}
 function summaryTable(key,label){const P=rows(),g={};P.forEach(p=>{(g[p[key]]=g[p[key]]||[]).push(p)});const ks=Object.keys(g).sort().reverse();
  if(!ks.length)return '<div class="empty">Nothing in this range yet.</div>';
- return `<table><tr><th>${label}</th><th class="n">Picks</th><th class="n">Model</th><th class="n">Model $</th><th class="n">You followed</th><th class="n">Your record</th><th class="n">Your $</th><th class="n">Open</th></tr>`+
+ return `<table><tr><th>${label}</th><th class="n">Picks</th><th class="n">Model</th><th class="n">Model</th><th class="n">You followed</th><th class="n">Your record</th><th class="n">Your $</th><th class="n">Open</th></tr>`+
  ks.map(k=>{const L=g[k],s=L.filter(p=>p.status==='settled'),m=s.reduce((a,p)=>a+(p.model_net||0),0),y=L.filter(p=>p.you_net!=null),yn=y.reduce((a,p)=>a+p.you_net,0);
-  return `<tr><td>${key==='day'?dayFmt(k):k}</td><td class="n">${L.length}</td><td class="n">${s.length?rec(s,'result'):'—'}</td><td class="n ${cls(m)}">${s.length?fmt$(m):'—'}</td>
+  return `<tr><td>${key==='day'?dayFmt(k):k}</td><td class="n">${L.length}</td><td class="n">${s.length?rec(s,'result'):'—'}</td><td class="n ${cls(m)}">${s.length?fmtU(uOf(s),m):'—'}</td>
   <td class="n">${L.filter(p=>p.bet).length}/${L.length}</td><td class="n">${y.length?rec(y.map(p=>({r:p.you_net>0?'won':p.you_net<0?'lost':'push'})),'r'):'—'}</td>
   <td class="n ${cls(yn)}">${y.length?fmt$(yn):'—'}</td><td class="n">${L.filter(p=>p.status!=='settled').length}</td></tr>`}).join('')+'</table>'}
 function marketTable(){const P=rows().filter(p=>p.status==='settled'),g={};P.forEach(p=>{const k=p.sport+' · '+p.market;(g[k]=g[k]||[]).push(p)});const ks=Object.keys(g).sort();
  if(!ks.length)return '<div class="empty">No settled picks yet. Results appear here by sport and market as games finish.</div>';
- return `<table><tr><th>Sport · market</th><th class="n">Settled</th><th class="n">Record</th><th class="n">Model $</th><th class="n">ROI</th><th class="n">CLV</th></tr>`+ks.map(k=>{const L=g[k],m=L.reduce((a,p)=>a+(p.model_net||0),0),r=L.reduce((a,p)=>a+p.stake,0),c=L.map(p=>p.clv).filter(v=>v!=null);
- return `<tr><td>${k}</td><td class="n">${L.length}</td><td class="n">${rec(L,'result')}</td><td class="n ${cls(m)}">${fmt$(m)}</td><td class="n">${r?(m/r*100).toFixed(1)+'%':'—'}</td><td class="n">${c.length?(c.reduce((a,b)=>a+b,0)/c.length*100).toFixed(1)+'%':'—'}</td></tr>`}).join('')+'</table>'}
+ return `<table><tr><th>Sport · market</th><th class="n">Settled</th><th class="n">Record</th><th class="n">Model</th><th class="n">ROI</th><th class="n">CLV</th></tr>`+ks.map(k=>{const L=g[k],m=L.reduce((a,p)=>a+(p.model_net||0),0),r=L.reduce((a,p)=>a+p.stake,0),c=L.map(p=>p.clv).filter(v=>v!=null);
+ return `<tr><td>${k}</td><td class="n">${L.length}</td><td class="n">${rec(L,'result')}</td><td class="n ${cls(m)}">${fmtU(uOf(L),m)}</td><td class="n">${r?(m/r*100).toFixed(1)+'%':'—'}</td><td class="n">${c.length?(c.reduce((a,b)=>a+b,0)/c.length*100).toFixed(1)+'%':'—'}</td></tr>`}).join('')+'</table>'}
 function otherRows(list){if(!list.length)return '<div class="empty">None in this range.</div>';
  return `<table><tr><th>Placed</th><th>Bet</th><th>Type</th><th class="n">Risk</th><th class="n">Result</th></tr>`+list.map(o=>`<tr><td>${tFmt(o.placed)}</td><td>${esc(o.desc)}${o.note?'<div class="sub">'+esc(o.note)+'</div>':''}</td><td>${o.type}</td><td class="n">${plain$(o.risk)}</td><td class="n ${cls(o.net)}">${o.net==null?'<span class="badge open">open</span>':fmt$(o.net)}</td></tr>`).join('')+'</table>'}
 function render(){kpis();const P=rows(),open=P.filter(p=>p.status!=='settled'),done=P.filter(p=>p.status==='settled'),O=others(),Q=paperRows();

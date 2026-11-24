@@ -130,7 +130,7 @@ def tickets_to_send(cfg: dict, con, now: datetime, send: bool = True, sender=Non
             lines.append(f"{leg[3]} {leg[5]:+g} (from {leg[4]:+g}), {leg[2]}, {k:%a %-I:%M %p} MT")
         head = "TEASER BET (A)" if dollars > 0 else "PAPER TEASER (A), DO NOT BET"
         text = (f"NFL · {head}\n2-team {st['points']:g}-point teaser at {st['price']:+d}:\n" + "\n".join(lines) +
-                f"\nStake: ${dollars:g} ({note})\nOnly if each leg is still an underdog of {dog[0]:+g} to {dog[1]:+g} or a favorite of {fav[0]:g} to {fav[1]:g} "
+                f"\nStake: {config.units_text(units, dollars)} ({note})\nOnly if each leg is still an underdog of {dog[0]:+g} to {dog[1]:+g} or a favorite of {fav[0]:g} to {fav[1]:g} "
                 f"at Wagerhouse before teasing, and the 2-team {st['points']:g}-point price is still {st['price']:+d}.\n"
                 f"Why: these legs cross 3 and 7; they won 75.8% in 2023-2026 against {breakeven(st['price']):.1%} needed (decision 0014).")
         con.execute("INSERT INTO teaser_tickets VALUES (?,?,?,?,?,?,?,?)", [f"{a[0]}+{b[0]}", now.replace(tzinfo=None), a[0], b[0], units, dollars, st["price"], text])

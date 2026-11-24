@@ -47,7 +47,7 @@ def run(con, cfg: dict, now: datetime | None = None) -> list[tuple[str, bool, st
         out.append(("Every staked pick reached Telegram", not miss, "all delivered" if not miss else "not delivered: " + "; ".join(miss[:5])))
 
     # 2. nothing on Telegram is a $0 pick
-    rows = q("SELECT key FROM alerts_sent WHERE kind = 'bet' AND delivered AND text LIKE '%Stake: $0 %' AND ts_utc >= ?", [SAVED_SINCE])
+    rows = q("SELECT key FROM alerts_sent WHERE kind = 'bet' AND delivered AND (text LIKE '%Stake: $0 %' OR text LIKE '%Stake: 0 units%') AND ts_utc >= ?", [SAVED_SINCE])
     ok = not isinstance(rows, Exception) and not rows
     out.append(("No $0 pick sent as a bet", ok, "none" if ok else f"{rows}"))
 
@@ -148,7 +148,7 @@ def delivery_problems(con) -> list[tuple[str, str]]:
                                      WHERE t.dollars > 0 AND t.sent_utc >= ? AND coalesce(a.delivered, false) = false""", [SAVED_SINCE]).fetchall():
             out.append((f"undelivered|teaser|{key}", f"NOT DELIVERED (check the bot): the teaser ticket {key} has not reached Telegram, even "
                                                      "after a resend. The engine tries again on every read until the first game starts."))
-        for (key,) in con.execute("SELECT key FROM alerts_sent WHERE kind = 'bet' AND delivered AND text LIKE '%Stake: $0 %' AND ts_utc >= ?",
+        for (key,) in con.execute("SELECT key FROM alerts_sent WHERE kind = 'bet' AND delivered AND (text LIKE '%Stake: $0 %' OR text LIKE '%Stake: 0 units%') AND ts_utc >= ?",
                                   [SAVED_SINCE]).fetchall():
             out.append((f"zero-bet|{key}", f"A $0 pick was sent as a bet ({key}). It is paper: do not bet it. A session must find out why."))
     except Exception as e:
