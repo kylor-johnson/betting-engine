@@ -353,7 +353,7 @@ def unpriced_part(a: dict, history_rows: list, now_spread, now_total, home_sign:
     Pinnacle's line already carries news the market has seen. Adding the agent's points on top counted the
     same injury twice (that produced the 'edge, then Pass' flags). So: compare Pinnacle's line now with its
     last line at or before the news. The share of the expected move that has already happened is 'priced'.
-    No stored Pinnacle line from before the news means we cannot show the news is unpriced, so nothing is applied.
+    No stored Pinnacle line from before the news, or none read since it, means we cannot show the news is unpriced, so nothing is applied.
     """
     pts = float(a["points"])
     when = _news_time(a)
@@ -362,6 +362,10 @@ def unpriced_part(a: dict, history_rows: list, now_spread, now_total, home_sign:
     base = [r for r in history_rows if r[0] <= when]
     if not base:
         return 0.0, "not applied: no Pinnacle line stored from before the news, so it cannot be shown unpriced"
+    if not any(r[0] > when for r in history_rows):
+        # Pinnacle often takes a game down on news, and a read may not have run since: an unchanged line then proves nothing
+        # (research 22, finding 4). The next read with a Pinnacle line decides.
+        return 0.0, "not applied: no Pinnacle read since the news yet, so it cannot be shown unpriced"
     if a["market"] == "spread":
         b0, now = base[-1][1], now_spread
         expected = -pts * home_sign      # change in the HOME spread if the market fully priced it

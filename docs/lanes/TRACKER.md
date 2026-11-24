@@ -1,6 +1,6 @@
 # Tracker: the model's picks against your bets (generated; do not edit)
 
-From 2026-11-23 (Mountain). Updated Tue Nov 24, 7:03 AM MT. Your wagers come from the account history, which shows a bet once it is graded; open bets are entered from your open-bets screen (data.nosync/tracker/open_bets.yaml) until they settle. Picks come from what Telegram sent.
+From 2026-11-23 (Mountain). Updated Tue Nov 24, 7:32 AM MT. Your wagers come from the account history, which shows a bet once it is graded; open bets are entered from your open-bets screen (data.nosync/tracker/open_bets.yaml) until they settle. Picks come from what Telegram sent.
 
 ## Scoreboard
 

@@ -15,17 +15,12 @@
     <key>HOME</key><string>/Users/kylorjohnson</string>
   </dict>
   <!-- Local (Mountain) time. Weekday: 0 = Sunday. -->
+  <!-- Must match config.yaml agent.schedule (research 22, finding 10): 8:15 every day, plus 6:45 pm Sunday. The hourly read also starts
+       any slot that has not run, so this job is the backstop for hours with no read. -->
   <key>StartCalendarInterval</key>
   <array>
-    <dict><key>Weekday</key><integer>0</integer><key>Hour</key><integer>8</integer><key>Minute</key><integer>15</integer></dict>
+    <dict><key>Hour</key><integer>8</integer><key>Minute</key><integer>15</integer></dict>
     <dict><key>Weekday</key><integer>0</integer><key>Hour</key><integer>18</integer><key>Minute</key><integer>45</integer></dict>
-    <dict><key>Weekday</key><integer>0</integer><key>Hour</key><integer>20</integer><key>Minute</key><integer>45</integer></dict>
-    <dict><key>Weekday</key><integer>1</integer><key>Hour</key><integer>8</integer><key>Minute</key><integer>15</integer></dict>
-    <dict><key>Weekday</key><integer>2</integer><key>Hour</key><integer>8</integer><key>Minute</key><integer>15</integer></dict>
-    <dict><key>Weekday</key><integer>3</integer><key>Hour</key><integer>15</integer><key>Minute</key><integer>15</integer></dict>
-    <dict><key>Weekday</key><integer>4</integer><key>Hour</key><integer>15</integer><key>Minute</key><integer>15</integer></dict>
-    <dict><key>Weekday</key><integer>5</integer><key>Hour</key><integer>15</integer><key>Minute</key><integer>15</integer></dict>
-    <dict><key>Weekday</key><integer>6</integer><key>Hour</key><integer>8</integer><key>Minute</key><integer>15</integer></dict>
   </array>
   <key>StandardOutPath</key><string>/Users/kylorjohnson/Library/Logs/betting-engine/agent.log</string>
   <key>StandardErrorPath</key><string>/Users/kylorjohnson/Library/Logs/betting-engine/agent.err.log</string>

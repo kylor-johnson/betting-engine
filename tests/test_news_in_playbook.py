@@ -116,3 +116,32 @@ def test_entry_for_a_game_wagerhouse_names_differently_is_listed(tmp_path, monke
     assert pb.unmatched_news([_game()]) == ["Southern Cal at UCLA"]
     _with_file(tmp_path, monkeypatch, ADJ)
     assert pb.unmatched_news([_game()]) == []
+
+
+def test_news_pick_wins_its_game_over_a_bigger_pick_that_cannot_be_staked():
+    """Research 22, finding 3 (Kylor 2026-11-24): in a shown-only lane, one pick per game is chosen AFTER the news-pick test, so a bigger
+    script-only total cannot hide the news side on the same game."""
+    from engine.picks import playbook as pb
+    st = pb.settings({"playbook": {"sports": {"College": {"news_picks": True}}}}, "College")
+    base = {"event_id": "e1", "check": False, "kick": NOW}
+    total = {**base, "market": "total", "side": "over", "edge": 0.06, "news_edge": 0.0}
+    side = {**base, "market": "side", "side": "away", "edge": 0.04, "news_edge": 0.02}
+    graded = pb.grade_all([total, side], st)
+    assert len(graded) == 1 and graded[0]["market"] == "side"
+    assert graded[0]["grade"] == "B" and graded[0].get("news_pick") and "News pick" in graded[0]["note"]
+    # without the news side, the script-only total is shown only (C)
+    only = pb.grade_all([{**total}], st)
+    assert only[0]["grade"] == "C" and "Shown only" in only[0]["note"]
+
+
+def test_nfl_script_quarterback_flag_is_off_while_the_news_is_added_as_unpriced_points():
+    """Research 22, finding 6: the script's backup-quarterback flag and the unpriced news must not both count the same absence."""
+    from engine.picks import playbook as pb
+    t0 = datetime(2026, 11, 26, 16, 0, tzinfo=UTC)                 # news_at 9:00 MT
+    e = {"game": "USC Trojans at UCLA Bruins", "team": "USC Trojans", "market": "spread", "points": -4.0, "news_at": "2026-11-26 09:00 MT"}
+    unpriced = [(t0 - timedelta(hours=1), 7.0, 55), (t0 + timedelta(hours=1), 7.0, 55)]
+    priced = [(t0 - timedelta(hours=1), 7.0, 55), (t0 + timedelta(hours=1), 3.0, 55)]      # USC weaker: UCLA +7 to +3
+    assert not pb.qb_out([e], unpriced, "UCLA Bruins", "USC Trojans", "USC Trojans")     # news adds the 4 points; flag off
+    assert pb.qb_out([e], priced, "UCLA Bruins", "USC Trojans", "USC Trojans")           # Pinnacle has it; the script knows he is out
+    assert pb.qb_out([{**e, "news_at": None}], unpriced, "UCLA Bruins", "USC Trojans", "USC Trojans")   # not countable as news
+    assert not pb.qb_out([e], priced, "UCLA Bruins", "USC Trojans", "UCLA Bruins")       # the other team

@@ -11,7 +11,8 @@ On every hourly read:
      and gets an edge: our chance of winning (pushes left out) minus the chance Wagerhouse's price needs;
   4. grades: A = clears the minimum edge and its principle has passed a test (none yet); B = clears the minimum edge; C = the best of the rest.
      A pick whose own number is far from the market is marked CHECK and held as C until the research agent clears it in the checks file;
-  5. one full-game position per game (the biggest edge), capped per week (NFL, college) or per day (NBA); props capped per game and period;
+  5. one full-game position per game (the biggest edge; in a shown-only lane, news picks first), capped per week (NFL, college) or per
+     day (NBA); props capped per game and period. A pick past a cap is issued as paper (decision 0033);
   6. stakes: A 1 unit, B 0.5 unit (no playbook principle has passed a test, so every playbook pick is B today); `half_size_weeks` is 0 (off,
      decision 0020); paper again if staked picks are down `stop_loss_units` (decision 0018);
   7. A and B picks are frozen at the Wagerhouse number the first time they qualify; staked ones are sent to Telegram (shown-lane picks become
@@ -37,6 +38,12 @@ Decision 0027 (research 19, Kylor: "fix it"):
   * the NFL stop counts teaser tickets as well as NFL playbook picks (`down_units`);
   * every pick carries `price_edge`: the edge it would have if our number were the market's, i.e. the part that is only Wagerhouse's price
     against Pinnacle. The rest of the edge is the handicap. The message shows both.
+
+Decision 0033 (research 22, Kylor: "yes to all, do 1-10"):
+  * a failed send is saved undelivered and `resend_undelivered` sends it again on every read until the game starts;
+  * `cancel_moved` sends one CANCELLED message for a sent pick that Pinnacle's move has taken past half the minimum edge;
+  * the stop counts from `live_since` (`live_since_utc`); news needs a Pinnacle read after it; the NFL script's quarterback flag is off
+    while the same news is added as unpriced points (`qb_out`); picks past a cap are paper.
 """
 from __future__ import annotations
 
@@ -207,11 +214,8 @@ def apply_news(con, games: list[dict], sport: str, now: datetime) -> list[str]:
     by_game = {}
     for a in adjs:
         by_game.setdefault(espn.norm(str(a["game"])), []).append(a)
-    hist: dict[str, list] = {}
     try:
-        for eid, ts, sp, tot in con.execute("SELECT event_id, ts_utc, home_spread, total FROM line_snapshots WHERE source = ? AND sport = ? "
-                                            "ORDER BY ts_utc", [snap.SHARP, sport]).fetchall():
-            hist.setdefault(eid, []).append((ts.replace(tzinfo=timezone.utc), sp, tot))
+        hist = _pin_history(con, sport)
     except Exception as e:
         return [f"playbook {sport}: Pinnacle history unreadable, news not applied ({type(e).__name__})"]
     for g in games:
@@ -290,6 +294,16 @@ def grade_all(cands: list[dict], st: dict, passed: set[str] = frozenset(), check
                     "CHECK: our number is far from the market; held until the research agent finds what the market knows"
         else:
             c["note"] = ("CHECK cleared: " + str(verdict.get("because", "")).strip()) if cleared else ""
+        if st.get("full_game") == "show" and c["grade"] in ("A", "B"):
+            # decided per candidate, BEFORE one pick per game: a bigger script-only pick that cannot be staked must not hide the news
+            # pick on the same game (research 22, finding 3; Kylor 2026-11-24)
+            if st.get("news_picks") and is_news_pick(c, st):
+                c["news_pick"] = True
+                c["note"] = (c["note"] + " " if c["note"] else "") + \
+                    "News pick: sourced news Pinnacle has not priced is what clears the bar (decision 0029)."
+            else:
+                c["grade"], c["note"] = "C", (c["note"] + " " if c["note"] else "") + \
+                    f"Shown only: {st.get('sport', '')} full-game picks are not staked (its walk-forward test lost; config playbook.sports.{st.get('sport', '')}.full_game)."
         k = c["event_id"]
         if k not in best or (c["grade"] < best[k]["grade"]) or (c["grade"] == best[k]["grade"] and c["edge"] > best[k]["edge"]):
             best[k] = c
@@ -456,19 +470,47 @@ def _team_totals(con, source: str, sport: str = "NFL") -> dict[tuple[str, str, s
     return {(h, a, desc): {"line": line, "over": o, "under": u} for h, a, desc, line, o, u in rows}
 
 
-def _qb_out_teams() -> set[str]:
-    """Teams whose quarterback is out per adjustments.yaml (an NFL spread entry of 2.5+ points naming a quarterback change)."""
+def _qb_entries() -> list[dict]:
+    """adjustments.yaml entries saying a team's quarterback is out (an NFL spread entry of 2.5+ points naming a quarterback change)."""
     try:
         from engine.picks import slate
-        out = set()
+        out = []
         for a in slate.load_adjustments():
             if a.get("market") == "spread" and abs(float(a.get("points") or 0)) >= 2.5:
                 txt = str(a.get("reason", "")).lower()
                 if any(w in txt for w in ("starts", "starter", "quarterback", " qb", "out ")):
-                    out.add(a.get("team"))
+                    out.append(a)
         return out
     except Exception:
-        return set()
+        return []
+
+
+def _pin_history(con, sport: str) -> dict[str, list]:
+    """Pinnacle's stored side and total per game, oldest first: {event_id: [(ts UTC, home spread, total)]}."""
+    hist: dict[str, list] = {}
+    for eid, ts, sp, tot in con.execute("SELECT event_id, ts_utc, home_spread, total FROM line_snapshots WHERE source = ? AND sport = ? "
+                                        "ORDER BY ts_utc", [snap.SHARP, sport]).fetchall():
+        hist.setdefault(eid, []).append((ts.replace(tzinfo=timezone.utc), sp, tot))
+    return hist
+
+
+def qb_out(entries: list[dict], rows: list, home: str, away: str, team: str) -> bool:
+    """The game script's backup-quarterback flag for `team`. On when an entry says its quarterback is out AND the news adds nothing to our
+    number by itself (Pinnacle has priced it, or it cannot be counted). Off while the news is being added as unpriced points, so the same
+    absence is not counted twice (research 22, finding 6; Kylor 2026-11-24)."""
+    from engine.odds import espn
+    from engine.picks import slate
+    game = espn.norm(f"{away} at {home}")
+    for a in entries:
+        if espn.norm(str(a.get("team"))) != espn.norm(team):
+            continue
+        if espn.norm(str(a.get("game"))) != game:
+            return True                     # apply_news will not count it for this game, so the script carries it
+        sign = 1 if espn.norm(team) == espn.norm(home) else -1
+        left, _ = slate.unpriced_part(a, rows, rows[-1][1] if rows else None, rows[-1][2] if rows else None, sign)
+        if not left:
+            return True
+    return False
 
 
 def _game_dict(eid, w, p, own_h, own_a, tt_wh, tt_pin) -> dict:
@@ -585,7 +627,11 @@ def _live_nfl(con, now: datetime) -> tuple[list[dict], list[str]]:
         wind = {r[0]: (r[1], r[2]) for r in con.execute("SELECT event_id, arg_max(wind_mph, ts_utc), arg_max(precip_mm, ts_utc) FROM wind_forecasts GROUP BY 1").fetchall()}
     except Exception:
         wind = {}
-    qb_out = _qb_out_teams()
+    qb_entries = _qb_entries()
+    try:
+        pin_hist = _pin_history(con, "NFL") if qb_entries else {}
+    except Exception:
+        pin_hist = {}
     season = max(r["season"] for r in rows)
     games = []
     for eid, w in wh.items():
@@ -602,7 +648,7 @@ def _live_nfl(con, now: datetime) -> tuple[list[dict], list[str]]:
         own = {}
         for team, opp, is_home, imp in ((ha, aa, 1, imp_h), (aa, ha, 0, imp_a)):
             r = script.live_row(state, season, team, opp, is_home, imp, -m_spread, m_total,
-                                backup_qb=int((home if is_home else away) in qb_out), wind=wd, rain=rn, dome=0 if wd is not None else 1)
+                                backup_qb=int(qb_out(qb_entries, pin_hist.get(eid, []), home, away, home if is_home else away)), wind=wd, rain=rn, dome=0 if wd is not None else 1)
             v = script.vector(r)
             own[is_home] = script.predict(model, v) if v else None
         if None in own.values():
@@ -648,17 +694,7 @@ def run(cfg: dict, env: dict, con, now: datetime, send: bool = True, props_ctx: 
         out += problems
         out += apply_news(con, games, sport, now)
         checks = load_checks(now, cfg, sport)
-        graded = grade_all(candidates(games, st, lands), st, checks=checks)
-        if st["full_game"] == "show":
-            for c in graded:
-                if c["grade"] in ("A", "B") and st.get("news_picks") and is_news_pick(c, st):
-                    c["news_pick"] = True
-                    c["note"] = (c.get("note", "") + " " if c.get("note") else "") + \
-                        "News pick: sourced news Pinnacle has not priced is what clears the bar (decision 0029)."
-                    continue
-                if c["grade"] in ("A", "B"):
-                    c["grade"], c["note"] = "C", (c.get("note", "") + " " if c.get("note") else "") + \
-                        f"Shown only: {sport} full-game picks are not staked (its walk-forward test lost; config playbook.sports.{sport}.full_game)."
+        graded = grade_all(candidates(games, st, lands), st, checks=checks)      # shown-only lanes: news picks kept, the rest C
         shifts = None
         if props_ctx and st["props"] and sport in (st.get("calibrate_props") or []):
             from engine.models import calibrate
@@ -671,7 +707,7 @@ def run(cfg: dict, env: dict, con, now: datetime, send: bool = True, props_ctx: 
                 if moved:
                     c["grade"], c["note"] = "C", (c.get("note", "") + " " if c.get("note") else "") + moved
         log_candidates(con, sport, graded + props_graded, now)
-        down = down_units(con, sport)
+        down = down_units(con, sport, cfg)
         rv = version.stamp(cfg, con)
         unit = config.unit_for(cfg, sport)
         tz = config.display_tz(cfg)
@@ -682,11 +718,10 @@ def run(cfg: dict, env: dict, con, now: datetime, send: bool = True, props_ctx: 
             if con.execute("SELECT 1 FROM playbook_picks WHERE event_id=? AND market <> 'prop'", [c["event_id"]]).fetchone():
                 continue        # one full-game position per game, frozen at first qualification
             per = period_key(st, c["kick"], cfg)
-            if con.execute("SELECT count(*) FROM playbook_picks WHERE sport=? AND market <> 'prop' AND nfl_week=?",
-                           [sport, per]).fetchone()[0] >= st["max_per_period"]:
-                out.append(f"playbook {sport}: cap reached ({st['max_per_period']} per {st['period']}); not issued: {c['pick']}")
-                continue
             units, dollars, note = stake(st, c["grade"], now, down, unit)
+            if con.execute("SELECT count(*) FROM playbook_picks WHERE sport=? AND market <> 'prop' AND nfl_week=?",
+                           [sport, per]).fetchone()[0] >= st["max_per_period"]:      # past the cap: paper, named in the recap (research 22, 7)
+                units, dollars, note = 0.0, 0.0, f"paper: past the cap of {st['max_per_period']} full-game picks per {st['period']}"
             units, dollars, note, nominal = _paper_or_staked(con, st, c, units, dollars, note, unit, full_game=True, now=now, cfg=cfg)
             _, lim = c["land"].limit(c["our_line"], c["line"], c["side"] if c["market"] != "team_total" else c["tt_side"], c["price"],
                                      st["min_edge"][c["market"]] / 2)
@@ -698,7 +733,9 @@ def run(cfg: dict, env: dict, con, now: datetime, send: bool = True, props_ctx: 
             msg = (f"{sport} · {head}\n{c['pick']} ({int(c['price']):+d})\n{c['game']}, {c['kick'].astimezone(tz):%a %-I:%M %p} MT\n"
                    f"Stake: ${dollars:g} ({note})\nDon't bet past {dbp or 'this number'}.\n{edge_split(c)}\nWhy: {why(c)}" + (f"\n{c['note']}" if c.get("note") else ""))
             out.append(msg)
-            _send_and_save(con, env, msg, st["lane"], key, now, send and dollars > 0)
+            fail = _send_and_save(con, env, msg, st["lane"], key, now, send and dollars > 0)
+            if fail:
+                out.append(fail)
         out += _issue_props(con, cfg, env, props_graded, st, now, down, unit, rv, tz, send)
         return out, card(con, cfg, graded, st, now, props_graded if st["props"] else None, games)
     except Exception as e:
@@ -818,14 +855,15 @@ def _issue_props(con, cfg, env, props_graded, st, now, down, unit, rv, tz, send)
         key = prop_key(c)
         if con.execute("SELECT 1 FROM playbook_picks WHERE pick_key LIKE ?", [f"prop|{c['player_id']}|{c['stat']}|%|{c['event_id']}"]).fetchone():
             continue
-        if con.execute("SELECT count(*) FROM playbook_picks WHERE market='prop' AND event_id=?", [c["event_id"]]).fetchone()[0] >= st["props_per_game"]:
-            continue
         per = period_key(st, c["kick"], cfg)
-        if con.execute("SELECT count(*) FROM playbook_picks WHERE sport=? AND market='prop' AND nfl_week=?", [sport, per]).fetchone()[0] \
-                >= st["props_per_period"]:
-            out.append(f"playbook {sport}: props cap reached ({st['props_per_period']} per {st['period']}); not issued: {c['pick']}")
-            continue
         units, dollars, note = stake(st, c["grade"], now, down, unit)
+        # past a cap: paper, named in the recap, never dropped (research 22, finding 7). Caps count paper picks too (decision 0025).
+        if con.execute("SELECT count(*) FROM playbook_picks WHERE market='prop' AND event_id=?", [c["event_id"]]).fetchone()[0] \
+                >= st["props_per_game"]:
+            units, dollars, note = 0.0, 0.0, f"paper: past the cap of {st['props_per_game']} props per game"
+        elif con.execute("SELECT count(*) FROM playbook_picks WHERE sport=? AND market='prop' AND nfl_week=?",
+                         [sport, per]).fetchone()[0] >= st["props_per_period"]:
+            units, dollars, note = 0.0, 0.0, f"paper: past the cap of {st['props_per_period']} props per {st['period']}"
         units, dollars, note, nominal = _paper_or_staked(con, st, c, units, dollars, note, unit, full_game=False, now=now, cfg=cfg)
         dbp = f"{c['side']} {c['line']:g} at {c['worst_price']:+d} or better" + (" (a lower line is fine)" if c["side"] == "over" else " (a higher line is fine)")
         _insert_pick(con, [key, now.replace(tzinfo=None), sport, c["event_id"], c["game"], "prop", c["side"], c["pick"], c["line"], c["price"], c["grade"],
@@ -835,7 +873,9 @@ def _issue_props(con, cfg, env, props_graded, st, now, down, unit, rv, tz, send)
         msg = (f"{sport} · {head}\n{c['pick']} (Pinnacle {int(c['price']):+d})\n{c['game']}, {c['kick'].astimezone(tz):%a %-I:%M %p} MT\n"
                f"Stake: ${dollars:g} ({note})\nAt Wagerhouse (Bet Builder): {dbp}.\n{edge_split(c)}\nWhy: {why(c)}" + (f"\n{c['note']}" if c.get("note") else ""))
         out.append(msg)
-        _send_and_save(con, env, msg, st.get("props_lane"), key, now, send and dollars > 0 and bool(st.get("props_lane")))
+        fail = _send_and_save(con, env, msg, st.get("props_lane"), key, now, send and dollars > 0 and bool(st.get("props_lane")))
+        if fail:
+            out.append(fail)
     return out
 
 
@@ -910,12 +950,23 @@ def over_weekly_cap(con, cfg: dict, dollars: float, now: datetime) -> str | None
     return None
 
 
-def teaser_profit_units(con) -> float:
-    """Profit in NFL units of every graded teaser ticket that carried money (both legs graded; a push on a leg = no action on the ticket)."""
+def live_since_utc(cfg: dict | None, sport: str = "NFL") -> datetime:
+    """Midnight Mountain on `playbook.live_since`, in UTC (naive). The stop counts only staked results from then on, so restarting a stop is
+    "set live_since to today" (CHARTER, Money; research 22, finding 2)."""
+    cfg = cfg or {}
+    d = datetime.fromisoformat(str(settings(cfg, sport)["live_since"]))
+    from zoneinfo import ZoneInfo
+    local = d.replace(tzinfo=ZoneInfo(cfg.get("timezone_display") or "America/Denver")) if d.tzinfo is None else d
+    return local.astimezone(timezone.utc).replace(tzinfo=None)
+
+
+def teaser_profit_units(con, since: datetime | None = None) -> float:
+    """Profit in NFL units of every graded teaser ticket that carried money (both legs graded; a push on a leg = no action on the ticket),
+    sent on or after `since` (UTC, naive) when given."""
     try:
         rows = con.execute("""SELECT t.units, t.price, ga.result, gb.result FROM teaser_tickets t
                               JOIN teaser_grades ga ON ga.leg_key = t.leg_a JOIN teaser_grades gb ON gb.leg_key = t.leg_b
-                              WHERE t.units > 0""").fetchall()
+                              WHERE t.units > 0 AND (? IS NULL OR t.sent_utc >= ?)""", [since, since]).fetchall()
     except Exception:
         return 0.0
     out = 0.0
@@ -927,14 +978,16 @@ def teaser_profit_units(con) -> float:
     return out
 
 
-def down_units(con, sport: str) -> float:
-    """Staked profit in this sport's units for the stop. NFL counts teaser tickets too (decision 0027)."""
+def down_units(con, sport: str, cfg: dict | None = None) -> float:
+    """Staked profit in this sport's units for the stop, counted from `live_since` (research 22, finding 2). NFL counts teaser tickets too
+    (decision 0027)."""
+    since = live_since_utc(cfg, sport)
     try:
         pb = float(con.execute("SELECT coalesce(sum(g.profit_units), 0) FROM playbook_grades g JOIN playbook_picks p USING (pick_key) "
-                               "WHERE p.sport = ? AND p.units > 0", [sport]).fetchone()[0])
+                               "WHERE p.sport = ? AND p.units > 0 AND p.first_seen_utc >= ?", [sport, since]).fetchone()[0])
     except Exception:
         pb = 0.0
-    return pb + (teaser_profit_units(con) if sport == "NFL" else 0.0)
+    return pb + (teaser_profit_units(con, since) if sport == "NFL" else 0.0)
 
 
 def edge_split(c: dict) -> str:
@@ -947,18 +1000,180 @@ def edge_split(c: dict) -> str:
             f"{100 * (c['edge'] - pe):+.1f}% from our handicap" + (f" (of which {100 * c['news_edge']:+.1f}% is unpriced news)" if c.get("news_edge") else "") + ".")
 
 
-def _send_and_save(con, env: dict, msg: str, lane: str | None, key: str, now: datetime, send: bool) -> None:
-    """Send when asked, and always keep the text in alerts_sent (research 18: sent picks were not saved anywhere)."""
-    delivered = False
+ALERTS_SCHEMA = "CREATE TABLE IF NOT EXISTS alerts_sent (key VARCHAR PRIMARY KEY, ts_utc TIMESTAMP, kind VARCHAR, text VARCHAR, delivered BOOLEAN)"
+
+
+def _send_and_save(con, env: dict, msg: str, lane: str | None, key: str, now: datetime, send: bool) -> str | None:
+    """Send when asked, and always keep the text in alerts_sent (research 18: sent picks were not saved anywhere). A failed send is caught
+    and saved as not delivered, so `resend_undelivered` sends it on the next read (research 22, finding 1). Returns a log line on failure."""
+    delivered, err = False, None
     if send:
-        from engine.alerts import telegram
-        delivered = telegram.send(env, msg, lane, kind="bet")
+        try:
+            from engine.alerts import telegram
+            delivered = telegram.send(env, msg, lane, kind="bet")
+        except Exception as e:
+            err = f"{type(e).__name__}: {e}"
     try:
-        con.execute("CREATE TABLE IF NOT EXISTS alerts_sent (key VARCHAR PRIMARY KEY, ts_utc TIMESTAMP, kind VARCHAR, text VARCHAR, delivered BOOLEAN)")
+        con.execute(ALERTS_SCHEMA)
         con.execute("INSERT INTO alerts_sent VALUES (?,?,?,?,?) ON CONFLICT DO NOTHING",
                     [f"playbook|{key}", now.replace(tzinfo=None), "bet" if send else "paper", msg, bool(delivered)])
     except Exception:
         pass
+    return f"NOT SENT ({err}); the next read sends it again: {msg.splitlines()[1] if chr(10) in msg else msg}" if err else None
+
+
+def _lane_for(cfg: dict, sport: str, market: str) -> str | None:
+    st = settings(cfg, sport)
+    return st.get("props_lane") if market == "prop" else st.get("lane")
+
+
+def resend_undelivered(con, env: dict, cfg: dict, now: datetime, sender=None) -> list[str]:
+    """Every staked pick and teaser ticket that has not reached Telegram, for a game not yet started, is sent again, marked SENT LATE. Runs
+    on every read (research 22, finding 1; Kylor 2026-11-24). A pick stays frozen; only its delivery is retried."""
+    if sender is None:
+        from engine.alerts import telegram
+        sender = telegram.send
+    from engine.checks import SAVED_SINCE      # picks issued before messages were saved have no row, but most did reach Telegram:
+    naive = now.astimezone(timezone.utc).replace(tzinfo=None)   # resending them would risk a second bet (research 22's list of ten)
+    con.execute(ALERTS_SCHEMA)
+    todo = []
+    try:
+        for key, sport, market, pick, game, price, dollars, dbp, kick, text in con.execute(
+                """SELECT p.pick_key, p.sport, p.market, p.pick, p.game, p.price, p.dollars, p.dont_bet_past, p.kickoff_utc, a.text
+                   FROM playbook_picks p LEFT JOIN alerts_sent a ON a.key = 'playbook|' || p.pick_key
+                   WHERE p.dollars > 0 AND p.kickoff_utc > ? AND p.first_seen_utc >= ? AND coalesce(a.delivered, false) = false
+                   ORDER BY p.first_seen_utc""", [naive, SAVED_SINCE]).fetchall():
+            text = text or (f"{sport} · PLAYBOOK BET\n{pick} ({int(price):+d})\n{game}\nStake: ${dollars:g}\nDon't bet past {dbp or 'this number'}.")
+            todo.append((f"playbook|{key}", _lane_for(cfg, sport, market), text))
+    except Exception:
+        pass
+    try:
+        for key, text in con.execute(
+                """SELECT t.ticket_key, t.text FROM teaser_tickets t LEFT JOIN alerts_sent a ON a.key = 'teaser|' || t.ticket_key
+                   JOIN teaser_legs la ON la.leg_key = t.leg_a JOIN teaser_legs lb ON lb.leg_key = t.leg_b
+                   WHERE t.dollars > 0 AND least(la.kickoff_utc, lb.kickoff_utc) > ? AND t.sent_utc >= ?
+                   AND coalesce(a.delivered, false) = false""", [naive, SAVED_SINCE]).fetchall():
+            todo.append((f"teaser|{key}", "nfl_teasers", text))
+    except Exception:
+        pass
+    out = []
+    for akey, lane, text in todo:
+        head, _, rest = text.partition("\n")
+        late = f"{head} · SENT LATE (it did not reach Telegram when issued)\n{rest}"
+        try:
+            ok = bool(sender(env, late, lane, kind="bet"))
+        except Exception as e:
+            out.append(f"Still not delivered ({type(e).__name__}): {head}")
+            continue
+        if not ok:
+            continue
+        if con.execute("SELECT 1 FROM alerts_sent WHERE key = ?", [akey]).fetchone():
+            con.execute("UPDATE alerts_sent SET delivered = true, kind = 'bet' WHERE key = ?", [akey])
+        else:
+            con.execute("INSERT INTO alerts_sent VALUES (?,?,?,?,?)", [akey, naive, "bet", text, True])
+        out.append(f"Sent late: {rest.splitlines()[0] if rest else head}")
+    return out
+
+
+def _pin_now(con, sport: str, event_id: str, market: str, game: str, side: str) -> float | None:
+    """Pinnacle's latest number for this market: home spread, total, or a team total."""
+    if market in ("side", "total"):
+        col = "home_spread" if market == "side" else "total"
+        r = con.execute(f"SELECT {col} FROM line_snapshots WHERE source = ? AND event_id = ? AND {col} IS NOT NULL ORDER BY ts_utc DESC LIMIT 1",
+                        [snap.SHARP, event_id]).fetchone()
+        return r[0] if r else None
+    if market == "team_total":
+        away, _, home = game.partition(" at ")
+        r = con.execute("""SELECT line FROM derivative_snapshots WHERE source = 'Pinnacle' AND sport = ? AND home = ? AND away = ?
+                           AND market = 'team_total' AND period = 'Game' AND description = ? AND line IS NOT NULL ORDER BY ts_utc DESC LIMIT 1""",
+                        [sport, home, away, side.split("_")[0]]).fetchone()
+        return r[0] if r else None
+    return None
+
+
+def cancel_reason(con, cfg: dict, row: dict, lands: tuple | None = None) -> str | None:
+    """Why a sent pick should no longer be bet, or None. Full-game picks: Pinnacle's move since the pick, carried into our number at the
+    playbook weight, leaves the bet at its sent line and price under half the minimum edge, the same test that set "don't bet past". Props:
+    Pinnacle's chance or line has moved so the sent price is under half the minimum edge (research 22, finding 8)."""
+    st = settings(cfg, row["sport"])
+    half = st["min_edge"]["prop" if row["market"] == "prop" else row["market"]] / 2
+    if row["market"] == "prop":
+        _, pid, stat, side, line, _eid = row["pick_key"].split("|")
+        r = con.execute("""SELECT line, market_p_over FROM prop_evals WHERE coalesce(sport, 'NFL') = ? AND player_id = ? AND stat = ?
+                           AND market_p_over IS NOT NULL AND ts_utc >= ? ORDER BY ts_utc DESC LIMIT 1""",
+                        [row["sport"], pid, stat, row["first_seen_utc"] - timedelta(hours=12)]).fetchone()
+        if not r:
+            return None
+        l1, m1 = r
+        if l1 != float(line):
+            worse = (l1 > float(line)) if side == "over" else (l1 < float(line))
+            return f"Pinnacle moved the line against it ({float(line):g} to {l1:g})." if worse else None
+        w = st["weights"]["prop"]
+        over = m1 + w * (row["own_line"] - m1)
+        p = over if side == "over" else 1 - over
+        e = p - chance_needed(row["price"])
+        if e < half:
+            return (f"Pinnacle's chance over moved from {100 * row['market_line']:.0f}% to {100 * m1:.0f}%; at {int(row['price']):+d} the edge is "
+                    f"{100 * e:+.1f}%, under the {100 * half:.1f}% limit.")
+        return None
+    now_mkt = _pin_now(con, row["sport"], row["event_id"], row["market"], row["game"], row["side"])
+    if now_mkt is None or row["market_line"] is None or row["our_line"] is None:
+        return None
+    w = st["weights"][row["market"]]
+    ours = row["our_line"] + (1 - w) * (now_mkt - row["market_line"])
+    if lands is None:
+        from engine import stale
+        lands = stale.landings(row["sport"], cfg)
+    land = lands[0] if row["market"] == "side" else lands[1] if row["market"] == "total" else _team_land(st)
+    side = row["side"].split("_")[1] if row["market"] == "team_total" else row["side"]
+    e = edge_of(land, ours, row["line"], side, row["price"])[0]
+    if e < half:
+        return (f"Pinnacle moved from {row['market_line']:g} to {now_mkt:g}. With that, our number is {ours:.1f} and {row['pick']} at "
+                f"{int(row['price']):+d} has {100 * e:+.1f}% edge, under the {100 * half:.1f}% limit.")
+    return None
+
+
+def cancel_moved(con, env: dict, cfg: dict, now: datetime, sender=None) -> list[str]:
+    """CANCELLED message, once, for a sent staked pick that should no longer be bet, before its game starts (CHARTER, Telegram; research 22,
+    finding 8; Kylor 2026-11-24). The pick stays frozen and on the record: a bet already placed is kept."""
+    if sender is None:
+        from engine.alerts import telegram
+        sender = telegram.send
+    con.execute(ALERTS_SCHEMA)
+    naive = now.astimezone(timezone.utc).replace(tzinfo=None)
+    cols = ["pick_key", "sport", "event_id", "game", "market", "side", "pick", "line", "price", "our_line", "market_line", "own_line",
+            "kickoff_utc", "first_seen_utc"]
+    from engine.checks import SAVED_SINCE      # picks from before messages were saved have no row but most reached Telegram: check them too
+    rows = con.execute(f"""SELECT {', '.join('p.' + c for c in cols)} FROM playbook_picks p LEFT JOIN alerts_sent a ON a.key = 'playbook|' || p.pick_key
+                           WHERE p.dollars > 0 AND p.kickoff_utc > ? AND (a.delivered OR (a.key IS NULL AND p.first_seen_utc < ?))
+                           AND NOT EXISTS (SELECT 1 FROM alerts_sent c WHERE c.key = 'cancel|' || p.pick_key AND c.delivered)""",
+                       [naive, SAVED_SINCE]).fetchall()
+    out, lands = [], {}
+    tz = config.display_tz(cfg) if cfg.get("timezone_display") else timezone.utc
+    for r in rows:
+        row = dict(zip(cols, r))
+        try:
+            if row["market"] != "prop" and row["sport"] not in lands:
+                from engine import stale
+                lands[row["sport"]] = stale.landings(row["sport"], cfg)
+            why_c = cancel_reason(con, cfg, row, lands.get(row["sport"]))
+        except Exception as e:
+            out.append(f"cancel check failed for {row['pick']}: {type(e).__name__}: {e}")
+            continue
+        if not why_c:
+            continue
+        kick = row["kickoff_utc"].replace(tzinfo=timezone.utc).astimezone(tz)
+        text = (f"{row['sport']} · CANCELLED, DO NOT BET\n{row['pick']} ({int(row['price']):+d})\n{row['game']}, {kick:%a %-I:%M %p} MT\n{why_c}\n"
+                "If you already placed it, keep it: it stays on the record at the number sent.")
+        try:
+            ok = bool(sender(env, text, _lane_for(cfg, row["sport"], row["market"]), kind="bet"))
+        except Exception as e:
+            out.append(f"CANCELLED not sent ({type(e).__name__}); tried again next read: {row['pick']}")
+            continue
+        con.execute("INSERT INTO alerts_sent VALUES (?,?,?,?,?) ON CONFLICT (key) DO UPDATE SET delivered = excluded.delivered, ts_utc = excluded.ts_utc",
+                    [f"cancel|{row['pick_key']}", naive, "cancel", text, ok])
+        out.append(text)
+    return out
 
 
 def moved_against(con, c: dict, sport: str, st: dict) -> str | None:
@@ -1125,11 +1340,11 @@ def lane_events(con, cfg: dict) -> list[tuple[str, str]]:
     n_min, floor = int(gl.get("pause_n", 25)), float(gl.get("pause_clv", -0.015))
     for sport in (pc.get("sports") or SPORT_DEFAULTS):
         st = settings(cfg, sport)
-        down = down_units(con, sport)
+        down = down_units(con, sport, cfg)
         if down <= -abs(st["stop_loss_units"]):
             out.append((f"stop|{sport}|{st['live_since']}",
                         f"STOP TRIPPED (not a bet): {sport} staked picks{' and teasers' if sport == 'NFL' else ''} are down {down:.1f} units "
-                        f"(stop at {st['stop_loss_units']:g}). New {sport} picks are paper until Kylor restarts them. A pause for review, not a verdict."))
+                        f"(stop at {st['stop_loss_units']:g}). New {sport} picks are paper until Kylor restarts them (set playbook.live_since to the restart day). A pause for review, not a verdict."))
         for props in (False, True):
             try:
                 cond = "p.market = 'prop'" if props else "p.market <> 'prop'"

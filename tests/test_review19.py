@@ -37,7 +37,8 @@ def test_nfl_stop_counts_teasers_and_nba_does_not():
     _pick(con, "p1", 25, 0.5, NOW)
     con.execute("INSERT INTO playbook_grades (pick_key, result, profit_units) VALUES ('p1', 'L', -0.5)")
     con.execute("INSERT INTO teaser_legs (leg_key, event_id) VALUES ('a', 'g1'), ('b', 'g2'), ('c', 'g3'), ('d', 'g4')")
-    con.execute("INSERT INTO teaser_tickets (ticket_key, leg_a, leg_b, units, dollars, price) VALUES ('t1','a','b',1,50,-110), ('t2','c','d',1,50,-110)")
+    con.execute("INSERT INTO teaser_tickets (ticket_key, sent_utc, leg_a, leg_b, units, dollars, price) VALUES ('t1',?,'a','b',1,50,-110), ('t2',?,'c','d',1,50,-110)",
+                [NOW.replace(tzinfo=None)] * 2)
     con.execute("INSERT INTO teaser_grades (leg_key, result) VALUES ('a','W'), ('b','L'), ('c','W'), ('d','W')")
     assert abs(pb.down_units(con, "NFL") - (-0.5 - 1 + 100 / 110)) < 1e-9
     assert pb.down_units(con, "NBA") == 0.0
@@ -78,3 +79,18 @@ def test_lock_refuses_a_second_session(tmp_path, monkeypatch):
     assert session_lock.take("b").startswith("REFUSED")
     assert session_lock.take("b", force=True).startswith("Lock taken")
     assert session_lock.release() == "Lock released." and session_lock.held() is None
+
+
+def test_stop_counts_only_from_live_since_so_a_restart_is_a_new_date():
+    """Research 22, finding 2 (Kylor 2026-11-24): results before playbook.live_since do not count toward the stop."""
+    from engine.picks import playbook as pb
+    con = _pb_con()
+    _pick(con, "old", 25, 0.5, datetime(2026, 11, 24, 5, 0, tzinfo=UTC))      # Nov 23, 10pm Mountain: before live_since
+    _pick(con, "new", 25, 0.5, datetime(2026, 11, 24, 8, 0, tzinfo=UTC))      # Nov 24, 1am Mountain
+    con.execute("INSERT INTO playbook_grades (pick_key, result, profit_units) VALUES ('old', 'L', -0.5), ('new', 'L', -0.5)")
+    con.execute("INSERT INTO teaser_legs (leg_key, event_id) VALUES ('a', 'g1'), ('b', 'g2')")
+    con.execute("INSERT INTO teaser_tickets (ticket_key, sent_utc, leg_a, leg_b, units, dollars, price) VALUES ('t', '2026-11-23 20:00', 'a', 'b', 1, 50, -110)")
+    con.execute("INSERT INTO teaser_grades (leg_key, result) VALUES ('a', 'L'), ('b', 'W')")
+    cfg = {"timezone_display": "America/Denver", "playbook": {"live_since": "2026-11-24"}}
+    assert pb.down_units(con, "NFL", cfg) == -0.5
+    assert pb.down_units(con, "NFL", {"timezone_display": "America/Denver", "playbook": {"live_since": "2026-11-25"}}) == 0.0

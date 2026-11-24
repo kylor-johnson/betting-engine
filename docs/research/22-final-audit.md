@@ -1,6 +1,7 @@
 # 22: Final audit of the Nov 23 rebuild (decisions 0027 to 0032)
 
-**What you need to decide:** answer the 12 yes/no questions at the bottom. Questions 1 to 3 should be answered before Tuesday's picks go out.
+**Answered (Nov 24):** Kylor said yes to all 12, and items 1 to 10 are built (decision 0033). The only step left for him is to reload the
+research launchd job once (README, after "To stop").
 
 Written Mon Nov 23, 2026, late night, by a fresh session that did not build any of it. Read-only against the live database. Two helpers
 re-ran research 20 and 21 and checked every doc sentence against the code. 249 + 2 tests pass after the fixes listed below.

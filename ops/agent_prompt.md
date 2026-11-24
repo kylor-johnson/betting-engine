@@ -26,7 +26,7 @@ Steps:
 7. Run `uv run engine card --sport {{SPORT}} --date {{DAY}}`. If it reports an error, fix the decisions file and run it again.
 8. Finish with three lines: how many Bets, Conditionals and Passes; any adjustment you added or changed; anything you could not verify.
 
-Rules of conduct: write plainly, no hype. Never state an injury or a number you did not read in the sheet, the feed or a page you opened. Do not run any command other than `uv run engine ...`. Do not edit code, config or the spec. Do not send messages; the code sends alerts after you finish.
+Rules of conduct: write plainly, no hype. Never state an injury or a number you did not read in the sheet, the feed or a page you opened. The only commands you can run are `uv run engine` with `slate`, `news`, `injuries`, `matchup`, `card`, `reporters`, `status` (no options) and `playbook --dry-run` (put `--dry-run` first). Anything else is refused; never try to issue or send picks. Do not edit code, config or the spec. Do not send messages; the code sends alerts after you finish.
 
 
 **Props.** Never issue a prop in the decisions file. Prop picks come from the playbook (code); your part is clearing or holding their CHECK rows.

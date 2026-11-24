@@ -1,6 +1,7 @@
 """`engine check`: the charter's "What working looks like", as checks that can fail (decision 0030).
 
-Run at the end of every session and on the first hourly read after 7am Mountain. Writes docs/lanes/CHECKS.md. On the scheduled run, one
+Run at the end of every session and on the first hourly read after 7am Mountain. Checks 1 and 2 (delivery) also run on every read,
+after the resend of anything undelivered (`delivery_problems`; research 22). Writes docs/lanes/CHECKS.md. On the scheduled run, one
 Telegram `system` line is sent only when something fails, once per day.
 """
 from __future__ import annotations
@@ -84,7 +85,7 @@ def run(con, cfg: dict, now: datetime | None = None) -> list[tuple[str, bool, st
     # 6. money rules visible
     try:
         from engine.picks import playbook
-        downs = {s: playbook.down_units(con, s) for s in ("NFL", "NBA", "College")}
+        downs = {s: playbook.down_units(con, s, cfg) for s in ("NFL", "NBA", "College")}
         tripped = [s for s, d in downs.items() if d <= -abs(playbook.settings(cfg, s)["stop_loss_units"])]
         out.append(("No stop tripped", not tripped, ", ".join(f"{s} {d:+.1f}u" for s, d in downs.items())
                     + (f"; TRIPPED: {', '.join(tripped)}" if tripped else "")))
@@ -123,6 +124,28 @@ def run(con, cfg: dict, now: datetime | None = None) -> list[tuple[str, bool, st
     # 10. sport parity
     pp = lanes.parity_problems(cfg)
     out.append(("Every sport has every component (parity)", not pp, "complete" if not pp else "; ".join(pp[:5])))
+    return out
+
+
+def delivery_problems(con) -> list[tuple[str, str]]:
+    """Checks 1 and 2 on every read, after the resend (research 22, finding 1; Kylor 2026-11-24): (alert key, system text), one per staked
+    pick that still has not reached Telegram and one per $0 pick sent as a bet. Keys are per pick, so each reaches Telegram once."""
+    out = []
+    try:
+        for key, pick in con.execute("""SELECT p.pick_key, p.pick FROM playbook_picks p LEFT JOIN alerts_sent a ON a.key = 'playbook|' || p.pick_key
+                                        WHERE p.dollars > 0 AND p.first_seen_utc >= ? AND coalesce(a.delivered, false) = false""",
+                                     [SAVED_SINCE]).fetchall():
+            out.append((f"undelivered|{key}", f"NOT DELIVERED (check the bot): the staked pick {pick} has not reached Telegram, even after a "
+                                              "resend. The engine tries again on every read until the game starts."))
+        for (key,) in con.execute("""SELECT t.ticket_key FROM teaser_tickets t LEFT JOIN alerts_sent a ON a.key = 'teaser|' || t.ticket_key
+                                     WHERE t.dollars > 0 AND t.sent_utc >= ? AND coalesce(a.delivered, false) = false""", [SAVED_SINCE]).fetchall():
+            out.append((f"undelivered|teaser|{key}", f"NOT DELIVERED (check the bot): the teaser ticket {key} has not reached Telegram, even "
+                                                     "after a resend. The engine tries again on every read until the first game starts."))
+        for (key,) in con.execute("SELECT key FROM alerts_sent WHERE kind = 'bet' AND delivered AND text LIKE '%Stake: $0 %' AND ts_utc >= ?",
+                                  [SAVED_SINCE]).fetchall():
+            out.append((f"zero-bet|{key}", f"A $0 pick was sent as a bet ({key}). It is paper: do not bet it. A session must find out why."))
+    except Exception as e:
+        out.append((f"delivery-check-failed|{type(e).__name__}", f"The delivery check could not read the database: {type(e).__name__}: {e}"))
     return out
 
 

@@ -337,6 +337,19 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
         except Exception as e:
             out.append(f"Tracker sync failed: {type(e).__name__}: {e}")
         from engine.picks import playbook
+        if send_alerts:      # every read: resend what Telegram missed, check delivery, cancel sent picks the market has moved past (research 22)
+            try:
+                out += playbook.resend_undelivered(con, env, cfg, now)
+                from engine import checks as _ck
+                dp = _ck.delivery_problems(con)
+                if dp:
+                    _deliver(con, env, [rules.Alert(k, "failure", t) for k, t in dp], now, out)
+            except Exception as e:
+                out.append(f"Resend and delivery check failed: {type(e).__name__}: {e}")
+            try:
+                out += playbook.cancel_moved(con, env, cfg, now)
+            except Exception as e:
+                out.append(f"Cancel check failed: {type(e).__name__}: {e}")
         for pb_sport, ctx in (("NFL", nfl_props_ctx), ("NBA", nba_props_ctx), ("College", None)):   # playbook picks (decisions 0018-0022)
             if pb_sport not in cfg.get("sports", []):
                 continue

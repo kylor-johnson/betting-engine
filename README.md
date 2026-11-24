@@ -52,7 +52,7 @@ uv run engine telegram-setup                  # after sending your bot any messa
 
 `PLAYBOOK.md` is the whole method. In short: code builds its own number for every market from a game-script handicap, pulls it toward Pinnacle, and picks where that beats Wagerhouse's price (A and B grades). Picks whose number is far from the market are held as CHECK until the research agent finds a sourced reason. Staked picks go to Telegram with stake, limit and how much of the edge was price and how much was handicap. Nothing else goes to Telegram except the 9am recap and system lines (`CHARTER.md`).
 
-Research runs happen at the fixed times in two places that do not agree: `config.yaml` `agent.schedule` (8:15am every day and 6:45pm Sunday; the hourly read starts a missed one) and the agent launchd job (Sunday 8:15am, 6:45pm and 8:45pm; Monday, Tuesday and Saturday 8:15am; Wednesday to Friday 3:15pm), Mountain, and on change: a quarterback's status change, new NFL games at your book, an NBA watcher hit, or a new stale number (for that sport), at most once every 90 minutes per trigger (`config.yaml` `agent:`, decision 0016).
+Research runs happen at 8:15am every day and 6:45pm Sunday, Mountain (`config.yaml` `agent.schedule`; the agent launchd job matches it since decision 0033, and the hourly read starts a missed one), and on change: a quarterback's status change, new NFL games at your book, an NBA watcher hit, or a new stale number (for that sport), at most once every 90 minutes per trigger (`config.yaml` `agent:`, decision 0016).
 
 ## Running on a schedule (launchd)
 
@@ -69,6 +69,13 @@ tail -5 ~/Library/Logs/betting-engine/poll.log ~/Library/Logs/betting-engine/pol
 ```
 
 To stop: `launchctl bootout gui/$(id -u)/com.kylor.betting-engine.poll` (and `.weekly`, `.agent`, `.nba-watch`).
+
+After changing a plist in `ops/launchd/` (decision 0033 changed the agent's), copy and reload it:
+
+```
+cp ops/launchd/com.kylor.betting-engine.agent.plist ~/Library/LaunchAgents/
+launchctl bootout gui/$(id -u)/com.kylor.betting-engine.agent; launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.kylor.betting-engine.agent.plist
+```
 
 **NBA injury watcher** (`engine nba-watch`): reads ESPN's public NBA injury report. When a player who averages 22+ minutes on a team playing in the next 30 hours moves between playing and not playing (to or from Out or Doubtful, or off the report), it reads Wagerhouse and Pinnacle once (at most 12 extra reads a day), records the news with both lines (kind `news`: on the board, not sent to Telegram), and starts an NBA research run (at most one every 20 minutes). A pick still comes only from the card, when the numbers support it. Sources, fastest first: Rotoworld's relay of beat writers and insiders (each tagged from `ops/reporters.yaml`), the official NBA injury report PDF (every 15 minutes on game days), then ESPN. Test it without messaging: `uv run engine nba-watch --dry-run --force`. See which listed reporters actually reach the engine: `uv run engine reporters`. Details: `docs/research/07-injury-news-sources.md`.
 

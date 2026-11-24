@@ -80,6 +80,14 @@ def find_claude(cfg) -> str:
     return path
 
 
+# Read-only engine commands only (research 22, finding 9; Kylor 2026-11-24): the agent can no longer issue or send picks (`engine playbook`
+# without --dry-run), send status, log bets or take the lock. `engine card` writes only the card file; `slate` only the sheet.
+AGENT_ENGINE_COMMANDS = ("slate", "news", "injuries", "matchup", "card", "playbook --dry-run", "reporters")
+AGENT_TOOLS = ["Read", "Write(docs/cards/decisions/**)", "Edit(docs/cards/decisions/**)", "Write(docs/leans/decisions/**)",
+               "Edit(docs/leans/decisions/**)", "Edit(adjustments.yaml)", "Glob", "Grep", "WebSearch", "WebFetch",
+               *[f"Bash(uv run engine {c}:*)" for c in AGENT_ENGINE_COMMANDS], "Bash(uv run engine status)"]
+
+
 def run_claude(cfg, reason: str, day: str, sport: str) -> tuple[bool, str]:
     claude = find_claude(cfg)
     now_mt = datetime.now(config.display_tz(cfg)).strftime("%Y-%m-%d %H:%M MT")
@@ -90,8 +98,7 @@ def run_claude(cfg, reason: str, day: str, sport: str) -> tuple[bool, str]:
     env = dict(os.environ)
     env["UV_PROJECT_ENVIRONMENT"] = str(config.ROOT / ".venv.nosync")
     env["PATH"] = f"{Path(claude).parent}:/opt/homebrew/bin:/usr/bin:/bin:" + env.get("PATH", "")
-    cmd = [claude, "-p", prompt, "--permission-mode", "default", "--allowedTools",
-           "Read", "Write(docs/cards/decisions/**)", "Edit(docs/cards/decisions/**)", "Write(docs/leans/decisions/**)", "Edit(docs/leans/decisions/**)", "Edit(adjustments.yaml)", "Glob", "Grep", "WebSearch", "WebFetch", "Bash(uv run engine:*)"]
+    cmd = [claude, "-p", prompt, "--permission-mode", "default", "--allowedTools", *AGENT_TOOLS]
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     try:
         res = subprocess.run(cmd, cwd=str(config.ROOT), env=env, capture_output=True, text=True,

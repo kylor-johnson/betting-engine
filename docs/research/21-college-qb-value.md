@@ -48,3 +48,8 @@ passing offenses (system, receivers, line) keep more of their value with a backu
 - **College agent guide:** a starter out is about 3.5 points (Power 4 about 3, Group of 5 about 4); above 5 needs a specific written reason;
   no extra points for a star. `priced_in` uses this number instead of a range.
 - **Parity table:** college "player value measured" goes from planned to live.
+
+
+## Correction (research 22, Nov 24)
+
+"Starter out" here is whoever threw the most passes, so it mixes true pre-game absences with in-game injuries and benchings the market could not know. Split by whether the usual starter threw at all: no passes (a pre-game absence), 811 games, 4.1 points; some passes but not the most, 267 games, 2.4 points. The value for a starter ruled out before the game is about 4, not 3.5. A weak-passing starter's absence was worth about 5 (5.3 when he sat from the start), so 5 is not a ceiling. About 1 point (not 0.9) moves after the opener, measured on a retail opener, not Pinnacle's. Decision 0033 uses these numbers.

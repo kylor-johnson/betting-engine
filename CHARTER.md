@@ -13,7 +13,8 @@ one holding the good number.
 **Telegram is the source of truth (decisions 0026, 0027).** It is where I get every bet this model finds, with its stake and its "don't bet
 past" number, and I place them from there. Telegram carries only three things:
 - **staked picks**: playbook A and B picks and teaser tickets, each with stake, limit, and how much of the edge is price and how much is
-  handicap (a CANCELLED message if a sent pick should no longer be bet);
+  handicap; a CANCELLED message, once, if Pinnacle moves so a sent pick should no longer be bet before the game; a message that failed
+  to send is sent again on the next read, marked SENT LATE (decision 0033);
 - **the 9am recap**: the record since Nov 23, the paper picks of the last 24 hours and why they were paper, and the money rules (this week's total, units left
   before each stop);
 - **system lines**: the engine is broken, or a lane changed (a model or lane switched, a stop tripped, a lane fell below its review line).
@@ -58,7 +59,8 @@ decisions are a $0 record on the card.
 - **No bankroll figure and no weekly dollar cap for now** (my call, Nov 23): everything is in units. The code keeps a weekly cap switch
   (`playbook.weekly_cap_dollars`, 0 = off) for when I want one.
 - **Stops:** each sport pauses to paper when its staked picks are down 10 units since `live_since`; NFL counts teaser tickets. A stop is a
-  pause for review, not a verdict: at this volume 10 units can go in two bad weeks by luck alone. I restart it.
+  pause for review, not a verdict: at this volume 10 units can go in two bad weeks by luck alone. I restart it by setting
+  `playbook.live_since` to the restart day (decision 0033).
 - **Review line:** a staked lane whose average closing-line value is below -1.5% win chance on 25 graded picks gets one Telegram line and a
   session review. It stays staked until I decide.
 - **Yardstick for keeping a lane staked** (research 18): full-game, closing-line value of +2.4 points of win chance on 100 picks; props, the
@@ -74,6 +76,9 @@ fails; `docs/lanes/CHECKS.md`):
 
 1. Every staked pick (playbook and teaser, more than $0) has a Telegram message marked delivered (the tracker row is not checked yet).
 2. No Telegram message of kind `bet` has a $0 stake.
+
+   Checks 1 and 2 also run on every read, after anything undelivered is resent; each pick still missing gets its own system line
+   (decision 0033).
 3. Every staked pick has a "don't bet past" number and is graded within about a day of the start (the code allows 28 hours after
    kickoff; teaser tickets and the closing grade for props and team totals are not checked yet).
 4. Every lane's last candidate (A, B or C) is less than 2 days old for the NBA and less than 8 days old for the NFL and college in season,

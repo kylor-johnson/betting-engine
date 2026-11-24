@@ -357,7 +357,7 @@ def money_lines(con, cfg: dict, now: datetime) -> list[str]:
         st = playbook.settings(cfg, sport)
         if st["full_game"] != "stake" and not (st.get("props") and st.get("props_stake", True)):
             continue
-        down = playbook.down_units(con, sport)
+        down = playbook.down_units(con, sport, cfg)
         out.append(f"- {sport}{' (with teasers)' if sport == 'NFL' else ''}: {down:+.2f} units staked result; the stop is at "
                    f"-{st['stop_loss_units']:g} ({st['stop_loss_units'] + min(down, 0):.1f} units left).")
     return out + [""]

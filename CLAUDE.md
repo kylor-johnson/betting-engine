@@ -23,8 +23,8 @@ Owner: Kylor (Denver, Mountain time). Research is in `docs/research/`, decisions
   through `engine.odds.snapshots.connect`, which waits for the lock instead of failing.
 - Scheduled jobs are launchd plists in `ops/launchd/`; Kylor loads them himself with `launchctl`. Logs: `~/Library/Logs/betting-engine/`.
 - The research agent is a headless `claude -p` run with `ops/agent_prompt.md` plus `ops/agent_prompt_<sport>.md`. Its file edits are limited to
-  its decisions, checks and leans files and `adjustments.yaml`, but it may run any `uv run engine` command, including ones that write the
-  database or send (`engine playbook` without `--dry-run`, `status --send`); research 22 proposes narrowing this.
+  its decisions, checks and leans files and `adjustments.yaml`, and its commands to the read-only engine ones in `agent.AGENT_TOOLS`
+  (decision 0033). It cannot issue or send picks.
 
 ## Sources (no paid data)
 

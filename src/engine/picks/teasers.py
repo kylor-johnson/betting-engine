@@ -107,7 +107,7 @@ def tickets_to_send(cfg: dict, con, now: datetime, send: bool = True, sender=Non
     legs = [r for r in con.execute("SELECT leg_key, event_id, game, team, line, teased_line, total, kickoff_utc FROM teaser_legs "
                                    "WHERE kickoff_utc > ? ORDER BY first_seen_utc", [now.replace(tzinfo=None)]).fetchall() if r[0] not in used]
     out, tz = [], config.display_tz(cfg)
-    down = playbook.down_units(con, "NFL")      # NFL picks plus teaser tickets, in NFL units (decision 0027)
+    down = playbook.down_units(con, "NFL", cfg)      # NFL picks plus teaser tickets, in NFL units (decision 0027)
     while len(legs) >= 2:
         a = legs.pop(0)
         j = next((i for i, b in enumerate(legs) if b[1] != a[1]), None)
@@ -138,7 +138,10 @@ def tickets_to_send(cfg: dict, con, now: datetime, send: bool = True, sender=Non
         delivered = False
         if send and units > 0:
             from engine.alerts import telegram
-            delivered = (sender or telegram.send)(config.load_env(), text, "nfl_teasers", kind="bet")
+            try:        # a failed send is saved as not delivered and sent again on the next read (research 22, finding 1)
+                delivered = (sender or telegram.send)(config.load_env(), text, "nfl_teasers", kind="bet")
+            except Exception as e:
+                out.append(f"NOT SENT ({type(e).__name__}: {e}); the next read sends it again: teaser {a[0]}+{b[0]}")
         try:        # keep every ticket's text (research 18: sent picks were not saved anywhere)
             con.execute("CREATE TABLE IF NOT EXISTS alerts_sent (key VARCHAR PRIMARY KEY, ts_utc TIMESTAMP, kind VARCHAR, text VARCHAR, delivered BOOLEAN)")
             con.execute("INSERT INTO alerts_sent VALUES (?,?,?,?,?) ON CONFLICT DO NOTHING",
