@@ -627,6 +627,9 @@ def cmd_tracker(args) -> int:
         print(path.read_text())
     finally:
         con.close()
+    if not args.no_open:
+        import subprocess
+        subprocess.run(["open", str(ROOT / "tracker.html")], check=False)
     return 0
 
 
@@ -760,6 +763,7 @@ def main(argv=None) -> int:
     a.set_defaults(func=cmd_playbook_record)
     a = sub.add_parser("tracker", help="the model's picks against your actual wagers since Nov 23 (writes docs/lanes/TRACKER.md)")
     a.add_argument("--no-sync", action="store_true", help="skip the account read")
+    a.add_argument("--no-open", action="store_true", help="do not open tracker.html")
     a.set_defaults(func=cmd_tracker)
     a = sub.add_parser("wh-edge", help="where Wagerhouse is soft against Pinnacle and how fast it follows (writes docs/research/12-...md)")
     a.set_defaults(func=cmd_wh_edge)

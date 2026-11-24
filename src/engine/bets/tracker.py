@@ -350,6 +350,9 @@ def sync(env: dict, weeks: int = 1, wh=None) -> str:
 
 
 def write(con, cfg: dict) -> Path:
+    """docs/lanes/TRACKER.md (committed) and tracker.html (the page; not committed)."""
     p = config.ROOT / "docs" / "lanes" / "TRACKER.md"
     p.write_text(report(con, cfg))
+    from engine.bets import tracker_page
+    tracker_page.build(con, cfg)
     return p

@@ -200,7 +200,7 @@ def build() -> Path:
             rows = [l for l in tpath.read_text().splitlines() if l.startswith("| **")]
             trs = "".join("<tr>" + "".join(f"<td>{_e(c.strip().strip('*'))}</td>" for c in l.strip("|").split("|")) + "</tr>" for l in rows)
             parts.append("<h2>Tracker: the model's picks against your bets</h2><table><tr><th></th><th>Bets</th><th>Record</th><th>Net</th><th>Notes</th></tr>"
-                         f"{trs}</table><p class=sub>Every pick and what you did with it: docs/lanes/TRACKER.md (`engine tracker`).</p>")
+                         f"{trs}</table><p class=sub><a href=\"tracker.html\">Open the full tracker</a>: pending, settled, by day, week and market (`engine tracker`).</p>")
     except Exception as e:
         parts.append(f"<p class=sub>Tracker unavailable: {_e(type(e).__name__)}</p>")
     parts.append("<h2>The lanes: what each one looks at, and its record</h2>" + _lanes_html(cfg))
