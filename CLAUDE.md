@@ -57,7 +57,9 @@ Owner: Kylor (Denver, Mountain time). Research is in `docs/research/`, decisions
 - **Secrets** live in `.env`: never committed, printed or logged.
 - **Every report prints the luck range** next to results, so a hot streak cannot pass for an edge.
 - **Closing-line value:** sides, totals and moneylines on the line; props and team totals as Pinnacle's no-vig closing chance of the bet
-  minus the chance its price needed. A compass, not proof.
+  minus the chance its price needed. A compass, not proof. A prop's *profit* is graded at the limit price its message gave (the worst
+  Wagerhouse price to take), not Pinnacle's; a pick with no result (player did not play, game not finished in 72 hours) is void (decision 0036).
+- **Units first** in anything Kylor reads ("½ unit ($12.50)"); his own wagers stay in dollars. The daily check's $0 guard reads the stake line.
 - **The YAML key `on` loads as `True`;** use `enabled`.
 - **Teasers the code may build:** 2-team 6-point at -110 (Wagerhouse's "6/4 MIX"), NFL sides, both legs crossing 3 and 7 (Wong legs).
   Anything else in Kylor's own bets is flagged by the audit. Buying points: only on or off 3 in the NFL at 10 to 15 cents.

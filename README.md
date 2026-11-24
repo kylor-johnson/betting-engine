@@ -56,7 +56,7 @@ Research runs happen at 8:15am every day and 6:45pm Sunday, Mountain (`config.ya
 
 ## Running on a schedule (launchd)
 
-Five jobs (the fifth, `burst`, runs fast reads every 10 minutes and can start research on a new stale number): line and news reads every 30 minutes (the command itself only reads in scheduled hours), research runs on the schedule above, the weekly report Tuesday 9:00, and the NBA injury watcher three times a day (10am, 3pm and 5pm Mountain, set in `config.yaml` under `nba_watch.run_times`).
+Five jobs (the fifth, `burst`, runs fast reads every 10 minutes and can start research on a new stale number): line and news reads every 30 minutes (the command itself only reads in scheduled hours), research runs on the schedule above, the weekly report Tuesday 9:00, and the NBA injury watcher four times a day (10am, 3pm, 5pm and 6:30pm Mountain, set in `config.yaml` under `nba_watch.run_times`; decision 0036). Line reads run 7am to 9pm Mountain every day (decision 0036).
 
 ```sh
 cp ops/launchd/*.plist ~/Library/LaunchAgents/
@@ -70,6 +70,8 @@ tail -5 ~/Library/Logs/betting-engine/poll.log ~/Library/Logs/betting-engine/pol
 ```
 
 To stop: `launchctl bootout gui/$(id -u)/com.kylor.betting-engine.poll` (and `.weekly`, `.agent`, `.nba-watch`, `.burst`).
+
+Paper lanes (decision 0036): `docs/lanes/PAPER-LANES.md` is rewritten on every hourly read. Wagerhouse trailing Pinnacle, early-week NFL against public ratings, and NFL first halves and team totals are frozen at $0 and graded on closing-line value. They are never sent; each sport's playbook card lists the open ones at the bottom.
 
 After changing a plist in `ops/launchd/` (decision 0033 changed the agent's), copy and reload it:
 

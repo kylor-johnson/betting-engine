@@ -37,8 +37,10 @@ settings.
 6. NFL Wong teasers
 
 Each lane is in one of three states, set in `config.yaml` and shown in `docs/lanes/STATUS.md`: **staked** (sent to Telegram), **paper**
-(issued and graded at $0, not sent), or **shown** (on the card only). Today all six lanes are staked (decision 0035, Nov 24: college and
-NBA spreads and totals joined the NFL's, by my choice, on the same unproven footing as the NFL's full-game picks, decision 0019).
+(issued and graded at $0, not sent), or **shown** (on the card only). Today five lanes are staked; NBA spreads and totals are shown only,
+no money, because the NBA script cannot see who is injured (decision 0036). College spreads and totals are staked by my choice
+(decision 0035), on the same unproven footing as the NFL's full-game picks (decision 0019). Three paper lanes run at $0 beside them
+(Wagerhouse trailing Pinnacle, early-week NFL against public ratings, NFL derivatives; `docs/lanes/PAPER-LANES.md`, decision 0036).
 
 Each sport has its own research-agent guide (`ops/agent_prompt_<sport>.md`) and its own record by market (`docs/lanes/PLAYBOOK-RECORD.md`),
 so no sport hides behind another's progress. A lane is never allowed to hide inside another lane's "no bets" message.

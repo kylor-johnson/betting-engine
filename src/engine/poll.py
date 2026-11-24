@@ -422,6 +422,8 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
                 out += playbook.cancel_moved(con, env, cfg, now)
             except Exception as e:
                 out.append(f"Cancel check failed: {type(e).__name__}: {e}")
+        from engine.picks import paper_lanes      # three paper lanes, $0, never sent (decision 0036); before the playbook so the cards show them
+        out += paper_lanes.run(con, cfg, now)
         for pb_sport, ctx in (("NFL", nfl_props_ctx), ("NBA", nba_props_ctx), ("College", None)):   # playbook picks (decisions 0018-0022)
             if pb_sport not in cfg.get("sports", []):
                 continue
@@ -429,7 +431,8 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
                 pb_lines, pb_card = playbook.run(cfg, env, con, now, send=send_alerts, props_ctx=ctx, sport=pb_sport)
                 out += [l for l in pb_lines if " · PLAYBOOK" not in l] + [f"playbook pick issued: {l.splitlines()[1]}" for l in pb_lines if " · PLAYBOOK" in l]
                 if pb_card:
-                    (config.ROOT / "docs" / "cards" / f"{day}-{pb_sport.lower()}-playbook.md").write_text(pb_card)
+                    (config.ROOT / "docs" / "cards" / f"{day}-{pb_sport.lower()}-playbook.md").write_text(
+                        pb_card + paper_lanes.card_block(con, cfg, pb_sport, now))
             except Exception as e:
                 out.append(f"Playbook {pb_sport} failed: {type(e).__name__}: {e}")
         if "College" in cfg.get("sports", []):           # college openers on paper (research 23 T4, decision 0034); never sent

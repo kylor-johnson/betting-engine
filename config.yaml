@@ -65,6 +65,16 @@ models:
     min_points: 1.0            # smaller adjustments are shown, not used
     max_status: Conditional    # caps the old path's wind lean, now a $0 record (decision 0027); wind also feeds the NFL script, which is staked
 
+  paper_lanes:                 # decision 0036 (research 24 tests L1, F1, D1b): $0, never sent; docs/lanes/PAPER-LANES.md; src/engine/picks/paper_lanes.py
+    enabled: true
+    l1: true                   # Wagerhouse trailing Pinnacle, all three sports: Wagerhouse 1+ point better than Pinnacle's current number
+    l1_points: 1.0
+    l1_key_points: 0.5         # NFL: half a point is enough when it crosses 3 or 7
+    f1: true                   # early-week NFL (Sun 5pm to Tue 6am MT): public ratings average 1.5+ points from Wagerhouse's spread
+    f1_gap: 1.5
+    d1b: true                  # NFL first-half spread and total, game team totals: our script's disagreement carried into Pinnacle's line
+    d1b_edge: 0.04
+    kill_after: 150            # graded picks (per sport for L1): off unless average closing-line value is above zero, 95% range above zero
   college_openers:             # research 23 (test T4), decision 0034: our college number against Wagerhouse's first number, on paper ($0, never sent)
     enabled: true
     side_points: 3.0           # paper pick where our number differs from the first number by this much on the side
@@ -130,7 +140,10 @@ lanes:
       small_markets: {enabled: true, text: "First-half, quarter and team-total lines are logged and compared with Pinnacle; not yet measured."}
     models:
       wind_totals: {status: passed_weak, switch: models.wind_totals.enabled, doc: docs/research/05-model-first-picks.md, note: "Unders only, Conditional at most; weaker since 2024"}
-      playbook_script: {status: overridden, switch: playbook.enabled, doc: docs/decisions/0026-telegram-is-the-source-of-truth.md, note: "game-script team points at the playbook's starting weights; staked and sent to Telegram (decision 0026)"}
+      playbook_script: {status: overridden, switch: playbook.enabled, doc: docs/decisions/0026-telegram-is-the-source-of-truth.md, note: "game-script team points at the playbook's starting weights, fitted without actual weather plus a forecast-wind term (decision 0036); staked and sent to Telegram (decision 0026)"}
+      wh_lag_paper: {status: testing, switch: models.paper_lanes.l1, doc: docs/research/24-full-audit.md, note: "paper only: Wagerhouse 1+ point better than Pinnacle's current number, graded on closing-line value (decision 0036, test L1)"}
+      early_ratings_paper: {status: testing, switch: models.paper_lanes.f1, doc: docs/research/24-full-audit.md, note: "paper only: Sunday night and Monday, public ratings 1.5+ points from Wagerhouse's spread; the line moved toward the ratings 69.5% in 2023-2025 (decision 0036, test F1)"}
+      derivatives_paper: {status: testing, switch: models.paper_lanes.d1b, doc: docs/research/24-full-audit.md, note: "paper only: our script's disagreement carried into Pinnacle's first-half and team-total lines, 4%+ (decision 0036, test D1b)"}
       ratings_sides: {status: failed, doc: docs/research/04-evaluation.md, note: "market ratings and public systems did not beat the close (2,663 games)"}
       pbp_ratings_sides: {status: failed, doc: docs/research/03-sharp-style-handicapping.md, note: "play-by-play ratings did not beat the close (918 games)"}
       pace_totals: {status: failed, doc: docs/research/02-totals-model.md, note: "pace and efficiency totals did not beat the close (918 games)"}
@@ -151,6 +164,7 @@ lanes:
       ratings_sides: {status: failed, doc: docs/research/04-evaluation.md, note: "market ratings and public systems did not beat the close"}
       outside_ratings_openers: {status: failed, doc: docs/research/14-deep-review.md, note: "public rating systems against the close and the opener: no edge (research 14, 2c)"}
       playbook_script: {status: overridden, switch: playbook.enabled, doc: docs/decisions/0035-stake-college-and-nba-full-game.md, note: "per-play efficiency and tempo (decision 0034); lost against the close (research 16, 23); staked by Kylor's choice (decision 0035)"}
+      wh_lag_paper: {status: testing, switch: models.paper_lanes.l1, doc: docs/research/24-full-audit.md, note: "paper only: Wagerhouse 1+ point better than Pinnacle's current number, graded on closing-line value (decision 0036, test L1)"}
       college_openers: {status: testing, switch: models.college_openers.enabled, doc: docs/research/23-cfb-model-review.md, note: "our number against Wagerhouse's first number, paper only; the line moved our way 0.3 to 0.4 points in 2023-2026 (research 23)"}
       preseason_priors: {status: failed, doc: docs/research/23-cfb-model-review.md, note: "returning production, talent and last season's SP+ made weeks 1-4 worse; 2027 forward test written down (research 23)"}
       college_wind_totals: {status: failed, doc: docs/research/20-college-wind.md, note: "wind on day-before forecasts, 2024-2026: no better than the closing total (research 20)"}
@@ -162,10 +176,11 @@ lanes:
     kind: game
     inputs:
       price_vs_pinnacle: {enabled: true, text: "Wagerhouse's price against Pinnacle's vig-free line (stored since 2026-11-23). A price gap alone is never a pick."}
-      injury_news: {enabled: true, text: "Injury report and reporter news, checked at 10am, 3pm and 5pm Mountain, plus the research runs; counts only for the part Pinnacle has not moved for."}
+      injury_news: {enabled: true, text: "Injury report and reporter news, checked at 10am, 3pm, 5pm and 6:30pm Mountain (decision 0036), plus the research runs; counts only for the part Pinnacle has not moved for."}
       small_markets: {enabled: true, text: "First-half, first-quarter and team-total lines are logged and compared with Pinnacle; not yet measured."}
     models:
-      playbook_script: {status: overridden, switch: playbook.enabled, doc: docs/decisions/0035-stake-college-and-nba-full-game.md, note: "pace and points per possession; lost against the close (research 16); staked by Kylor's choice (decision 0035)"}
+      playbook_script: {status: shown, switch: playbook.enabled, doc: docs/decisions/0036-audit-24-yes-list.md, note: "pace and points per possession; lost against the close (research 16); cannot see injuries; shown only, no money, news picks off (decision 0036)"}
+      wh_lag_paper: {status: testing, switch: models.paper_lanes.l1, doc: docs/research/24-full-audit.md, note: "paper only: Wagerhouse 1+ point better than Pinnacle's current number, graded on closing-line value (decision 0036, test L1)"}
     not_evaluating: ["rest, travel and back-to-backs as a pick on their own (priced, research 14 2d)", "betting splits and line movement (never a reason)"]
   nfl_teasers:
     title: NFL Wong teasers
