@@ -37,3 +37,11 @@ adjustments:
     source: "https://www.espn.com/nba/injuries"
     added: "2026-11-23 08:20 MT"
     news_at: "2026-11-22 08:25 MT"
+  - game: "Detroit Pistons at Orlando Magic"
+    team: "Detroit Pistons"
+    market: spread
+    points: -2.0
+    reason: "Jalen Duren (hamstring) ruled out for Tuesday at Orlando (ESPN feed Nov 23 22:08 UTC). Starting center, new absence. Duncan Robinson (quad, out since Nov 17) is already priced and not counted."
+    source: "https://www.espn.com/nba/injuries"
+    added: "2026-11-23 17:00 MT"
+    news_at: "2026-11-23 15:08 MT"

@@ -1,0 +1,49 @@
+checks:
+  - key: "401910036|team_total|home_over"
+    verdict: hold
+    why: "Charlotte is without Grayson Allen (concussion) and Grant Williams (hamstring), both ruled out Nov 22 about 15:05 MT, plus Schroder and Knueppel; the market has a thinned backcourt the model may underweight."
+    source: "https://www.espn.com/nba/injuries"
+  - key: "401910044|total|over"
+    verdict: hold
+    why: "Austin Reaves ruled out (Nov 22 18:09 MT) and Jaxson Hayes ruled out (Nov 23 14:04 MT), with Utah on the second night of a back-to-back; those explain a lower market total."
+    source: "https://www.espn.com/nba/injuries"
+  - key: "prop|4066259|pts|under|15.5|401910045"
+    verdict: hold
+    why: "Fox is questionable with a right shin contusion (Nov 22 18:39 MT, Jared Weiss); status unresolved, and Wembanyama is also questionable, which would change Fox's usage."
+    source: "https://www.espn.com/nba/injuries"
+  - key: "prop|4066259|pra|under|25.5|401910045"
+    verdict: hold
+    why: "Same as Fox points: questionable with a shin contusion (Nov 22 18:39 MT) and Wembanyama questionable; the gap may be minutes and usage the market is pricing."
+    source: "https://www.espn.com/nba/injuries"
+  - key: "prop|4845367|pra|under|32.5|401910045"
+    verdict: hold
+    why: "Fox and Wembanyama are both questionable (Nov 22 18:39 and 21:52 MT) with Harper out; if either sits, Castle's usage rises, which the market is likely pricing."
+    source: "https://www.espn.com/nba/injuries"
+  - key: "prop|5093267|reb|under|6.5|401910039"
+    verdict: hold
+    why: "Toronto center Nate Bittle ruled out (Nov 22 14:13 MT, Blake Murphy) with Barrett and Leonard also out; more rebounds for Murray-Boyles is what the market knows."
+    source: "https://www.espn.com/nba/injuries"
+  - key: "prop|4066259|fg3m|under|1.5|401910045"
+    verdict: hold
+    why: "Fox questionable with a shin contusion (Nov 22 18:39 MT); status unresolved."
+    source: "https://www.espn.com/nba/injuries"
+  - key: "prop|4277919|reb|under|9.5|401910044"
+    verdict: hold
+    why: "Utah centers Jaxson Hayes (ruled out Nov 23 14:04 MT) and Jusuf Nurkic are out, leaving Bamba as the main big; that explains a higher rebound line."
+    source: "https://www.espn.com/nba/injuries"
+  - key: "prop|5081727|fg3m|over|1.5|401910037"
+    verdict: clear
+    why: "Checked the ESPN injury feed for Portland and Philadelphia; nothing found about Cissoko's role or minutes that explains the gap."
+    source: "https://www.espn.com/nba/injuries"
+  - key: "prop|5124612|ast|over|3.5|401910037"
+    verdict: clear
+    why: "Embiid ruled out (Nov 23 15:49 MT) is already in the model's projection; the feed shows nothing else on Edgecombe's role or minutes."
+    source: "https://www.espn.com/nba/injuries"
+  - key: "prop|4395630|fg3m|under|1.5|401910045"
+    verdict: hold
+    why: "Fox and Wembanyama are both questionable; if either sits, Vassell's shot volume rises, which the market is likely pricing."
+    source: "https://www.espn.com/nba/injuries"
+  - key: "prop|3448|pts|over|12.5|401910043"
+    verdict: clear
+    why: "Checked the ESPN injury feed for both teams; only long-term Clippers absences (Beal, Miller) and nothing on Lopez's minutes or role."
+    source: "https://www.espn.com/nba/injuries"
