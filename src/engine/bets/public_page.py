@@ -96,7 +96,9 @@ def publish(con, cfg: dict, force: bool = False, runner=subprocess.run) -> str:
             err = (res.stderr or res.stdout or "").strip().splitlines()
             why = next((l for l in err if "credential" in l.lower() or "login" in l.lower()), err[-1] if err else "no output")
             return f"Live picks page not published: {why[:200]}"
-        url = next((l.strip() for l in reversed((res.stdout or "").splitlines()) if l.strip().startswith("https://")), "")
+        # the per-deploy address asks for a Vercel login; the project's own address is the public one
+        out = f"{res.stdout or ''}\n{res.stderr or ''}"
+        url = next((l.split("Aliased:", 1)[1].split()[0] for l in out.splitlines() if "Aliased:" in l), f"https://{st['project']}.vercel.app")
         stamp.write_text(json.dumps({"hash": h, "ts": now, "url": url}))
         return f"Live picks page published{': ' + url if url else ''}."
     except Exception as e:

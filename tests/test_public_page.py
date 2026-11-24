@@ -43,3 +43,17 @@ def test_publish_skips_unchanged_picks_and_reports_a_login_problem(tmp_path, mon
     assert len(calls) == 1 and "--prod" in calls[0]
     bad = lambda cmd, **kw: SimpleNamespace(returncode=1, stdout="", stderr="Error: No existing credentials found. Please run `vercel login`")
     assert "credentials" in public_page.publish(con, {}, force=True, runner=bad)
+
+
+def test_publish_reports_the_public_address_not_the_login_walled_deploy_address(tmp_path, monkeypatch):
+    """The per-deploy URL redirects to a Vercel login; the project's alias opens on a phone."""
+    from engine import config
+    from engine.bets import public_page
+    monkeypatch.setattr(config, "DATA", tmp_path)
+    monkeypatch.setattr(config, "load_env", lambda: {})
+    con = _pb_con()
+    _pick(con, "staked", 25.0, 0.5, 0.5)
+    ok = lambda cmd, **kw: SimpleNamespace(returncode=0, stdout="https://p-abc123-team.vercel.app\n",
+                                           stderr="Production: https://p-abc123-team.vercel.app [3s]\nAliased: https://p.vercel.app [3s]\n")
+    out = public_page.publish(con, {}, runner=ok)
+    assert "https://p.vercel.app" in out and "abc123" not in out
