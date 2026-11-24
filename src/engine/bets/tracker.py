@@ -27,8 +27,18 @@ START = "2026-11-23"           # Mountain date the tracking starts (Kylor, Nov 2
 MASTER = config.DATA / "raw" / "wagerhouse_graded_master.json"
 
 
+SYNONYMS = {"3pt": "threes", "3": "threes", "three": "threes", "rebs": "rebounds", "reb": "rebounds", "asts": "assists", "ast": "assists",
+            "pts": "points", "yds": "yards", "td": "touchdowns", "tds": "touchdowns", "rec": "receptions", "fg": "", "shots": "", "made": "",
+            "total": "", "player": ""}
+MANUAL = config.DATA / "tracker" / "open_bets.yaml"
+
+
 def norm(s: str) -> str:
-    return re.sub(r"[^a-z0-9 ]", "", (s or "").lower()).strip()
+    return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9]+", " ", (s or "").lower())).strip()
+
+
+def stat_words(s: str) -> set[str]:
+    return {SYNONYMS.get(w, w) for w in norm(s).split()} - {""}
 
 
 def same_team(a: str, b: str) -> bool:
@@ -98,14 +108,42 @@ def recommendations(con, cfg: dict, since: datetime) -> list[Rec]:
     return out
 
 
+def manual_wagers(path: Path = MANUAL) -> list[Wager]:
+    """Open wagers entered by hand from the site's open-bets screen (the account API only returns graded wagers). Status 'O' = open."""
+    import yaml
+    from zoneinfo import ZoneInfo
+    from engine.bets.history import Leg
+    if not path.exists():
+        return []
+    out = []
+    for i, b in enumerate((yaml.safe_load(path.read_text()) or {}).get("bets", []) or []):
+        acc = datetime.fromisoformat(b["accepted"]).replace(tzinfo=ZoneInfo("America/New_York")).astimezone(timezone.utc)
+        legs = [Leg(j + 1, l["kind"], "", l.get("team1", ""), l.get("team2", ""), l.get("chosen", ""), l.get("line"), l.get("line"), 0.0,
+                    float(l.get("teaser", 0)), l.get("ou", ""), l.get("price"), None, "", "Game") for j, l in enumerate(b.get("legs", []))]
+        w = Wager(900000000 + i, 1, b.get("type", "S"), "pregame", acc, float(b["risk"]), float(b.get("to_win", 0)), 0.0, 0.0, "O", False,
+                  "", b.get("desc", ""), "", legs)
+        w.ignore = bool(b.get("ignore"))
+        w.note = b.get("note", "")
+        out.append(w)
+    return out
+
+
 def wagers(since: datetime) -> list[Wager]:
-    """Every graded wager accepted since `since`, from the account history file."""
-    if not MASTER.exists():
-        return []
-    try:
-        ws = [w for w in load_wagers(MASTER) if w.accepted and w.accepted >= since]
-    except ValueError:
-        return []
+    """Every wager accepted since `since`: graded ones from the account history, plus open ones entered by hand. A hand entry is dropped
+    once a graded wager with the same accepted minute and risk appears."""
+    ws = []
+    if MASTER.exists():
+        try:
+            ws = [w for w in load_wagers(MASTER) if w.accepted and w.accepted >= since]
+        except ValueError:
+            ws = []
+    seen = {(w.accepted.replace(second=0, microsecond=0), round(w.risk, 2)) for w in ws}
+    for w in manual_wagers():
+        if w.accepted >= since and (w.accepted.replace(second=0, microsecond=0), round(w.risk, 2)) not in seen:
+            ws.append(w)
+    for w in ws:
+        if not hasattr(w, "ignore"):
+            w.ignore, w.note = False, ""
     return sorted(ws, key=lambda w: w.accepted)
 
 
@@ -124,10 +162,10 @@ def _leg_matches(rec: Rec, leg, w: Wager) -> bool:
         m = re.match(r"^(.*) (over|under) [\d.]+ (.*)$", rec.pick)
         if not m:
             return False
-        player, ou, stat = norm(m.group(1)), m.group(2), norm(m.group(3))
+        player, ou = norm(m.group(1)), m.group(2)
         last = player.split()[-1] if player else ""
-        stat_words = {x for x in stat.split() if x not in ("made", "total")}
-        same_stat = bool(stat_words & set(norm(leg.team2).split())) or any(x in desc for x in stat_words)
+        want, have = stat_words(m.group(3)), stat_words(leg.team2)
+        same_stat = want == have if {"points", "rebounds", "assists"} & (want | have) else bool(want & have)
         return bool(last) and last in norm(leg.team1 + " " + leg.chosen + " " + desc) and same_stat and \
             ((leg.over_under or "").upper() == ou[0].upper() or ou in desc)
     if not in_game:
@@ -146,7 +184,7 @@ def _leg_matches(rec: Rec, leg, w: Wager) -> bool:
 
 def match(recs: list[Rec], ws: list[Wager]) -> list[Wager]:
     """Attach wagers to the recommendations they follow; return the wagers that follow none."""
-    used = set()
+    used = {w.key for w in ws if getattr(w, "ignore", False)}
     for r in recs:
         for w in ws:
             if w.key in used or (w.accepted and w.accepted < r.sent - timedelta(minutes=5)):
@@ -160,7 +198,7 @@ def match(recs: list[Rec], ws: list[Wager]) -> list[Wager]:
             if ok:
                 r.matched.append(w)
                 used.add(w.key)
-    return [w for w in ws if w.key not in used]
+    return [w for w in ws if w.key not in used and not getattr(w, "ignore", False)]
 
 
 def _limit_number(limit: str | None) -> float | None:
@@ -168,6 +206,31 @@ def _limit_number(limit: str | None) -> float | None:
         return None
     m = re.findall(r"[+-]?\d+(?:\.\d+)?", limit)
     return float(m[0]) if m else None
+
+
+def _dec(price: float) -> float:
+    return 1 + (100 / abs(price) if price < 0 else price / 100)
+
+
+def past_limit(r: Rec, leg) -> str:
+    """'PAST THE LIMIT' when the wager is worse than the pick's "don't bet past": a worse number than the limit for sides and totals; for props,
+    at the same line, a worse price than the worst price sent (a better line is judged on the line alone)."""
+    if not r.limit or leg.line is None:
+        return ""
+    if r.market == "prop":
+        m = re.search(r"at ([+-]\d+) or better", r.limit)
+        if not m or r.line is None or abs(leg.line - r.line) > 1e-9 or leg.price is None:
+            return ""
+        return "PAST THE LIMIT (price)" if _dec(leg.price) < _dec(float(m.group(1))) - 1e-9 else ""
+    lim = _limit_number(r.limit)
+    if lim is None:
+        return ""
+    if r.market == "side":
+        own_lim = lim                                   # the limit text is in the chosen team's own spread ("Tennessee Titans +14.5")
+        return "PAST THE LIMIT" if leg.line < own_lim - 1e-9 else ""
+    ou = r.side.split("_")[-1]
+    worse = leg.line > lim + 1e-9 if ou == "over" else leg.line < lim - 1e-9
+    return "PAST THE LIMIT" if worse else ""
 
 
 def grade_follow(r: Rec) -> str:
@@ -185,13 +248,20 @@ def grade_follow(r: Rec) -> str:
             else:
                 ou = r.side.split("_")[-1]
                 diff = (r.line - leg.line) if ou == "over" else (leg.line - r.line)
-            notes.append("same number" if abs(diff) < 1e-9 else f"{abs(diff):g} point{'s' if abs(diff) != 1 else ''} {'better' if diff > 0 else 'worse'}")
+            if abs(diff) < 1e-9:
+                notes.append("same number")
+            elif r.market == "prop":
+                notes.append(f"line {abs(diff):g} {'better' if diff > 0 else 'worse'}")
+            else:
+                notes.append(f"{abs(diff):g} point{'s' if abs(diff) != 1 else ''} {'better' if diff > 0 else 'worse'}")
         if leg.price is not None and r.price is not None and leg.price != int(r.price):
             notes.append(f"price {leg.price:+d} vs {int(r.price):+d} sent")
-    if r.dollars:
-        ratio = w.risk / r.dollars
-        if abs(ratio - 1) > 0.15:
-            notes.append(f"stake ${w.risk:g} vs ${r.dollars:g} sent")
+        past = past_limit(r, leg)
+        if past:
+            notes.append(past)
+    risk = sum(x.risk for x in r.matched)
+    if r.dollars and abs(risk / r.dollars - 1) > 0.15:
+        notes.append(f"stake ${risk:g} vs ${r.dollars:g} sent")
     if len(r.matched) > 1:
         notes.append(f"{len(r.matched)} wagers on it")
     return "bet: " + (", ".join(notes) if notes else "as sent")
@@ -216,7 +286,8 @@ def report(con, cfg: dict, now: datetime | None = None) -> str:
     open_ws = [w for w in ws if w.status not in ("W", "L", "X")]
     out = ["# Tracker: the model's picks against your bets (generated; do not edit)", "",
            f"From {START} (Mountain). Updated {now.astimezone(tz):%a %b %-d, %-I:%M %p} MT. Your wagers come from the account history, which "
-           "shows a bet once it is graded (open bets are not readable); picks come from what Telegram sent.", "",
+           "shows a bet once it is graded; open bets are entered from your open-bets screen (data.nosync/tracker/open_bets.yaml) until they settle. "
+           "Picks come from what Telegram sent.", "",
            "## Scoreboard", "",
            "| | Bets | Record | Net | Notes |", "|---|---|---|---|---|",
            f"| **Model** (every staked pick, at the stake and number sent) | {len(recs)} sent, {len(graded)} graded | {mw}-{ml}-{mp} | "
@@ -226,13 +297,13 @@ def report(con, cfg: dict, now: datetime | None = None) -> str:
            f"{'+' if f_net >= 0 else '−'}${abs(f_net):,.2f} | followed {len(followed)} of {len(recs)} picks |",
            f"| **You, your own bets** | {len(own)} | {sum(w.status == 'W' for w in o_set)}-{sum(w.status == 'L' for w in o_set)} | "
            f"{'+' if o_net >= 0 else '−'}${abs(o_net):,.2f} | not on the model's list |",
-           f"| **You, everything** | {len(ws)} graded | {sum(w.status == 'W' for w in ws)}-{sum(w.status == 'L' for w in ws)} | "
+           f"| **You, everything** | {len(ws)} ({len(open_ws)} open) | {sum(w.status == 'W' for w in ws)}-{sum(w.status == 'L' for w in ws)} | "
            f"{'+' if all_net >= 0 else '−'}${abs(all_net):,.2f} | the account's own grading |", ""]
     out += ["## Every pick sent, and what you did", "",
             "| Sent (MT) | Sport | Pick | Price sent | Don't bet past | Stake sent | Model result | You | Your result |", "|---|---|---|---|---|---|---|---|---|"]
     for r in recs:
         res = "open" if r.result is None else f"{r.result} ({'+' if (r.model_dollars or 0) >= 0 else '−'}${abs(r.model_dollars or 0):,.2f})"
-        mine = "; ".join(f"{w.status if w.status in ('W', 'L', 'X') else 'open'} {('+' if w.net >= 0 else '−') + '$' + format(abs(w.net), ',.2f') if w.status in ('W', 'L', 'X') else ''}".strip()
+        mine = "; ".join((f"{w.status} {'+' if w.net >= 0 else '−'}${abs(w.net):,.2f}" if w.status in ('W', 'L', 'X') else f"open, ${w.risk:g} at risk")
                          for w in r.matched) or "—"
         price = "" if r.price is None else f" {int(r.price):+d}"
         out.append(f"| {r.sent.astimezone(tz):%a %-I:%M %p} | {r.sport} | {r.pick} | {price.strip() or '-110'} | {r.limit or ''} | ${r.dollars:g} | {res} | "
@@ -247,6 +318,10 @@ def report(con, cfg: dict, now: datetime | None = None) -> str:
         out.append(f"| {w.accepted.astimezone(tz):%a %-I:%M %p} | {w.description[:110]} | {typ} | ${w.risk:g} | {res} |")
     if not own:
         out.append("| | none | | | |")
+    ign = [w for w in ws if getattr(w, "ignore", False)]
+    if ign:
+        out += ["", "Left out of the model comparison (still counted in your account total): " +
+                "; ".join(f"{w.description[:80]} (${w.risk:g}): {w.note}" for w in ign)]
     out += ["", "How to read it: the model line uses the stake and number sent, so it is the model's own record. Your lines use the account's "
             "real results. A pick you bet at a worse number than sent, or past its limit, shows up in the 'You' column; that is the grader."]
     return "\n".join(out) + "\n"
