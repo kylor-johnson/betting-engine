@@ -18,7 +18,7 @@ author of most of it is the session that wrote this handoff.
    betting at starting weights, units, props, all sports, script additions).
 3. Research, newest first: `17` (script additions, matchup layer), `16` (NBA and college scripts, props lead effect, NBA Under lean),
    `15` (NFL script), `14` and `14a` (deep review and sourced brief), then `04`, `02`, `03`, `05`, `09`, `06`, `08`, `13`, `11`, `11a`, `12`.
-4. Generated state: `docs/lanes/STATUS.md`, `docs/lanes/PLAYBOOK-RECORD.md`, today's cards `docs/cards/<date>-{nfl,nba,college}-playbook.md`,
+4. Generated state: `docs/lanes/TRACKER.md` (every Telegram pick against Kylor's real wagers since Nov 23, decision 0024; use it for the live record), `docs/lanes/STATUS.md`, `docs/lanes/PLAYBOOK-RECORD.md`, today's cards `docs/cards/<date>-{nfl,nba,college}-playbook.md`,
    `docs/cards/<date>-nfl-teasers.md`.
 5. Code: `src/engine/picks/playbook.py` (the pick engine), `src/engine/models/script.py`, `nba_script.py`, `college_script.py`,
    `props_script.py`, `props_matchup.py`, `props.py`, `nba_props.py`, `src/engine/picks/teasers.py`, `src/engine/clv.py`, `src/engine/stale.py`,
