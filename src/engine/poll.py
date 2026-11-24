@@ -32,6 +32,25 @@ def scheduled_slot(cfg: dict, now: datetime) -> datetime | None:
     return None
 
 
+def refresh_tracker(con, cfg: dict, now: datetime) -> list[str]:
+    """Outside read hours (evenings, nights), grade finished picks and rebuild the tracker page at most once an hour, so tracker.html is
+    current when games end at night. No Wagerhouse sign-in: grades come from final scores; your bets come from the last history sync."""
+    stamp = config.DATA / "raw" / ".tracker_refresh"
+    try:
+        if stamp.exists() and now.timestamp() - stamp.stat().st_mtime < 3300:
+            return []
+        from engine.bets import tracker as _tr
+        from engine.picks import playbook as _pb, teasers as _tz
+        _tz.grade(con)
+        _pb.grade(con, cfg)
+        _tr.write(con, cfg)
+        stamp.parent.mkdir(parents=True, exist_ok=True)
+        stamp.write_text(now.isoformat())
+        return ["Tracker page refreshed (graded finished picks; no book read)."]
+    except Exception as e:
+        return [f"Tracker refresh failed: {type(e).__name__}: {e}"]
+
+
 def _deliver(con, env: dict, alerts: list[rules.Alert], now: datetime, out: list[str]) -> None:
     for a in alerts:
         if con.execute("SELECT 1 FROM alerts_sent WHERE key=?", [a.key]).fetchone():
@@ -125,6 +144,7 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
             except Exception as e:
                 out.append(f"Lane status check failed: {type(e).__name__}: {e}")
         if not force and not due(cfg, now, last_ok):
+            out += refresh_tracker(con, cfg, now)
             return 0, out + ["Nothing read: outside the scheduled hours, or a read already ran in the last 45 minutes."]
         gap = rules.missed_reads(last_ok, now, cfg["missed_read_alert_hours"] + 12)
         if gap and send_alerts:
@@ -325,6 +345,11 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
                     (config.ROOT / "docs" / "cards" / f"{day}-{pb_sport.lower()}-playbook.md").write_text(pb_card)
             except Exception as e:
                 out.append(f"Playbook {pb_sport} failed: {type(e).__name__}: {e}")
+        try:   # rebuild the tracker after this read's picks and teaser tickets are issued, so the page shows them now, not next hour
+            from engine.bets import tracker as _tr_after
+            _tr_after.write(con, cfg)
+        except Exception as e:
+            out.append(f"Tracker page rebuild failed: {type(e).__name__}: {e}")
         # run on change (decision 0016): a new stale number means Pinnacle moved and Wagerhouse has not; the agent looks for the reason
         stale_sports = stale.new_sports(con, now)
         if "NFL" in stale_sports:

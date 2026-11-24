@@ -241,7 +241,7 @@ parity:
     NBA: {status: live, note: "pace and efficiency; lost walk-forward (research 16)"}
   player_value:
     NFL: {status: live, note: "starting QB news moves lines 2.5 to 2.7 points (research 14, 2b)"}
-    College: {status: planned, note: "QB value from CollegeFootballData starter-out games; before bowl season (agent uses 3 to 7 until then)"}
+    College: {status: live, note: "starter out about 3.5 points (P4 3.2, G5 4.2); only 0.9 moves after the opener (research 21)"}
     NBA: {status: live, note: "absences are in the close (research 13); props move minutes to teammates (research 08)"}
   news_source:
     NFL: {status: live, note: "ESPN injuries hourly, QB status watcher, reporter relay, practice-report fast reads"}

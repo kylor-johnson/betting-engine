@@ -58,3 +58,11 @@ def test_failures_make_one_telegram_line_and_passes_make_none():
     assert checks.telegram_text([("a", True, "fine")]) is None
     t = checks.telegram_text([("a", True, "fine"), ("b", False, "broken")])
     assert t.startswith("CHECK FAILED (not a bet)") and "- b: broken" in t and "- a" not in t
+
+
+def test_tracker_refresh_runs_at_most_hourly(tmp_path, monkeypatch):
+    from engine import config, poll
+    monkeypatch.setattr(config, "DATA", tmp_path)
+    (tmp_path / "raw").mkdir()
+    (tmp_path / "raw" / ".tracker_refresh").write_text("just now")
+    assert poll.refresh_tracker(None, {}, datetime.now(timezone.utc)) == []
