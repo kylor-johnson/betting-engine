@@ -117,7 +117,7 @@ lanes:
       small_markets: {enabled: true, text: "First-half, quarter and team-total lines are logged and compared with Pinnacle; not yet measured."}
     models:
       wind_totals: {status: passed_weak, switch: models.wind_totals.enabled, doc: docs/research/05-model-first-picks.md, note: "Unders only, Conditional at most; weaker since 2024"}
-      playbook_script: {status: paper, switch: playbook.enabled, doc: docs/research/18-model-evaluation.md, note: "game-script team points at the playbook's starting weights; paper since research 18 (decision 0025)"}
+      playbook_script: {status: overridden, switch: playbook.enabled, doc: docs/decisions/0026-telegram-is-the-source-of-truth.md, note: "game-script team points at the playbook's starting weights; staked and sent to Telegram (decision 0026)"}
       ratings_sides: {status: failed, doc: docs/research/04-evaluation.md, note: "market ratings and public systems did not beat the close (2,663 games)"}
       pbp_ratings_sides: {status: failed, doc: docs/research/03-sharp-style-handicapping.md, note: "play-by-play ratings did not beat the close (918 games)"}
       pace_totals: {status: failed, doc: docs/research/02-totals-model.md, note: "pace and efficiency totals did not beat the close (918 games)"}
@@ -170,7 +170,7 @@ lanes:
       wagerhouse_props: {enabled: false, text: "Wagerhouse's own prop lines are not logged yet, so no prop can be compared with the book you bet at."}
     models:
       nfl_props: {status: testing, switch: models.props.enabled, doc: docs/research/06-props-model.md, note: "forward test against Pinnacle"}
-      playbook_props: {status: paper, switch: playbook.enabled, doc: docs/research/18-model-evaluation.md, note: "props model fed by the game script, blended with Pinnacle; paper since research 18 (decision 0025)"}
+      playbook_props: {status: overridden, switch: playbook.enabled, doc: docs/decisions/0026-telegram-is-the-source-of-truth.md, note: "props model fed by the game script, blended with Pinnacle; staked and sent to Telegram (decision 0026)"}
     not_evaluating: ["any Wagerhouse prop price (Bet Builder is not readable; each pick says the worst line and price to take)", "props the model and Pinnacle disagree on by 15+ points until the research agent clears them"]
   nba_props:
     title: NBA player props
@@ -182,7 +182,7 @@ lanes:
       wagerhouse_props: {enabled: false, text: "Wagerhouse's own prop lines are not logged yet, so no prop can be compared with the book you bet at."}
     models:
       nba_props: {status: testing, switch: models.props.nba_enabled, doc: docs/research/08-nba-props-model.md, note: "forward test against Pinnacle"}
-      playbook_props: {status: paper, switch: playbook.enabled, doc: docs/research/18-model-evaluation.md, note: "NBA props model, re-centred on outcomes, fed by the game script, blended with Pinnacle; paper since research 18 (decision 0025)"}
+      playbook_props: {status: overridden, switch: playbook.enabled, doc: docs/decisions/0026-telegram-is-the-source-of-truth.md, note: "NBA props model, re-centred on outcomes, fed by the game script, blended with Pinnacle; staked and sent to Telegram (decision 0026)"}
       news_props: {status: testing, switch: playbook.news_props.enabled, doc: docs/decisions/0025-research-18-paper-and-fixes.md, note: "news-timed props: a teammate ruled out, Pinnacle not moved yet (paper test, decision 0025)"}
     not_evaluating: ["any Wagerhouse prop price (Bet Builder is not readable; each pick says the worst line and price to take)", "props the model and Pinnacle disagree on by 15+ points until the research agent clears them"]
 
@@ -222,8 +222,10 @@ playbook:
   # props_stake: false = props issued and graded at $0. Decision 0025 (research 18): NFL full-game and all props are paper until their
   # closing-line value clears the restart numbers in docs/research/18-model-evaluation.md. Units are unchanged (NFL $50, NBA $25).
   sports:
-    NFL: {full_game: paper, props: true, props_stake: false, period: week, max_per_period: 5, props_per_period: 10, props_per_game: 2}
-    NBA: {full_game: show, props: true, props_stake: false, period: day, max_per_period: 2, props_per_period: 4, props_per_game: 2}
+    # Decision 0026 (Kylor, Nov 23 evening: "telegram is the place where i use this whole model to place the bets you find, that is the
+    # source of truth"): NFL full-game picks and NFL/NBA props are staked and sent to Telegram again; decision 0025's guards stay on.
+    NFL: {full_game: stake, props: true, props_stake: true, period: week, max_per_period: 5, props_per_period: 10, props_per_game: 2}
+    NBA: {full_game: show, props: true, props_stake: true, period: day, max_per_period: 2, props_per_period: 4, props_per_game: 2}
     College: {full_game: show, props: false, period: week, max_per_period: 5}
 
 # Telegram only pings for things you must act on (changed 2026-11-23, Kylor: "only ping me when it has a bet for me to place").
