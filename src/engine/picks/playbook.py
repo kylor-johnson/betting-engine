@@ -12,9 +12,10 @@ On every hourly read:
   4. grades: A = clears the minimum edge and its principle has passed a test (none yet); B = clears the minimum edge; C = the best of the rest.
      A pick whose own number is far from the market is marked CHECK and held as C until the research agent clears it in the checks file;
   5. one full-game position per game (the biggest edge), capped per week (NFL, college) or per day (NBA); props capped per game and period;
-  6. stakes: A 1 unit, B 0.5 unit; half size for the first `half_size_weeks` weeks after `live_since`; paper again if staked picks are down
-     `stop_loss_units` (decision 0018);
-  7. A and B picks are frozen at the Wagerhouse number the first time they qualify, sent to Telegram, and graded on the result and against
+  6. stakes: A 1 unit, B 0.5 unit (no playbook principle has passed a test, so every playbook pick is B today); `half_size_weeks` is 0 (off,
+     decision 0020); paper again if staked picks are down `stop_loss_units` (decision 0018);
+  7. A and B picks are frozen at the Wagerhouse number the first time they qualify; staked ones are sent to Telegram (shown-lane picks become
+     C unless they are news picks, paper picks are held back), and graded on the result and against
      Pinnacle's last line before kickoff. C picks are only shown on the card.
 
 Research 18 / decision 0025 (Kylor approved 2026-11-23):
@@ -221,7 +222,10 @@ def apply_news(con, games: list[dict], sport: str, now: datetime) -> list[str]:
         for a in mine:
             if a["market"] == "spread":
                 t = espn.norm(str(a["team"]))
-                if t not in (espn.norm(g["home"]), espn.norm(g["away"])):
+                if t not in (espn.norm(g["home"]), espn.norm(g["away"])):      # never skip silently (CLAUDE.md): say why it did not count
+                    g.setdefault("news", []).append(
+                        f"News, {a.get('team')} {float(a['points']):+g} (not applied: team matches neither {g['away']} nor {g['home']} as "
+                        f"Wagerhouse names them): {' '.join(str(a['reason']).split())} [{a['source']}]")
                     continue
                 sign = 1 if t == espn.norm(g["home"]) else -1
             else:
@@ -235,6 +239,19 @@ def apply_news(con, games: list[dict], sport: str, now: datetime) -> list[str]:
                 else:
                     g["adj_total"] = g.get("adj_total", 0.0) + left
     return []
+
+
+def unmatched_news(games: list[dict]) -> list[str]:
+    """adjustments.yaml entries whose `game` matches none of these games as Wagerhouse names them ("Away at Home"). Such an entry counts for
+    nothing and was invisible before the final audit (research 22): it is listed so the research agent can fix the names."""
+    from engine.odds import espn
+    from engine.picks import slate
+    names = {espn.norm(f"{g['away']} at {g['home']}") for g in games}
+    try:
+        adjs = slate.load_adjustments()
+    except Exception:
+        return []
+    return [str(a["game"]) for a in adjs if espn.norm(str(a["game"])) not in names]
 
 
 def key_of(c: dict) -> str:

@@ -44,9 +44,11 @@ def refresh_tracker(con, cfg: dict, now: datetime) -> list[str]:
         _tz.grade(con)
         _pb.grade(con, cfg)
         _tr.write(con, cfg)
+        from engine.bets import public_page
+        pub = public_page.publish(con, cfg)
         stamp.parent.mkdir(parents=True, exist_ok=True)
         stamp.write_text(now.isoformat())
-        return ["Tracker page refreshed (graded finished picks; no book read)."]
+        return ["Tracker page refreshed (graded finished picks; no book read)."] + ([pub] if pub else [])
     except Exception as e:
         return [f"Tracker refresh failed: {type(e).__name__}: {e}"]
 
@@ -350,6 +352,9 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
             _tr_after.write(con, cfg)
         except Exception as e:
             out.append(f"Tracker page rebuild failed: {type(e).__name__}: {e}")
+        if send_alerts:      # the live model-picks page (Kylor, Nov 23): pushed to Vercel only when the picks changed; never blocks a read
+            from engine.bets import public_page
+            out += [l for l in [public_page.publish(con, cfg)] if l]
         # run on change (decision 0016): a new stale number means Pinnacle moved and Wagerhouse has not; the agent looks for the reason
         stale_sports = stale.new_sports(con, now)
         if "NFL" in stale_sports:

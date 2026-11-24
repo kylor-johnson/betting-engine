@@ -14,7 +14,7 @@ one holding the good number.
 past" number, and I place them from there. Telegram carries only three things:
 - **staked picks**: playbook A and B picks and teaser tickets, each with stake, limit, and how much of the edge is price and how much is
   handicap (a CANCELLED message if a sent pick should no longer be bet);
-- **the 9am recap**: yesterday's results, what was not sent and why, and the money rules (this week's total, units left
+- **the 9am recap**: the record since Nov 23, the paper picks of the last 24 hours and why they were paper, and the money rules (this week's total, units left
   before each stop);
 - **system lines**: the engine is broken, or a lane changed (a model or lane switched, a stop tripped, a lane fell below its review line).
 
@@ -72,15 +72,16 @@ Changing anything in this section needs a decision note I asked for.
 `uv run engine check` runs these at the end of every session and on the first read after 7am (one Telegram line only when one
 fails; `docs/lanes/CHECKS.md`):
 
-1. Every staked pick (playbook and teaser, more than $0) has a Telegram message marked delivered and a row in the tracker.
+1. Every staked pick (playbook and teaser, more than $0) has a Telegram message marked delivered (the tracker row is not checked yet).
 2. No Telegram message of kind `bet` has a $0 stake.
-3. Every staked pick has a "don't bet past" number and is graded within 24 hours of the game ending; props and team totals also have a
-   closing grade.
+3. Every staked pick has a "don't bet past" number and is graded within about a day of the start (the code allows 28 hours after
+   kickoff; teaser tickets and the closing grade for props and team totals are not checked yet).
 4. Every lane's last candidate (A, B or C) is less than 2 days old for the NBA and less than 8 days old for the NFL and college in season,
-   or `STATUS.md` says why.
-5. `STATUS.md` was generated in the last 24 hours from the current config.
-6. The tracker shows this week's staked total and how many units are left before each stop.
-7. The hourly read ran in the last 2 hours during read hours, and the research runs ran at their fixed times.
+   and the NFL teaser lane has a leg less than 8 days old (there is no exemption yet).
+5. `STATUS.md` was generated in the last 24 hours (its age only; not compared with the current config).
+6. No stop has tripped (the tracker and recap show this week's staked total and the units left before each stop).
+7. The hourly read ran in the last 2 hours during read hours, and a research run ran in the last 26 hours (a missed fixed-time run gets
+   its own Telegram line from the hourly read).
 8. No session lock is older than 4 hours.
 9. Every sport has every component in the parity table, each with a status and a reason.
 
@@ -127,7 +128,8 @@ History of how we got here: `docs/decisions/`.
 
 ## How sessions work together
 
-- **One session owns the code at a time, enforced.** Before editing `src/`, `ops/`, `config.yaml`, `adjustments.yaml`, `CHARTER.md` or
+- **One session owns the code at a time.** `engine lock take` refuses a second session and auto-commit waits; nothing else blocks an
+  edit, so the rule depends on each session taking the lock. Before editing `src/`, `ops/`, `config.yaml`, `adjustments.yaml`, `CHARTER.md` or
   `PLAYBOOK.md`, run `uv run engine lock take "what you are changing"`. If it is refused, stop and ask me. Release it
   (`uv run engine lock release`) after you commit. A lock older than 4 hours is stale. Scheduled jobs do not auto-commit while a lock is
   held. The research agent may still write its decisions, checks and adjustments files.

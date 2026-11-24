@@ -273,6 +273,16 @@ parity:
 telegram:
   send_kinds: [bet, system, recap]
 
+# The live model-picks page (Kylor, Nov 23): only picks the model sent to Telegram (staked playbook picks and teaser tickets), never his own
+# Wagerhouse bets or paper picks. Rebuilt with the tracker and pushed to Vercel when the picks change (at most every min_minutes). Public to
+# anyone with the link (free Vercel projects cannot take a password); random project name, noindex. Needs `vercel login` once on this Mac
+# (or VERCEL_TOKEN in .env). `uv run engine tracker-publish` pushes it now; `--local` only builds it.
+public_tracker:
+  enabled: true
+  project: model-picks-fb0112
+  min_minutes: 10
+  vercel: /Users/kylorjohnson/.nvm/versions/node/v25.2.1/bin/vercel
+
 # Paper Leans (src/engine/picks/leans.py): the agent's judgment picks, never staked. Kylor, 2026-11-23: "leans paper-only".
 leans:
   enabled: false                    # retired by decision 0027 (merged into the playbook: sourced opinions go in adjustments.yaml or CHECK verdicts)

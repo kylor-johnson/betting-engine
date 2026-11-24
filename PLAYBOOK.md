@@ -62,7 +62,7 @@ For each market, **edge = our chance of winning − the chance Wagerhouse's pric
 
 **Where the market comes in, and only here:**
 - **Price filter.** Never bet a number worse than ours. If another book has a better number than Wagerhouse, the card says so (you can't bet it, but it tells you Wagerhouse is worse).
-- **Sanity check, not a veto.** If our number is far from the market (3+ points on a side, 4+ on a total, 15+ points of chance on a prop), the pick is marked **CHECK**. A gap that big usually means news we don't have. The research agent must find what the market knows before it can go out. "Nothing found" is a hold. A clear needs a positive sourced reason the market is wrong and what the current number already assumes (decision 0025); a cleared pick is staked and sent like any other B pick (decision 0027).
+- **Sanity check, not a veto.** If our number is far from the market (3+ points on a side, 4+ on a total, 15+ points of chance on a prop), the pick is marked **CHECK**. A gap that big usually means news we don't have. The research agent must find what the market knows before it can go out. "Nothing found" is a hold. A clear needs a positive sourced reason the market is wrong and what the current number already assumes (decision 0025); a cleared pick is staked and sent like any other B pick in a staked lane (decision 0027); in the shown-only lanes (NBA and college full-game) it is staked only if it is also a news pick (decision 0029). These distances are the NFL's; NBA uses 4 / 6 / 5 and college 6 / 7 / 6 points (side / total / team total).
 - **Blend.** Our number is pulled part of the way toward the market before the edge is computed. That is the one lesson every serious modeller agrees on (Benter: a model that ignores the market loses to it). Starting weight on **our** number: props 0.5, team totals 0.4, totals 0.35, sides 0.25. A weight changes only after 40 graded candidates, by a session, with a decision note (decision 0022); `engine playbook-record` shows the fitted weight against the current one.
 
 ### Step 5: always produce picks
@@ -80,7 +80,7 @@ For each market, **edge = our chance of winning − the chance Wagerhouse's pric
 - Every pick is frozen at the Wagerhouse number when issued, with a "don't bet past" number, and graded on the result and against the closing number.
 - **Stakes:** A = 1 unit, B = half a unit, C = nothing; units and the stops are in the charter's Money section. Staked lanes (decision 0026): NFL full-game, NFL props, NBA props and NFL Wong teasers. NBA and college full-game picks are shown only (research 16). Research 18's restart numbers are the yardstick for keeping a lane staked.
 - **Every pick shows where its edge came from:** the part it would have if our number were the market's (that is only Wagerhouse's price against Pinnacle) and the rest, which is our handicap (decision 0027). The charter's rule stands: a price gap alone is never a reason.
-- **Every principle keeps its own record.** After 4 weeks and 40 picks, a principle whose picks lose against the closing number is cut to zero weight, with a decision note and a one-line Telegram lane message (charter drift guard). A principle that wins gets more weight.
+- **Every principle keeps its own record.** After 4 weeks and 40 picks, a principle whose picks lose against the closing number is cut to zero weight by a session, with a decision note; the lane-change line then reaches Telegram (charter drift guard). A principle that wins gets more weight. Nothing does this automatically: `engine playbook-record` reports the fitted weight, and the only automatic Telegram line is the review line in the charter.
 - Results alone take thousands of bets to prove anything, so the closing number is the scorecard week to week, and results are shown next to it.
 
 ## 5. Per sport
@@ -138,7 +138,7 @@ We copy methods, never picks. Warren Sharp's write-ups are one example; Walters,
 | NBA sides, totals, team totals | Shown only (walk-forward lost, research 16) | `models/nba_script.py` |
 | College sides, totals, team totals | Shown only (walk-forward lost; totals weight a lead, research 16) | `models/college_script.py` |
 | NFL Wong teasers | Live, staked (A), 1 NFL unit a ticket; judged at 300 legs | decision 0014, 0019 |
-| CHECK clearing by the research agent | Live for all three sports; a cleared pick is staked (decision 0027) | `docs/cards/decisions/<date>-<sport>-checks.yaml` |
+| CHECK clearing by the research agent | Live for all three sports; a cleared pick is staked in a staked lane (decision 0027), and in NBA and college full-game only as a news pick | `docs/cards/decisions/<date>-<sport>-checks.yaml` |
 | Per-principle record and weight re-fit on every candidate | Live | `engine playbook-record`, `docs/lanes/PLAYBOOK-RECORD.md` |
 | Schedule-adjusted form (NFL script) | Live: the one addition that helped (NFL totals, research 17) | `script.ADJUST` |
 | Rain, wind | Live inputs to the NFL script since the start | `script.py` |

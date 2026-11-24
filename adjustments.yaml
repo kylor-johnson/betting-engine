@@ -1,11 +1,9 @@
-# Adjustments to the model's number for this week's games. Nothing else moves the fair line.
-# Each entry needs every field. `points` is how much BETTER (+) or WORSE (-) that team is than
-# its rating for a spread entry, or how many points to add (+) or remove (-) from the total.
-# Remove an entry once the game is played.
-#
-# Quarterback guide (starter against that team's backup): elite 6 to 7, good 4 to 5,
-# average 2 to 3, low 0 to 1.5. Count only the part the ratings have not absorbed yet:
-# the ratings move about 10% a week, so a change two or three games old is partly in.
+# Sourced news for upcoming games (decision 0029). Each entry moves the playbook's number for its game, but only by the part
+# Pinnacle has not moved for since `news_at`; with no `news_at`, or no Pinnacle line stored from before it, the entry counts for nothing.
+# `points` is the FULL effect of the news: how much BETTER (+) or WORSE (-) that team is for a spread entry, or points to add (+) or
+# remove (-) from the total. Do not net out what the market already did; the engine does that.
+# `game` and `team` must be written exactly as Wagerhouse names them ("Away at Home"); `uv run engine news` lists any entry that matches
+# no game. Sizes per sport: ops/agent_prompt_<sport>.md. Remove an entry once the game is played.
 adjustments:
   - game: "New England Patriots at Los Angeles Chargers"
     team: "New England Patriots"

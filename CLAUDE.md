@@ -22,8 +22,9 @@ Owner: Kylor (Denver, Mountain time). Research is in `docs/research/`, decisions
 - DuckDB at `data.nosync/engine.duckdb`. The hourly read, the 10-minute fast reads, the NBA watcher and research runs all open it; connect
   through `engine.odds.snapshots.connect`, which waits for the lock instead of failing.
 - Scheduled jobs are launchd plists in `ops/launchd/`; Kylor loads them himself with `launchctl`. Logs: `~/Library/Logs/betting-engine/`.
-- The research agent is a headless `claude -p` run with `ops/agent_prompt.md` plus `ops/agent_prompt_<sport>.md`. It may write only its
-  decisions and checks files and `adjustments.yaml`.
+- The research agent is a headless `claude -p` run with `ops/agent_prompt.md` plus `ops/agent_prompt_<sport>.md`. Its file edits are limited to
+  its decisions, checks and leans files and `adjustments.yaml`, but it may run any `uv run engine` command, including ones that write the
+  database or send (`engine playbook` without `--dry-run`, `status --send`); research 22 proposes narrowing this.
 
 ## Sources (no paid data)
 
@@ -34,14 +35,17 @@ Owner: Kylor (Denver, Mountain time). Research is in `docs/research/`, decisions
 - **ESPN:** DraftKings lines (kept for history and the bet audit, not the reference), NFL injuries, NBA box scores.
 - **News:** the Rotoworld relay tagged by `ops/reporters.yaml`, the official NBA injury report PDF, then ESPN.
 - **History and stats:** nflverse (`nflreadpy`), CollegeFootballData (free key in `.env`), The Prediction Tracker, Open-Meteo.
-- If a source is down or returns junk, fail loudly and send a `system` alert. Never skip silently.
+- If a source is down or returns junk, fail loudly. Today only these reach Telegram as `system`: a failed Wagerhouse read, missed reads, a
+  missed or failed research run, a lane change and the daily check. Other source problems are kind `problem` (held back, on the board and in
+  the log), and a playbook or teaser failure is only in the log until the daily check catches its effect. Never skip silently.
 
 ## Rules for code
 
 - **Code owns every number.** The agent writes status and reasons only; files with number fields are rejected.
 - **Log everything with a timestamp and the price at that moment.** Store UTC, show Mountain. Wagerhouse timestamps arrive in Eastern.
 - **Freeze picks at issue.** A pick's line, price, stake and limit never change after it is first written.
-- **Every message is saved** in `alerts_sent`, sent or not, with whether it was delivered.
+- **Every pick and system message is saved** in `alerts_sent`, sent or not, with whether it was delivered. Not yet saved there: the 9am recap,
+  the research agent's own messages, the weekly report and stale alerts.
 - **Telegram kinds:** `bet` (a staked pick), `recap`, `system`; everything else is `info` or `stale` and held back by
   `telegram.send_kinds`. Never send a $0 pick as `bet`.
 - **Generated, never typed:** `docs/lanes/STATUS.md`, `PLAYBOOK-RECORD.md`, `TRACKER.md`, `NEWS-PROPS.md`, cards, `board.html`,

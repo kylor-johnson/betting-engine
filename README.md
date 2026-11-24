@@ -32,13 +32,14 @@ uv run engine telegram-setup                  # after sending your bot any messa
 | `uv run engine playbook --dry-run` | The playbook pick lists for NFL, NBA and college right now (PLAYBOOK.md), without sending or saving anything; `--sport NBA` for one |
 | `uv run engine playbook-record` | Playbook record by sport and market, and the weight re-fit from every priced candidate (`docs/lanes/PLAYBOOK-RECORD.md`) |
 | `uv run engine tracker` | Every Telegram pick next to your actual Wagerhouse bets since Nov 23: the model's record, yours on its picks, yours on your own bets, and how closely each pick was followed (`docs/lanes/TRACKER.md`; synced twice a day automatically, 9am recap on Telegram) |
+| `uv run engine tracker-publish [--local]` | The live model-picks page: only picks the model sent to Telegram (never your own bets), pushed to Vercel; also pushed automatically when the picks change (`public_tracker` in config.yaml; needs `vercel login` once) |
 | `uv run engine poll` | What the scheduled job runs: reads only in the hours listed in `config.yaml` |
 | `uv run engine watch add "Kansas State +10 -115"` | Alert when Wagerhouse has +10 or better at −115 or better |
 | `uv run engine watch add "Bills/Jets o44"` / `"Bills ML -150"` | Totals and moneylines |
 | `uv run engine watch list` / `watch remove 3` | See or drop watchlist entries |
 | `uv run engine sync` | Pull the last two weeks of graded bets from the account into the history |
 | `uv run engine audit` | Price every graded bet against the closing line; writes `docs/research/01-bet-audit.md` |
-| `uv run engine report` | Weekly report for the last completed week, summary sent to Telegram |
+| `uv run engine report` | Weekly report for the last completed week, written to `data.nosync/reports/`; its summary is kind `info`, so it is not sent |
 | `uv run engine report --week 2026-11-10 --no-send` | A specific week, printed |
 | `uv run engine book` | How Wagerhouse's lines compare with the market so far |
 | `uv run engine bet add "Kansas State +10 -110 25" --note "why"` | Log a bet by hand with a reason (graded bets arrive from the account automatically) |
@@ -51,11 +52,11 @@ uv run engine telegram-setup                  # after sending your bot any messa
 
 `PLAYBOOK.md` is the whole method. In short: code builds its own number for every market from a game-script handicap, pulls it toward Pinnacle, and picks where that beats Wagerhouse's price (A and B grades). Picks whose number is far from the market are held as CHECK until the research agent finds a sourced reason. Staked picks go to Telegram with stake, limit and how much of the edge was price and how much was handicap. Nothing else goes to Telegram except the 9am recap and system lines (`CHARTER.md`).
 
-Research runs happen at 8:15am every day and 6:45pm Sunday (NFL openers), Mountain, and on change: a quarterback's status change, new NFL games at your book, an NBA watcher hit, or a new stale number (for that sport), at most once every 90 minutes per trigger (`config.yaml` `agent:`, decision 0016).
+Research runs happen at the fixed times in two places that do not agree: `config.yaml` `agent.schedule` (8:15am every day and 6:45pm Sunday; the hourly read starts a missed one) and the agent launchd job (Sunday 8:15am, 6:45pm and 8:45pm; Monday, Tuesday and Saturday 8:15am; Wednesday to Friday 3:15pm), Mountain, and on change: a quarterback's status change, new NFL games at your book, an NBA watcher hit, or a new stale number (for that sport), at most once every 90 minutes per trigger (`config.yaml` `agent:`, decision 0016).
 
 ## Running on a schedule (launchd)
 
-Four jobs: line and news reads every 30 minutes (the command itself only reads in scheduled hours), research runs on the schedule above, the weekly report Tuesday 9:00, and the NBA injury watcher three times a day (10am, 3pm and 5pm Mountain, set in `config.yaml` under `nba_watch.run_times`).
+Five jobs (the fifth, `burst`, runs fast reads every 10 minutes and can start research on a new stale number): line and news reads every 30 minutes (the command itself only reads in scheduled hours), research runs on the schedule above, the weekly report Tuesday 9:00, and the NBA injury watcher three times a day (10am, 3pm and 5pm Mountain, set in `config.yaml` under `nba_watch.run_times`).
 
 ```sh
 cp ops/launchd/*.plist ~/Library/LaunchAgents/
@@ -69,7 +70,7 @@ tail -5 ~/Library/Logs/betting-engine/poll.log ~/Library/Logs/betting-engine/pol
 
 To stop: `launchctl bootout gui/$(id -u)/com.kylor.betting-engine.poll` (and `.weekly`, `.agent`, `.nba-watch`).
 
-**NBA injury watcher** (`engine nba-watch`): reads ESPN's public NBA injury report. When a player who averages 22+ minutes on a team playing in the next 30 hours moves between playing and not playing (to or from Out or Doubtful, or off the report), it reads Wagerhouse and Pinnacle once (at most 12 extra reads a day), messages the news with both lines, and starts an NBA research run (at most one every 20 minutes). A pick still comes only from the card, when the numbers support it. Sources, fastest first: Rotoworld's relay of beat writers and insiders (each tagged from `ops/reporters.yaml`), the official NBA injury report PDF (every 15 minutes on game days), then ESPN. Test it without messaging: `uv run engine nba-watch --dry-run --force`. See which listed reporters actually reach the engine: `uv run engine reporters`. Details: `docs/research/07-injury-news-sources.md`.
+**NBA injury watcher** (`engine nba-watch`): reads ESPN's public NBA injury report. When a player who averages 22+ minutes on a team playing in the next 30 hours moves between playing and not playing (to or from Out or Doubtful, or off the report), it reads Wagerhouse and Pinnacle once (at most 12 extra reads a day), records the news with both lines (kind `news`: on the board, not sent to Telegram), and starts an NBA research run (at most one every 20 minutes). A pick still comes only from the card, when the numbers support it. Sources, fastest first: Rotoworld's relay of beat writers and insiders (each tagged from `ops/reporters.yaml`), the official NBA injury report PDF (every 15 minutes on game days), then ESPN. Test it without messaging: `uv run engine nba-watch --dry-run --force`. See which listed reporters actually reach the engine: `uv run engine reporters`. Details: `docs/research/07-injury-news-sources.md`.
 
 Job logs live in `~/Library/Logs/betting-engine/` (outside iCloud, because macOS will not let a background job open a log file inside iCloud Drive). If `poll.err.log` says "Operation not permitted", macOS is blocking background access to iCloud Drive: System Settings → Privacy & Security → Full Disk Access → add `/opt/homebrew/bin/uv`.
 
@@ -85,5 +86,5 @@ Keep the Mac awake: plugged in, lid open, and `sudo pmset -c sleep 0` (never sle
 - `adjustments.yaml`: this week's point adjustments, each with reason and source
 - `docs/cards/`: one card per day; `docs/cards/decisions/` holds the agent's status and reasons
 - `ops/agent_prompt.md`: the research agent's shared instructions; `ops/agent_prompt_nfl.md`, `_college.md`, `_nba.md`: one guide per sport
-- `docs/cards/<date>-nfl-teasers.md`: the paper Wong-teaser legs and record (decision 0014)
+- `docs/cards/<date>-nfl-teasers.md`: the Wong-teaser legs, tickets (real money since decision 0019) and record (decision 0014)
 - Times are stored in UTC and shown in Mountain. Wagerhouse reports Eastern.

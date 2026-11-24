@@ -95,3 +95,24 @@ def test_candidates_carry_news_into_our_number():
     g = _game(adj_margin=4.0, news=["News, USC Trojans -4 (unpriced: ...): test"])
     cands = [c for c in pb.candidates([g], st, lands) if c["market"] == "side" and c["side"] == "home"]
     assert cands and cands[0]["news_edge"] > 0 and cands[0]["news"]
+
+
+def test_team_name_that_matches_neither_team_is_reported_not_dropped(tmp_path, monkeypatch):
+    """Research 22: an entry whose team is misspelled used to vanish with no trace; it must say why it did not count."""
+    from engine.picks import playbook as pb
+    _with_file(tmp_path, monkeypatch, ADJ.replace('team: "USC Trojans"', 'team: "Southern Cal"'))
+    con = _pb_con()
+    _pin(con, [(NOW - timedelta(days=1), 7.0), (NOW, 7.0)])
+    g = [_game()]
+    pb.apply_news(con, g, "College", NOW)
+    assert g[0].get("adj_margin", 0.0) == 0.0
+    assert g[0]["news"] and "matches neither" in g[0]["news"][0]
+    assert "NO" in "\n".join(pb.news_section(g))
+
+
+def test_entry_for_a_game_wagerhouse_names_differently_is_listed(tmp_path, monkeypatch):
+    from engine.picks import playbook as pb
+    _with_file(tmp_path, monkeypatch, ADJ.replace("USC Trojans at UCLA Bruins", "Southern Cal at UCLA"))
+    assert pb.unmatched_news([_game()]) == ["Southern Cal at UCLA"]
+    _with_file(tmp_path, monkeypatch, ADJ)
+    assert pb.unmatched_news([_game()]) == []

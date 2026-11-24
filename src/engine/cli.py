@@ -414,19 +414,48 @@ def cmd_news(args) -> int:
     try:
         now = datetime.now(timezone.utc)
         bad = 0
+        seen: list[dict] = []
         for sport in ([args.sport] if args.sport else ["NFL", "College", "NBA"]):
             games, problems = playbook.live_games(con, now, sport)
+            seen += games
             problems += playbook.apply_news(con, games, sport, now)
             print(f"# {sport}")
             for line in problems:
                 print("PROBLEM: " + line)
             print("\n".join(playbook.news_section(games)[2:]) + "\n")
-            bad += sum(1 for g in games for n in (g.get("news") or []) if "no news_at" in n)
+            bad += sum(1 for g in games for n in (g.get("news") or []) if "no news_at" in n or "matches neither" in n)
+        lost = playbook.unmatched_news(seen)
+        if lost:
+            scope = f"no upcoming {args.sport} game" if args.sport else "no upcoming game in any sport"
+            print(f"# Entries that match {scope} (they count for nothing)\n")
+            print("\n".join(f"- {g}" for g in lost))
+            print("\nIf the game is still to be played, rewrite `game` (and `team`) exactly as Wagerhouse names them above, \"Away at Home\". "
+                  "Remove entries for games already played.\n")
+            if not args.sport:
+                bad += len(lost)
         if bad:
-            print(f"{bad} entr{'y' if bad == 1 else 'ies'} without `news_at`: add the time the news was first published, from the source.")
+            print(f"{bad} entr{'y' if bad == 1 else 'ies'} that count for nothing until fixed: add `news_at` (when the news was first "
+                  "published, from the source) or fix the game or team name to match Wagerhouse's.")
         return 1 if bad else 0
     finally:
         con.close()
+
+
+def cmd_tracker_publish(args) -> int:
+    """Build the live model-picks page and push it to Vercel (config public_tracker)."""
+    from engine.bets import public_page
+    cfg = config.load_config()
+    con = _db.connect(config.DB, read_only=True)
+    try:
+        if args.local:
+            folder, _ = public_page.build(con, cfg)
+            print(f"Built {folder / 'index.html'} (not published).")
+            return 0
+        msg = public_page.publish(con, cfg, force=True)
+    finally:
+        con.close()
+    print(msg or "Nothing to publish.")
+    return 0 if msg.startswith("Live picks page published") else 1
 
 
 def cmd_check(args) -> int:
@@ -827,6 +856,9 @@ def main(argv=None) -> int:
     a = sub.add_parser("news", help="every adjustments.yaml entry for upcoming games and whether it counts in the playbook number now")
     a.add_argument("--sport", choices=["NFL", "College", "NBA"])
     a.set_defaults(func=cmd_news)
+    a = sub.add_parser("tracker-publish", help="build the live model-picks page (only picks sent to Telegram) and push it to Vercel")
+    a.add_argument("--local", action="store_true", help="build the page only, do not publish")
+    a.set_defaults(func=cmd_tracker_publish)
     a = sub.add_parser("lock", help='one session owns the code: lock take "why" / lock release / lock (show); decision 0027')
     a.add_argument("action", nargs="?", choices=["take", "release", "show"], default="show")
     a.add_argument("why", nargs="?", default="")
