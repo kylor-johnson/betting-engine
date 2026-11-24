@@ -226,9 +226,43 @@ playbook:
   # staked; NBA and college full-game shown only. Research 18's restart numbers are the yardstick for keeping a lane staked.
   sports:
     NFL: {full_game: stake, props: true, props_stake: true, period: week, max_per_period: 5, props_per_period: 10, props_per_game: 2}
-    NBA: {full_game: show, props: true, props_stake: true, period: day, max_per_period: 2, props_per_period: 4, props_per_game: 2}
+    NBA: {full_game: show, news_picks: true, props: true, props_stake: true, period: day, max_per_period: 2, props_per_period: 4, props_per_game: 2}
     # news_picks (decision 0029): in a shown-only lane, a pick is staked only when unpriced sourced news (adjustments.yaml) is what clears the bar.
     College: {full_game: show, news_picks: true, props: false, period: week, max_per_period: 5}
+
+# Sport parity (decision 0030; Kylor, Nov 23: "we keep losing focus between all three sports"). The same components for every sport. A cell
+# is live (running), testing, failed (tested and off), not_buildable (no free data), not_applicable, or planned (with a date or a trigger).
+# Money state, props state, news picks and teasers are read from their switches, not typed here. `engine check` fails if any sport is
+# missing a component or a note, and STATUS.md prints the table.
+parity:
+  game_script:
+    NFL: {status: live, note: "game script; earned no weight in walk-forward, staked by choice (research 15, decision 0019)"}
+    College: {status: live, note: "points scored and allowed; lost walk-forward, totals weight a lead (research 16)"}
+    NBA: {status: live, note: "pace and efficiency; lost walk-forward (research 16)"}
+  player_value:
+    NFL: {status: live, note: "starting QB news moves lines 2.5 to 2.7 points (research 14, 2b)"}
+    College: {status: planned, note: "QB value from CollegeFootballData starter-out games; before bowl season (agent uses 3 to 7 until then)"}
+    NBA: {status: live, note: "absences are in the close (research 13); props move minutes to teammates (research 08)"}
+  news_source:
+    NFL: {status: live, note: "ESPN injuries hourly, QB status watcher, reporter relay, practice-report fast reads"}
+    College: {status: live, note: "no free injury feed: the research agent searches availability reports; Friday and Saturday fast reads"}
+    NBA: {status: live, note: "official injury PDF, reporter relay, ESPN; watcher at 10am, 3pm, 5pm; fast reads before first tip"}
+  weather:
+    NFL: {status: live, note: "wind totals passed, weaker since 2024; in the NFL script (research 05, 17)"}
+    College: {status: testing, note: "wind totals on day-before forecasts, 2024-2026 (research 20, running Nov 23)"}
+    NBA: {status: not_applicable, note: "indoor"}
+  props_model:
+    NFL: {status: live, note: "nflverse usage model, forward test vs Pinnacle (decision 0006, research 06)"}
+    College: {status: planned, note: "trigger: Pinnacle posting college props we can read; CFBD player game stats are free"}
+    NBA: {status: live, note: "minutes model, re-centred on outcomes (research 08, decision 0025)"}
+  teasers:
+    NFL: {status: live, note: "Wong legs, real money (decision 0014, 0019)"}
+    College: {status: failed, note: "Wong-range legs won 71.1%, below the 72.4% break-even (research 14)"}
+    NBA: {status: failed, note: "4-point legs won 63.0%, below break-even (research 14)"}
+  agent_guide:
+    NFL: {status: live, note: "ops/agent_prompt_nfl.md"}
+    College: {status: live, note: "ops/agent_prompt_college.md (news picks, decision 0029)"}
+    NBA: {status: live, note: "ops/agent_prompt_nba.md"}
 
 # Telegram is the source of truth (CHARTER, decisions 0026 and 0027): staked picks, the 9am recap, and system lines only.
 # Kinds: bet = a staked playbook pick or teaser ticket; recap = the tracker's 9am summary (with what was not sent and why);

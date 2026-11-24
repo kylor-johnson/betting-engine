@@ -37,7 +37,7 @@ settings.
 
 Each lane is in one of three states, set in `config.yaml` and shown in `docs/lanes/STATUS.md`: **staked** (sent to Telegram), **paper**
 (issued and graded at $0, not sent), or **shown** (on the card only). Today: staked = NFL spreads and totals, NFL props, NBA props, NFL
-teasers; shown = college and NBA spreads and totals (college stakes news picks, decision 0029).
+teasers; shown = college and NBA spreads and totals, which stake only news picks (decisions 0029, 0030).
 
 Each sport has its own research-agent guide (`ops/agent_prompt_<sport>.md`) and its own record by market (`docs/lanes/PLAYBOOK-RECORD.md`),
 so no sport hides behind another's progress. A lane is never allowed to hide inside another lane's "no bets" message.
@@ -69,7 +69,8 @@ Changing anything in this section needs a decision note I asked for.
 
 ## What "working" looks like
 
-These checks pass, at the end of every session and every morning:
+`uv run engine check` runs these at the end of every session and on the first read after 7am (one Telegram line only when one
+fails; `docs/lanes/CHECKS.md`):
 
 1. Every staked pick (playbook and teaser, more than $0) has a Telegram message marked delivered and a row in the tracker.
 2. No Telegram message of kind `bet` has a $0 stake.
@@ -81,6 +82,7 @@ These checks pass, at the end of every session and every morning:
 6. The tracker shows this week's staked total and how many units are left before each stop.
 7. The hourly read ran in the last 2 hours during read hours, and the research runs ran at their fixed times.
 8. No session lock is older than 4 hours.
+9. Every sport has every component in the parity table, each with a status and a reason.
 
 ## The drift guard
 
@@ -96,6 +98,9 @@ This is the rule that stops me finding out a week later that the engine is only 
 4. **Cards say what they actually do.** Any sentence on a card or message that describes how a number was built is generated from the same
    config the number came from.
 5. **Every session ends by checking the table** against what it changed, and says in its summary what each lane can and cannot do now.
+6. **One shape for all three sports.** `STATUS.md` has a sport parity table: the same components for NFL, college and NBA. Anything built
+   for one sport says in the same commit what the other two get, or updates their cell with the reason they don't (decision 0030). We
+   kept drifting to the NFL; this is the rule that stops it.
 
 What has been tested and its result is in `PLAYBOOK.md` (section 9) and `STATUS.md`. Do not edit the table by hand; change `config.yaml`
 (`lanes:` and the switches it points to).

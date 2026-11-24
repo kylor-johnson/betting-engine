@@ -42,6 +42,8 @@ uv run engine telegram-setup                  # after sending your bot any messa
 | `uv run engine report --week 2026-11-10 --no-send` | A specific week, printed |
 | `uv run engine book` | How Wagerhouse's lines compare with the market so far |
 | `uv run engine bet add "Kansas State +10 -110 25" --note "why"` | Log a bet by hand with a reason (graded bets arrive from the account automatically) |
+| `uv run engine check` | The charter's working checks and the sport parity check (`docs/lanes/CHECKS.md`); runs itself every morning |
+| `uv run engine news [--sport College]` | Every news entry in `adjustments.yaml` for upcoming games and whether it counts in the playbook number now |
 | `uv run engine lock take "why"` / `lock release` / `lock` | One session owns the code: take the lock before changing code, config, the charter or the playbook; release it after committing (decision 0027) |
 | `uv run pytest` | Run the tests |
 

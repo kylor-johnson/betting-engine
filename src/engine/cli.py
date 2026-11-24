@@ -406,6 +406,42 @@ def cmd_props_test(args) -> int:
     return 0
 
 
+def cmd_news(args) -> int:
+    """Every adjustments.yaml entry for upcoming games and whether it counts in the playbook number now (decision 0029)."""
+    from datetime import datetime, timezone
+    from engine.picks import playbook
+    con = _db.connect(config.DB, read_only=True)
+    try:
+        now = datetime.now(timezone.utc)
+        bad = 0
+        for sport in ([args.sport] if args.sport else ["NFL", "College", "NBA"]):
+            games, problems = playbook.live_games(con, now, sport)
+            problems += playbook.apply_news(con, games, sport, now)
+            print(f"# {sport}")
+            for line in problems:
+                print("PROBLEM: " + line)
+            print("\n".join(playbook.news_section(games)[2:]) + "\n")
+            bad += sum(1 for g in games for n in (g.get("news") or []) if "no news_at" in n)
+        if bad:
+            print(f"{bad} entr{'y' if bad == 1 else 'ies'} without `news_at`: add the time the news was first published, from the source.")
+        return 1 if bad else 0
+    finally:
+        con.close()
+
+
+def cmd_check(args) -> int:
+    """The charter's working checks (decision 0030). Exit 1 if any fail."""
+    from engine import checks
+    cfg = config.load_config()
+    con = _db.connect(config.DB, read_only=True)
+    try:
+        path, res = checks.write(con, cfg)
+    finally:
+        con.close()
+    print(path.read_text())
+    return 1 if any(not ok for _, ok, _ in res) else 0
+
+
 def cmd_lock(args) -> int:
     from engine import session_lock
     if args.action == "take":
@@ -786,6 +822,11 @@ def main(argv=None) -> int:
     a.set_defaults(func=cmd_wh_edge)
     a = sub.add_parser("stale", help="stale-number price alerts: grade them and show the record")
     a.set_defaults(func=cmd_stale)
+    a = sub.add_parser("check", help="the charter's working checks: Telegram, limits, grading, lanes, reads, lock, sport parity (writes docs/lanes/CHECKS.md)")
+    a.set_defaults(func=cmd_check)
+    a = sub.add_parser("news", help="every adjustments.yaml entry for upcoming games and whether it counts in the playbook number now")
+    a.add_argument("--sport", choices=["NFL", "College", "NBA"])
+    a.set_defaults(func=cmd_news)
     a = sub.add_parser("lock", help='one session owns the code: lock take "why" / lock release / lock (show); decision 0027')
     a.add_argument("action", nargs="?", choices=["take", "release", "show"], default="show")
     a.add_argument("why", nargs="?", default="")

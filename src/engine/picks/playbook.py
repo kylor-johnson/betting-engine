@@ -683,7 +683,7 @@ def run(cfg: dict, env: dict, con, now: datetime, send: bool = True, props_ctx: 
             out.append(msg)
             _send_and_save(con, env, msg, st["lane"], key, now, send and dollars > 0)
         out += _issue_props(con, cfg, env, props_graded, st, now, down, unit, rv, tz, send)
-        return out, card(con, cfg, graded, st, now, props_graded if st["props"] else None)
+        return out, card(con, cfg, graded, st, now, props_graded if st["props"] else None, games)
     except Exception as e:
         return out + [f"playbook {sport} failed: {type(e).__name__}: {e}"], ""
 
@@ -1000,7 +1000,25 @@ def _show(c: dict, lim: float) -> str:
     return f"{c['pick'].rsplit(' ', 1)[0]} {lim:g}"
 
 
-def card(con, cfg: dict, graded: list[dict], st: dict, now: datetime, props_graded: list[dict] | None = None) -> str:
+def news_section(games: list[dict]) -> list[str]:
+    """Every adjustments.yaml entry that matched a game on this card, and whether it counted (decision 0029). An entry that did not count
+    says why, so the research agent can fix it in the same run (most often: no `news_at`)."""
+    rows = [(g, n) for g in games for n in (g.get("news") or [])]
+    out = ["", "## News on this card (adjustments.yaml)", ""]
+    if not rows:
+        return out + ["No sourced news entries match games on this card. News is how a shown-only lane gets a staked pick, so an empty "
+                      "section in a busy news week is worth a look."]
+    out += ["| Game | Entry | Counted? |", "|---|---|---|"]
+    for g, n in rows:
+        head, _, rest = n.partition(" (")
+        status, _, reason = rest.partition("): ")
+        ok = "yes" if status.startswith(("unpriced", "partly")) else "NO"
+        out.append(f"| {g['away']} at {g['home']} | {head.removeprefix('News, ')}: {reason[:160]} | {ok}: {status} |")
+    return out
+
+
+def card(con, cfg: dict, graded: list[dict], st: dict, now: datetime, props_graded: list[dict] | None = None,
+         games: list[dict] | None = None) -> str:
     sport = st["sport"]
     tz = config.display_tz(cfg)
     issued = con.execute("SELECT pick, game, grade, price, dollars, dont_bet_past, kickoff_utc, why FROM playbook_picks WHERE sport=? AND kickoff_utc > ? "
@@ -1045,6 +1063,8 @@ def card(con, cfg: dict, graded: list[dict], st: dict, now: datetime, props_grad
                            f"{c['note'] or 'under the minimum edge'} | `{prop_key(c)}` |")
         else:
             out.append("None (props are priced on each hourly read).")
+    if games is not None:
+        out += news_section(games)
     return "\n".join(out) + "\n"
 
 

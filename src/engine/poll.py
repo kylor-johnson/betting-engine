@@ -220,6 +220,17 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
             _tracker.write(con, cfg)
             local = now.astimezone(config.display_tz(cfg))
             rstamp = config.DATA / "raw" / ".tracker_recap"
+            cstamp = config.DATA / "raw" / ".checks_run"
+            if local.hour >= 7 and (not cstamp.exists() or cstamp.read_text().strip() != local.date().isoformat()):
+                try:     # the charter's working checks, once a day (decision 0030); one system line only when something fails
+                    from engine import checks as _checks
+                    _, cres = _checks.write(con, cfg, now)
+                    ctext = _checks.telegram_text(cres)
+                    if ctext and send_alerts:
+                        _deliver(con, env, [rules.Alert(f"checks|{local.date().isoformat()}", "failure", ctext)], now, out)
+                    cstamp.write_text(local.date().isoformat())
+                except Exception as e:
+                    out.append(f"Checks failed to run: {type(e).__name__}: {e}")
             if send_alerts and local.hour >= 9 and (not rstamp.exists() or rstamp.read_text().strip() != local.date().isoformat()):
                 from engine.alerts import telegram as _tg
                 _tg.send(env, _tracker.recap(con, cfg), kind="recap")
