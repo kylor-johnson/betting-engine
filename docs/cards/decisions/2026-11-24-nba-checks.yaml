@@ -3,6 +3,10 @@ checks:
     verdict: hold
     why: "Checked the ESPN feed for Detroit and Orlando: Jalen Duren ruled out (Nov 23 15:08 MT), Ebuka Okorie out (Nov 23 15:10 MT), Cade Cunningham probable with a knee issue (Nov 23 15:07 MT); the market has all of it, and I found nothing on Thompson's role or minutes that says Pinnacle's assist line is wrong."
     source: "https://www.espn.com/nba/injuries"
+  - key: "prop|5211175|reb|over|3.5|401909316"
+    verdict: hold
+    why: "Checked the ESPN feed for Dallas and Denver: Lively out (foot), Tobi Lawal out (Nov 23 16:25 MT), P.J. Washington questionable with illness (Nov 23 16:21 MT), no Denver player listed. The market has had all of this since last night, and I found nothing on Risacher's role or minutes that says Pinnacle's rebound line is wrong."
+    source: "https://www.espn.com/nba/injuries"
   - key: "prop|4712849|fg3m|over|1.5|401909314"
     verdict: hold
     why: "Checked the ESPN feed for Orlando: Banchero (since Oct 24), Isaac (Nov 21) and Penda are out, all long-standing and priced; nothing found on Anthony Black's role or minutes, so the gap is most likely model noise."
