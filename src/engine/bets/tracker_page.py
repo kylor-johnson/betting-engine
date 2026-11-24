@@ -58,6 +58,9 @@ def data(con, cfg: dict, now: datetime | None = None) -> dict:
             flags.append("worse number")
         if "better" in follow:
             flags.append("better number")
+        if r.kind == "pick" and r.price is not None and r.matched and r.matched[0].legs and r.matched[0].legs[0].price is not None:
+            if tr._dec(r.matched[0].legs[0].price) < tr._dec(r.price) * 0.97 and "PAST THE LIMIT" not in follow:
+                flags.append("worse price")
         if "stake $" in follow:
             flags.append("stake off")
         mine = [_wager(w, tz) for w in r.matched]
@@ -90,7 +93,7 @@ def build(con, cfg: dict, now: datetime | None = None) -> Path:
 
 TEMPLATE = r"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bet Tracker</title>
+<title>Bet Tracker</title><meta http-equiv="refresh" content="900">
 <style>
 :root{--bg:#f6f7f9;--card:#fff;--ink:#14171c;--muted:#667085;--line:#e4e7ec;--soft:#f1f3f6;--win:#0f8a4b;--winbg:#e6f6ee;--loss:#c4321f;--lossbg:#fdecea;
 --push:#7a5af5;--pushbg:#f0ecff;--open:#b26a00;--openbg:#fff4e0;--live:#0b6bcb;--livebg:#e7f1fc;--accent:#14171c}
@@ -157,21 +160,23 @@ function kpis(){const P=rows(),set=P.filter(p=>p.status==='settled'),mNet=set.re
  const openRisk=P.filter(p=>p.status!=='settled').reduce((a,p)=>a+p.you_risk,0)+O.filter(o=>o.net==null).reduce((a,o)=>a+o.risk,0);
  const clvs=set.map(p=>p.clv).filter(v=>v!=null),clv=clvs.length?clvs.reduce((a,b)=>a+b,0)/clvs.length:null;
  const youRec=bSet.map(p=>({r:p.you_net>0?'won':p.you_net<0?'lost':'push'}));
+ const mOut=P.filter(p=>p.status!=='settled').reduce((a,p)=>a+p.stake,0), yOut=bet.filter(p=>p.you_net==null).reduce((a,p)=>a+p.you_risk,0);
+ const big=(n,net,out)=>n?`<div class="big ${cls(net)}">${fmt$(net)}</div>`:`<div class="big" style="color:var(--muted)">${plain$(out)}<span style="font-size:14px;font-weight:500"> out, none settled</span></div>`;
  $('#kpis').innerHTML=`
- <div class="kpi"><div class="lab">Model</div><div class="big ${cls(mNet)}">${set.length?fmt$(mNet):'—'}</div>
+ <div class="kpi"><div class="lab">Model</div>${big(set.length,mNet,mOut)}
   <div class="row"><span>${rec(set,'result')} · ${set.length} settled</span><span>${mRisk?((mNet/mRisk)*100).toFixed(1)+'% ROI':''}</span></div>
   <div class="row"><span>${P.length} picks sent</span><span>${clv==null?'':'CLV '+(clv*100).toFixed(1)+'%'}</span></div></div>
- <div class="kpi"><div class="lab">You, on its picks</div><div class="big ${cls(yNet)}">${bSet.length?fmt$(yNet):'—'}</div>
+ <div class="kpi"><div class="lab">You, on its picks</div>${big(bSet.length,yNet,yOut)}
   <div class="row"><span>${rec(youRec,'r')} · ${bSet.length} settled</span><span>${yRisk?((yNet/yRisk)*100).toFixed(1)+'% ROI':''}</span></div>
   <div class="row"><span>Followed ${bet.length} of ${P.length}</span><span>${P.filter(p=>p.flags.includes('past limit')).length} past limit</span></div></div>
- <div class="kpi"><div class="lab">You, your own bets</div><div class="big ${cls(oNet)}">${oSet.length?fmt$(oNet):'—'}</div>
+ <div class="kpi"><div class="lab">You, your own bets</div>${oSet.length?`<div class="big ${cls(oNet)}">${fmt$(oNet)}</div>`:`<div class="big" style="color:var(--muted)">${O.length?plain$(O.reduce((a,o)=>a+o.risk,0)):'$0'}<span style="font-size:14px;font-weight:500"> ${O.length?'out':'none placed'}</span></div>`}
   <div class="row"><span>${rec(oSet,'status')} · ${oSet.length} settled</span><span>${O.length} placed</span></div><div class="row"><span>not on the model's list</span></div></div>
  <div class="kpi"><div class="lab">Open now</div><div class="big">${plain$(openRisk)}</div>
   <div class="row"><span>${P.filter(p=>p.status==='upcoming').length} upcoming · ${P.filter(p=>p.status==='live').length} in play</span></div><div class="row"><span>at risk, your bets</span></div></div>`}
 function badge(p){if(p.status==='settled')return `<span class="badge ${p.result}">${p.result.toUpperCase()}</span>`;if(p.status==='live')return '<span class="badge live">IN PLAY</span>';return '<span class="badge open">PENDING</span>'}
 function grade(p){if(!p.bet)return '<span class="badge open">not bet</span>';let b=[];if(!p.flags.length)b.push('<span class="badge good">as sent</span>');
- p.flags.forEach(f=>b.push(`<span class="badge ${f==='better number'?'good':f==='stake off'?'open':'warn'}">${f}</span>`));return b.join(' ')}
-function card(p){const w=p.wagers.map(x=>`${plain$(x.risk)} ${x.line!=null?'at '+x.line:''} ${price(x.price)} · <b class="${x.net==null?'':cls(x.net)}">${x.net==null?x.status:fmt$(x.net)}</b>`).join(' &nbsp;|&nbsp; ');
+ p.flags.forEach(f=>b.push(`<span class="badge ${f==='better number'?'good':(f==='stake off'||f==='worse price')?'open':'warn'}">${f}</span>`));return b.join(' ')}
+function card(p){const w=p.wagers.map(x=>`${plain$(x.risk)} ${x.line!=null?'at '+x.line:''} ${price(x.price)} · <b class="${x.net==null?'':cls(x.net)}">${x.net==null?'open, to win '+plain$(x.to_win):fmt$(x.net)}</b>`).join(' &nbsp;|&nbsp; ');
  return `<div class="card"><div><div class="pick">${esc(p.pick)}${p.price!=null&&p.kind==='pick'?' <span class="game">('+price(p.price)+')</span>':''}</div>
   <div class="game">${esc(p.game)} · ${tFmt(p.kick)}</div><div class="meta"><span class="tag">${p.sport}</span><span class="tag">${p.market}</span>
   ${p.limit?`<span class="tag">don't bet past: ${esc(p.limit)}</span>`:''}<span class="tag">sent ${tFmt(p.sent)}</span></div></div>
