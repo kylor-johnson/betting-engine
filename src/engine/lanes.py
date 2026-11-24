@@ -16,7 +16,7 @@ STATUS_WORDS = {
     "passed_weak": "passed a test, weaker lately",
     "testing": "still being tested",
     "failed": "tested, failed, switched off",
-    "overridden": "staked by Kylor's choice (NFL full-game 0019, props 0026, college and NBA full-game 0035); judged on its graded record",
+    "overridden": "staked by Kylor's choice (decisions 0019, 0026, 0035); judged on its graded record",
     "shown": "picks shown on the card, not staked; its walk-forward test lost",
     "paper": "paper: issued and graded at $0, not staked, until its closing-line value clears the bar (decision 0025, research 18)",
 }
