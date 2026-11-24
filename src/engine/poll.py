@@ -38,7 +38,7 @@ def _deliver(con, env: dict, alerts: list[rules.Alert], now: datetime, out: list
             continue
         delivered = True
         try:
-            sent = telegram.send(env, a.text, kind="system" if a.kind in ("gap", "failure") else "info")
+            sent = telegram.send(env, a.text, kind="system" if a.kind in ("gap", "failure", "lane") else "info")
         except SourceError as e:
             delivered = False
             out.append(f"NOT SENT ({e}): {a.text}")
@@ -111,15 +111,15 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
             except Exception as e:
                 out.append(f"Could not check for missed research runs: {type(e).__name__}: {e}")
         if send_alerts and not force:
-            try:   # drift guard: Monday morning, and whenever what a lane looks at or which models are on changes
+            try:   # drift guard (decision 0027): one Telegram line when a lane changes, a stop trips, or a lane falls below its review line
                 from engine import lanes
+                from engine.picks import playbook as _pbk
                 changed = lanes.check_changed(con, cfg, now)
                 extra = []
                 if changed:
-                    extra.append(rules.Alert(f"status-changed|{lanes.structure_hash(cfg)}", "status", changed))
-                local = now.astimezone(config.display_tz(cfg))
-                if local.weekday() == 0 and local.hour >= 7:
-                    extra.append(rules.Alert(f"status-monday|{local:%Y-%m-%d}", "status", "LANE STATUS, Monday (all five lanes)\n" + lanes.table_text(cfg, con)))
+                    extra.append(rules.Alert(f"status-changed|{lanes.structure_hash(cfg)}", "lane", changed))
+                for key, text in _pbk.lane_events(con, cfg):
+                    extra.append(rules.Alert(key, "lane", text))
                 if extra:
                     _deliver(con, env, extra, now, out)
             except Exception as e:

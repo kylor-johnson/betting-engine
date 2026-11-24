@@ -1,3 +1,5 @@
+> **Historical (Nov 21, 2026).** This was the Phase 0 brief. The rules now live in `CHARTER.md` (purpose, money, sessions), `PLAYBOOK.md` (how picks are chosen) and `CLAUDE.md` (how code is built). The bankroll and unit below are out of date.
+
 # Handoff: personal sports betting engine
 
 You're building a personal sports betting engine for me (Kylor, Denver, Mountain time). There are two files in this folder: this handoff and BUILD_SPEC.md, a phased spec I put together in another chat. Treat the spec as a draft hypothesis, not the plan. Do not build anything until Phase 0 is done and I've approved it.

@@ -2,6 +2,8 @@
 
 Each principle is a sport and market. Results are staked picks; the weight re-fit uses every candidate the model priced (A, B and C), so it is not biased toward the picks that happened to be issued. A weight is changed only after 40 graded candidates, by a session, with a decision note (PLAYBOOK step 4).
 
+Units are at the grade's size, paper picks included (decision 0025). Closing-line value: sides and totals, win chance gained on the line; props and team totals, Pinnacle's no-vig closing chance of the bet minus the chance its price needed (above 0 = beat the close after the margin).
+
 | Sport | Market | Graded picks | W-L | Units | Closing-line value (win chance) |
 |---|---|---|---|---|---|
 | none graded yet | | | | | |

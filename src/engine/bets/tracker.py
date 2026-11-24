@@ -305,7 +305,7 @@ def report(con, cfg: dict, now: datetime | None = None) -> str:
            f"{'+' if m_net >= 0 else '−'}${abs(m_net):,.2f} | ${m_risk:,.2f} recommended in all |",
            f"| **Model, paper picks** (not sent; graded at the stake they would carry) | {len(paper)} issued, {len(pg)} graded | "
            f"{sum(r.result == 'W' for r in pg)}-{sum(r.result == 'L' for r in pg)}-{sum(r.result == 'P' for r in pg)} | "
-           f"{'+' if p_net >= 0 else '−'}${abs(p_net):,.2f} | the lanes on paper since decision 0025 |",
+           f"{'+' if p_net >= 0 else '−'}${abs(p_net):,.2f} | not sent: paper lanes, the one-unit-a-game cap, the weekly cap, a stop |",
            f"| **You, on the model's picks** | {sum(len(r.matched) for r in followed)} | "
            f"{sum(w.status == 'W' for r in followed for w in r.matched)}-{sum(w.status == 'L' for r in followed for w in r.matched)} | "
            f"{'+' if f_net >= 0 else '−'}${abs(f_net):,.2f} | followed {len(followed)} of {len(recs)} picks |",
@@ -313,6 +313,8 @@ def report(con, cfg: dict, now: datetime | None = None) -> str:
            f"{'+' if o_net >= 0 else '−'}${abs(o_net):,.2f} | not on the model's list |",
            f"| **You, everything** | {len(ws)} ({len(open_ws)} open) | {sum(w.status == 'W' for w in ws)}-{sum(w.status == 'L' for w in ws)} | "
            f"{'+' if all_net >= 0 else '−'}${abs(all_net):,.2f} | the account's own grading |", ""]
+    out += money_lines(con, cfg, now)
+    out += edge_split_lines(con, since)
     out += ["## Every pick sent, and what you did", "",
             "| Sent (MT) | Sport | Pick | Price sent | Don't bet past | Stake sent | Model result | You | Your result |", "|---|---|---|---|---|---|---|---|---|"]
     for r in recs:
@@ -341,6 +343,63 @@ def report(con, cfg: dict, now: datetime | None = None) -> str:
     return "\n".join(out) + "\n"
 
 
+def money_lines(con, cfg: dict, now: datetime) -> list[str]:
+    """This week's staked total against the weekly cap, and units left before each stop (CHARTER, Money; decision 0027)."""
+    from engine.picks import playbook
+    try:
+        week = playbook.week_staked(con, cfg, now)
+    except Exception:
+        return []
+    cap = (cfg.get("playbook") or {}).get("weekly_cap_dollars", playbook.DEFAULTS["weekly_cap_dollars"])
+    out = ["## Money rules", "", f"- This week (Monday to Sunday MT): ${week:,.2f} recommended of the ${float(cap):,.0f} weekly cap."]
+    for sport in ((cfg.get("playbook") or {}).get("sports") or playbook.SPORT_DEFAULTS):
+        st = playbook.settings(cfg, sport)
+        if st["full_game"] != "stake" and not (st.get("props") and st.get("props_stake", True)):
+            continue
+        down = playbook.down_units(con, sport)
+        out.append(f"- {sport}{' (with teasers)' if sport == 'NFL' else ''}: {down:+.2f} units staked result; the stop is at "
+                   f"-{st['stop_loss_units']:g} ({st['stop_loss_units'] + min(down, 0):.1f} units left).")
+    return out + [""]
+
+
+def edge_split_lines(con, since: datetime) -> list[str]:
+    """How much of the edge sent was Wagerhouse's price against the market, and how much our handicap (research 19)."""
+    try:
+        rows = con.execute("""SELECT market <> 'prop', count(*), avg(edge), avg(price_edge) FROM playbook_picks
+                              WHERE units > 0 AND price_edge IS NOT NULL AND first_seen_utc >= ? GROUP BY 1 ORDER BY 1""",
+                           [since.replace(tzinfo=None)]).fetchall()
+    except Exception:
+        return []
+    if not rows:
+        return []
+    out = ["## Where the edge came from (staked picks)", "",
+           "The charter says a price gap alone is never a reason. This shows how much of each staked pick's edge was only Wagerhouse's price against "
+           "the market (Pinnacle's line or price), and how much was our handicap. Recorded from Nov 24 (research 19).", "",
+           "| Kind | Picks | Average edge | From the price | From our handicap |", "|---|---|---|---|---|"]
+    for full, n, e, pe in rows:
+        out.append(f"| {'Full-game' if full else 'Props'} | {n} | {100 * e:+.1f}% | {100 * pe:+.1f}% | {100 * (e - pe):+.1f}% |")
+    return out + [""]
+
+
+def not_sent_line(con, now: datetime) -> str:
+    """The recap's line for picks issued in the last 24 hours that were not sent, grouped by reason (decision 0027)."""
+    import re
+    try:
+        rows = con.execute("SELECT text FROM alerts_sent WHERE kind = 'paper' AND ts_utc >= ?",
+                           [(now - timedelta(hours=24)).replace(tzinfo=None)]).fetchall()
+    except Exception:
+        return ""
+    if not rows:
+        return "Not sent in the last 24 hours: none."
+    why: dict[str, int] = {}
+    for (t,) in rows:
+        m = re.search(r"Stake: \$0 \((paper: )?([^;)(]*)", t or "")
+        k = (m.group(2).strip() if m else "paper").split(" (decision")[0]
+        k = re.sub(r"\$[\d.,]+ (is )?already", "already", k)
+        why[k] = why.get(k, 0) + 1
+    return f"Not sent in the last 24 hours: {len(rows)} paper pick(s): " + "; ".join(f"{n} {k}" for k, n in sorted(why.items(), key=lambda x: -x[1])) + "."
+
+
 def recap(con, cfg: dict) -> str:
     """Short phone version for the morning Telegram message."""
     text = report(con, cfg)
@@ -348,8 +407,10 @@ def recap(con, cfg: dict) -> str:
     keep = []
     for l in rows:
         cells = [c.strip() for c in l.strip("|").split("|")]
-        keep.append(f"{cells[0].strip('*')}: {cells[2]}, {cells[3]} ({cells[1]})")
-    return "TRACKER (since Nov 23)\n" + "\n".join(keep) + "\nDetails: docs/lanes/TRACKER.md and the board."
+        keep.append(f"{cells[0].replace('**', '').split(' (')[0]}: {cells[2]}, {cells[3]} ({cells[1]})")
+    now = datetime.now(timezone.utc)
+    extra = [not_sent_line(con, now)] + [l.removeprefix("- ") for l in money_lines(con, cfg, now) if l.startswith("- ")]
+    return "TRACKER (since Nov 23)\n" + "\n".join(keep + [x for x in extra if x]) + "\nDetails: docs/lanes/TRACKER.md and the board."
 
 
 def sync(env: dict, weeks: int = 1, wh=None) -> str:

@@ -1,6 +1,6 @@
 # Betting engine
 
-Personal tool. Reads Wagerhouse's lines and bet history (read-only), compares them with the market (DraftKings via ESPN), sends alerts to Telegram, and grades bets against the closing line. It does not place bets. Plan: `BUILD_SPEC.md`. Research: `docs/research/`. Decisions: `docs/decisions/`.
+Personal tool. Handicaps NFL, college and NBA games, sends the bets it finds to Telegram with a stake and a "don't bet past" number, and grades them against what you bet. It does not place bets. Start with `CHARTER.md`, then `PLAYBOOK.md` (how picks are chosen) and `CLAUDE.md` (how code is built). Research: `docs/research/`. Decisions: `docs/decisions/`.
 
 ## Setup (once)
 
@@ -21,7 +21,7 @@ uv run engine telegram-setup                  # after sending your bot any messa
 | `uv run engine spread-test` | Tests the engine's own play-by-play power number against closing spreads |
 | `uv run engine totals-test` | Reruns the test of the NFL totals model against the market's closing totals (see `docs/research/02-totals-model.md`) |
 | `uv run engine board` | Opens the picks page (`board.html`) in your browser: what to bet now, what is waiting, what came close and every game's numbers. Rebuilt after every research run |
-| `uv run engine agent` | The research run: builds the numbers, has Claude research and decide, writes the card to `docs/cards/`, sends pick alerts |
+| `uv run engine agent` | The research run: Claude clears or holds the playbook's CHECK rows and records its news decisions ($0 record), then the card is written to `docs/cards/` |
 | `uv run engine agent --no-send` | Same, but prints the alerts |
 | `uv run engine agent --skip-research` | Re-prices the existing decisions at current numbers without new research |
 | `uv run engine slate` | Just the numbers: fair line and edge for every NFL game in the next 8 days |
@@ -42,13 +42,12 @@ uv run engine telegram-setup                  # after sending your bot any messa
 | `uv run engine report --week 2026-11-10 --no-send` | A specific week, printed |
 | `uv run engine book` | How Wagerhouse's lines compare with the market so far |
 | `uv run engine bet add "Kansas State +10 -110 25" --note "why"` | Log a bet by hand with a reason (graded bets arrive from the account automatically) |
+| `uv run engine lock take "why"` / `lock release` / `lock` | One session owns the code: take the lock before changing code, config, the charter or the playbook; release it after committing (decision 0027) |
 | `uv run pytest` | Run the tests |
 
 ## How a pick gets made
 
-1. Code builds the slate sheet: your book, Pinnacle and DraftKings prices; a fair line from market ratings, public rating systems and Pinnacle; the edge; the "don't bet past" number.
-2. Claude researches the sides the numbers flag (injuries, weather, why the line moved) and writes status and reasons to a decisions file. It may add sourced entries to `adjustments.yaml`. It cannot write a line, price or stake.
-3. Code re-prices at fresh numbers, renders the card, and sends a Telegram alert only for what changed: a new Bet or Conditional, a status change, or a pick whose value is gone.
+`PLAYBOOK.md` is the whole method. In short: code builds its own number for every market from a game-script handicap, pulls it toward Pinnacle, and picks where that beats Wagerhouse's price (A and B grades). Picks whose number is far from the market are held as CHECK until the research agent finds a sourced reason. Staked picks go to Telegram with stake, limit and how much of the edge was price and how much was handicap. Nothing else goes to Telegram except the 9am recap and system lines (`CHARTER.md`).
 
 Research runs happen at 8:15am every day and 6:45pm Sunday (NFL openers), Mountain, and on change: a quarterback's status change, new NFL games at your book, an NBA watcher hit, or a new stale number (for that sport), at most once every 90 minutes per trigger (`config.yaml` `agent:`, decision 0016).
 

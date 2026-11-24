@@ -406,6 +406,26 @@ def cmd_props_test(args) -> int:
     return 0
 
 
+def cmd_lock(args) -> int:
+    from engine import session_lock
+    if args.action == "take":
+        if not args.why:
+            print('Say why: engine lock take "what this session is changing"')
+            return 2
+        msg = session_lock.take(args.why, force=args.force)
+        print(msg)
+        return 1 if msg.startswith("REFUSED") else 0
+    if args.action == "release":
+        print(session_lock.release())
+        return 0
+    lk = session_lock.read()
+    if lk is None:
+        print("No lock held.")
+    else:
+        print(lk["raw"] + ("" if session_lock.held() else "\n(stale: older than %d hours; may be taken)" % session_lock.STALE_HOURS))
+    return 0
+
+
 def cmd_status(args) -> int:
     """The lane status table, generated from config.yaml and the database (charter drift guard)."""
     from engine import lanes
@@ -417,9 +437,6 @@ def cmd_status(args) -> int:
         print(lanes.table_markdown(cfg, con))
         from engine import version
         print("\n" + version.versions_text(con))
-        from engine import readiness
-        readiness.write(cfg, con)
-        print("\n" + readiness.summary_line(cfg, con) + "  (details: docs/lanes/READINESS.md)")
         path = lanes.write_status_file(cfg, con)
         print(f"\nWritten: {path.relative_to(config.ROOT)}")
         if args.send:
@@ -727,7 +744,7 @@ def main(argv=None) -> int:
     a.set_defaults(func=cmd_nba_props_test)
     a = sub.add_parser("props-test", help="held-out test of the props model")
     a.set_defaults(func=cmd_props_test)
-    a = sub.add_parser("status", help="the five-lane status table, generated from config and the database")
+    a = sub.add_parser("status", help="the lane status table, generated from config and the database")
     a.add_argument("--send", action="store_true", help="also send it to Telegram")
     a.set_defaults(func=cmd_status)
     a = sub.add_parser("nba-watch", help="NBA injury watcher (launchd runs it at 10am, 3pm and 5pm Mountain)")
@@ -769,7 +786,12 @@ def main(argv=None) -> int:
     a.set_defaults(func=cmd_wh_edge)
     a = sub.add_parser("stale", help="stale-number price alerts: grade them and show the record")
     a.set_defaults(func=cmd_stale)
-    a = sub.add_parser("ready", help="when may real money go on an engine pick? generated from the record (writes docs/lanes/READINESS.md)")
+    a = sub.add_parser("lock", help='one session owns the code: lock take "why" / lock release / lock (show); decision 0027')
+    a.add_argument("action", nargs="?", choices=["take", "release", "show"], default="show")
+    a.add_argument("why", nargs="?", default="")
+    a.add_argument("--force", action="store_true", help="take over a lock another session holds (only when Kylor says so)")
+    a.set_defaults(func=cmd_lock)
+    a = sub.add_parser("ready", help="retired as a gate (decision 0027); the old readiness stages, for reference only")
     a.set_defaults(func=cmd_ready)
     a = sub.add_parser("nba-absences", help="does the NBA closing spread already carry who is missing? (writes docs/research/13-...md)")
     a.set_defaults(func=cmd_nba_absences)

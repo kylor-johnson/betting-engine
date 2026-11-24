@@ -11,7 +11,7 @@ from datetime import datetime
 
 from engine import config
 
-PATHS = ["docs/cards", "adjustments.yaml", "docs/lanes/STATUS.md", "docs/lanes/READINESS.md", "docs/lanes/PLAYBOOK-RECORD.md", "docs/lanes/NEWS-PROPS.md", "docs/lanes/TRACKER.md", "docs/leans"]
+PATHS = ["docs/cards", "adjustments.yaml", "docs/lanes/STATUS.md", "docs/lanes/PLAYBOOK-RECORD.md", "docs/lanes/NEWS-PROPS.md", "docs/lanes/TRACKER.md", "docs/leans"]
 
 
 def _git(*args: str) -> subprocess.CompletedProcess:
@@ -22,6 +22,10 @@ def commit_generated(label: str = "") -> str:
     """Returns one line saying what happened."""
     if (config.ROOT / ".git" / "index.lock").exists():
         return "Auto-commit skipped: another git command is running (index.lock)."
+    from engine import session_lock
+    lk = session_lock.held()
+    if lk:
+        return f"Auto-commit skipped: a session holds the code lock ({lk['session']}); its outputs wait for the next run after it releases."
     try:
         PATHS_NOW = [p for p in PATHS if (config.ROOT / p).exists()]
         dirty = _git("status", "--porcelain", "--", *PATHS_NOW).stdout.strip()

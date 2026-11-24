@@ -25,7 +25,7 @@ checks:
 
 **"I found nothing" is a hold, not a clear.** A CHECK row means the model is far from a market that is usually right, and the model cannot
 see most news, so finding nothing is what you would expect when the gap is noise. The code ignores a clear without `because`,
-`market_assumes` and a source link, or whose `because` says nothing was found. A cleared pick is issued as a paper pick (no money) until 50
-cleared picks show positive closing-line value (research 18).
+`market_assumes` and a source link, or whose `because` says nothing was found. A cleared pick is staked and sent like any other B pick
+(decision 0027), so clear only what you would put money on.
 
 Never write a number. Full-game college picks are shown only, not staked (research 16); a clear verdict records your research but stakes nothing until Kylor switches college on.

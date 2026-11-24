@@ -67,13 +67,10 @@ def can_produce(cfg: dict, lane: dict) -> str:
         need = ((cfg.get("models") or {}).get("props") or {}).get("min_graded", 300)
         return f"Nothing. Testing only until {need} props are graded and the test is passed."
     parts = []
-    news = [k for k in ("news_adjustments", "injury_news") if (lane.get("inputs") or {}).get(k, {}).get("enabled")]
-    if news:
-        parts.append("a Bet or Conditional on news Pinnacle has not yet moved for")
+    # decision 0027: the old research-agent path no longer sends picks; its news decisions are a $0 record on the card
     for name, m in (lane.get("models") or {}).items():
         if model_on(cfg, m) and m["status"] in ("passed", "passed_weak"):
-            cap = ((cfg.get("models") or {}).get(name) or {}).get("max_status", "Bet")
-            parts.append(f"{name.replace('_', ' ')} ({cap} at most)")
+            parts.append(f"{name.replace('_', ' ')} (an input to the playbook number; its own Conditionals are a $0 record, decision 0027)")
         elif model_on(cfg, m) and m["status"] == "overridden":
             parts.append(f"{name.replace('_', ' ')} (B picks, half a unit; real money)")
         elif model_on(cfg, m) and m["status"] == "paper":
@@ -82,8 +79,7 @@ def can_produce(cfg: dict, lane: dict) -> str:
             parts.append(f"{name.replace('_', ' ')} (shown on the card, not staked)")
     if not parts:
         return "Nothing."
-    stake = f"Bet {pc.get('max_units', 1)} unit, Conditional {pc.get('conditional_units', 0.5)} unit"
-    return "; ".join(parts) + f". {stake}. A price gap alone cannot."
+    return "; ".join(parts) + ". A, 1 unit; B, half a unit. A price gap alone cannot."
 
 
 def record(con, cfg: dict, lane: dict) -> dict:
@@ -111,7 +107,13 @@ def record(con, cfg: dict, lane: dict) -> dict:
         except Exception as e:
             return {**out, "line": f"Props record unavailable: {type(e).__name__}"}
         need = pc.get("min_graded", 300)
-        out.update(graded=n, line=f"No bets. {n} of {need} props graded for the current model version. {paper}")
+        from engine.picks import playbook
+        out.update(graded=n, line=f"{playbook.lane_record(con, sport, props=True)} Props model test: {n} of {need} graded for the current model "
+                                  f"version. {paper}")
+        try:
+            out["last_pick"] = con.execute("SELECT max(first_seen_utc) FROM playbook_picks WHERE sport=? AND market='prop'", [sport]).fetchone()[0]
+        except Exception:
+            pass
         return out
     try:
         w, l, p, units, clv = con.execute(
@@ -126,10 +128,14 @@ def record(con, cfg: dict, lane: dict) -> dict:
         return {**out, "line": "Record unavailable (database not readable right now)."}
     n = w + l + p
     clv_txt = "closing-line value n/a" if clv is None else f"average {clv:+.2f} points vs Pinnacle close"
-    out.update(graded=n, last_pick=last)
-    out["line"] = (f"{w}-{l}-{p} on {n} graded pick(s), {units:+.2f} units, {clv_txt}" if n else "0-0, no graded picks yet")
-    if passes:
-        out["line"] += f"; {passes} flagged Pass(es) graded"
+    from engine.picks import playbook
+    try:
+        pb_last = con.execute("SELECT max(first_seen_utc) FROM playbook_candidates WHERE sport=? AND market <> 'prop'", [sport]).fetchone()[0]
+    except Exception:
+        pb_last = None
+    out.update(graded=n, last_pick=max([x for x in (last, pb_last) if x is not None], default=None))
+    old = (f"{w}-{l}-{p} on {n} graded, {units:+.2f} units, {clv_txt}" if n else "none graded")
+    out["line"] = f"{playbook.lane_record(con, sport, props=False)} Old news path ($0 record since decision 0027): {old}."
     return out
 
 
@@ -220,7 +226,7 @@ def check_changed(con, cfg: dict, now) -> str | None:
     if last is None:
         return None
     changes = diff_text(json.loads(last[1]), st)
-    return "LANE STATUS CHANGED\n" + "\n".join(f"- {c}" for c in changes) + "\n\nNow:\n" + table_text(cfg, con)
+    return "LANE CHANGED (not a bet)\n" + "\n".join(f"- {c}" for c in changes) + "\nFull table: docs/lanes/STATUS.md and the board."
 
 
 def lane_for(cfg: dict, sport: str, kind: str = "game") -> dict | None:

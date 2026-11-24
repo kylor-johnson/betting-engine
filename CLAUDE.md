@@ -1,101 +1,75 @@
-# Betting Engine: Build Spec (revised after Phase 0, approved 2026-11-21)
+# Betting Engine: how code is built
 
-**Read `CHARTER.md` first.** It states what this engine is for, the lanes, the rule that keeps it from drifting, and the locked decisions. If this file disagrees with the charter, the charter wins.
+**Read `CHARTER.md` first, then `PLAYBOOK.md`.** The charter owns what this engine is for, what reaches Telegram, the money rules, the
+locked decisions and how sessions work. The playbook owns how a pick is chosen and graded. This file owns how code is built. If this file
+disagrees with either, they win. It contains no pick rules and no money amounts on purpose (decision 0027): those drifted when three files
+repeated them.
 
-Owner: Kylor (Denver, Mountain time). This file is copied to `CLAUDE.md`. The research behind it is in `docs/research/00-red-team.md`; decisions are in `docs/decisions/`. `HANDOFF.md` has the working rules and folder layout. Build one phase at a time. Do not start a phase until the one before it passes its exit test and Kylor says go.
+Owner: Kylor (Denver, Mountain time). Research is in `docs/research/`, decisions in `docs/decisions/`, every command in `README.md`.
+`HANDOFF.md` is the original Phase 0 brief and is historical.
 
-## What this is, and what it is not
+## Before you change anything
 
-- It compares the price at Kylor's book (Wagerhouse) with the market price and says when his is better, when a line is moving, and whether his past bets were good prices.
-- It does not copy how he has been betting. Big favorites, 13-point teasers, moneyline parlays, same-game stacks and live bets are graded as leaks in the research and the engine never recommends them.
-- Scope: pregame NFL, college football and NBA. No live betting, baseball, hockey or soccer.
-- It does not place bets. Kylor places every bet by hand (see `docs/decisions/0002`).
+- `git status` and `git log`. Generated outputs of a scheduled run (cards, `TRACKER.md`, `STATUS.md`) are not anyone's unfinished work.
+- `uv run engine lock take "what you are changing"` before editing `src/`, `ops/`, `config.yaml`, `adjustments.yaml`, `CHARTER.md` or
+  `PLAYBOOK.md`. Refused means another session holds it: stop and ask Kylor. `uv run engine lock release` after you commit.
+- Build what a decision note approves. A change to a rule gets a new decision note that says what it replaces, and the same commit updates
+  every document that quoted the old rule.
 
-## Ground rules
+## Environment
 
-- Python 3.11+, `uv` for the environment (`UV_PROJECT_ENVIRONMENT=.venv.nosync`), DuckDB as the local database (`data.nosync/engine.duckdb`).
-- No paid data. Sources: Wagerhouse's own lines and history read from Kylor's account, Pinnacle's public guest lines (the sharp reference), ESPN (DraftKings lines, NFL injuries), The Prediction Tracker's weekly file of public rating systems, nflverse game history, CollegeFootballData (free key in `.env`), Open-Meteo weather.
-- The market reference is DraftKings as published by ESPN. It follows the market; it is not a sharp book. Every report says so, and "fair price" is labelled approximate.
-- Every number the system outputs is logged with a timestamp and the odds at that moment. Times are stored in UTC and shown in Mountain time. Wagerhouse timestamps arrive in Eastern time.
-- Unit = $25. Engine picks are 1 unit (0.5 for a Conditional) until 100 are graded. Unit, cap and bankroll live in `config.yaml`.
-- No pick without a "don't bet past" number.
-- Secrets live in `.env`, never committed, never printed or logged. That includes the Wagerhouse login.
-- Wagerhouse account access is read-only: sign in, read lines, read history. Hourly from 7am to 5pm Mountain, and to 9pm on Sundays for openers (set in `config.yaml`), never a constant poll. The client refuses any operation not on its read-only list.
-- If a source is down or returns junk, fail loudly and alert. Never skip silently.
-- Every report prints the luck range next to results so a hot streak cannot pass for an edge.
-- Closing line value is measured on sides, totals and moneylines only, never props, and is treated as a compass, not proof.
+- Python 3.11+, `uv`, and `UV_PROJECT_ENVIRONMENT=.venv.nosync` in every shell (a `.venv` inside iCloud breaks `uv run`).
+- DuckDB at `data.nosync/engine.duckdb`. The hourly read, the 10-minute fast reads, the NBA watcher and research runs all open it; connect
+  through `engine.odds.snapshots.connect`, which waits for the lock instead of failing.
+- Scheduled jobs are launchd plists in `ops/launchd/`; Kylor loads them himself with `launchctl`. Logs: `~/Library/Logs/betting-engine/`.
+- The research agent is a headless `claude -p` run with `ops/agent_prompt.md` plus `ops/agent_prompt_<sport>.md`. It may write only its
+  decisions and checks files and `adjustments.yaml`.
 
-## Phase 1A: Audit the bets already made
+## Sources (no paid data)
 
-1. Import the graded history pulled from the account into the database: one row per wager, one per leg, with time placed, game time, risk, to-win, result, line, price, bought points and teaser points.
-2. Split wagers by how they were placed: before the game, live in-game, same-game builder.
-3. For every pregame side, total and moneyline leg on NFL, college football and NBA, find the game on ESPN and record DraftKings' opening and closing line and price.
-4. Report, by bet type and by price band: results, how often the bet beat the closing line, by how many points, approximate value against the vig-free close, and what bought points and teasers cost.
+- **Wagerhouse:** Kylor's own account, read-only. Login is a JSON POST to `/cloud/api/System/authenticateCustomer`; lines and the history
+  reports under `/cloud/api/Report/`. The client refuses any operation not on its read-only list. Reads are scheduled (hours in
+  `config.yaml`), never a constant poll. The history report does not return open bets. Wagerhouse props (Bet Builder) are not readable.
+- **Pinnacle** guest lines and props: the market reference. Vig removed before use.
+- **ESPN:** DraftKings lines (kept for history and the bet audit, not the reference), NFL injuries, NBA box scores.
+- **News:** the Rotoworld relay tagged by `ops/reporters.yaml`, the official NBA injury report PDF, then ESPN.
+- **History and stats:** nflverse (`nflreadpy`), CollegeFootballData (free key in `.env`), The Prediction Tracker, Open-Meteo.
+- If a source is down or returns junk, fail loudly and send a `system` alert. Never skip silently.
 
-Exit test: every wager is either priced or listed as unpriced with the reason; totals reconcile to the account's weekly figures.
+## Rules for code
 
-## Phase 1B: Line logger, alerts, bet log
+- **Code owns every number.** The agent writes status and reasons only; files with number fields are rejected.
+- **Log everything with a timestamp and the price at that moment.** Store UTC, show Mountain. Wagerhouse timestamps arrive in Eastern.
+- **Freeze picks at issue.** A pick's line, price, stake and limit never change after it is first written.
+- **Every message is saved** in `alerts_sent`, sent or not, with whether it was delivered.
+- **Telegram kinds:** `bet` (a staked pick), `recap`, `system`; everything else is `info` or `stale` and held back by
+  `telegram.send_kinds`. Never send a $0 pick as `bet`.
+- **Generated, never typed:** `docs/lanes/STATUS.md`, `PLAYBOOK-RECORD.md`, `TRACKER.md`, `NEWS-PROPS.md`, cards, `board.html`,
+  `tracker.html`. Any sentence that describes how a number was built is generated from the config that built it.
+- **Tests never look ahead.** Anything tuned is checked walk-forward on seasons it never saw. Weather inputs in tests must be what was
+  forecast at bet time, not what happened (research 18).
+- **Don't double-count:** a factor already in a rating or in Pinnacle's line is not added again by hand.
+- **Secrets** live in `.env`: never committed, printed or logged.
+- **Every report prints the luck range** next to results, so a hot streak cannot pass for an edge.
+- **Closing-line value:** sides, totals and moneylines on the line; props and team totals as Pinnacle's no-vig closing chance of the bet
+  minus the chance its price needed. A compass, not proof.
+- **The YAML key `on` loads as `True`;** use `enabled`.
+- **Teasers the code may build:** 2-team 6-point at -110 (Wagerhouse's "6/4 MIX"), NFL sides, both legs crossing 3 and 7 (Wong legs).
+  Anything else in Kylor's own bets is flagged by the audit. Buying points: only on or off 3 in the NFL at 10 to 15 cents.
+- **Auto-commit** (`gitsync.py`) commits only the generated paths it lists, never `src/`, and skips while a session holds the lock.
 
-1. **Line logger.** On a schedule, read Wagerhouse's posted lines for NFL, college football and NBA, and ESPN's DraftKings lines for the same games. Store every snapshot. Derive first-seen (open) and last-before-kickoff (close) per game, market and source.
-2. **Your-book measurement.** For every game: when Wagerhouse first posted it, how far it sits from DraftKings, and how long it takes to follow a DraftKings move.
-3. **Alerts by Telegram:**
-   - Opener digest when Wagerhouse posts a new slate.
-   - Off-market: Wagerhouse differs from DraftKings by a point or more, or sits on the good side of 3 or 7 (NFL and college; also 6, 10, 14).
-   - Moving now: the market moved a point or more, or through a key number, and Wagerhouse has not followed.
-   - Watchlist: Kylor enters "Kansas State +10 or better"; alert when Wagerhouse is there, and when the market is leaving.
-4. **Bet log.** New bets come from the account history automatically; `engine bet add "Kansas State +10 -110 25"` exists for notes and for bets that need a reason attached.
-5. **Calculators** on every logged bet: is this teaser a 2-team 6.5-point NFL teaser with both legs crossing 3 and 7; was a bought half point worth its price; does a stake exceed the cap.
-6. **Weekly report**: results, closing line value by sport and bet type, favorites of −300 and shorter separately, leaks (anything the research grades negative), luck ranges.
-7. **Operations.** launchd job on the Mac, gap detection, a heartbeat alert when a scheduled read is missed.
-8. **Tests** for the vig removal, key-number logic, bet parser, closing line value and teaser math.
+## Tests and finishing
 
-Exit test: three weeks of scheduled reads with every gap explained, closing line value on every eligible bet, and a short written answer to "does Wagerhouse lag the market, by how much, and in which direction does it shade."
+- `uv run pytest` must pass before a commit. New behaviour gets a test in `tests/`.
+- Run `uv run engine status` after any change to config or to what a lane does, and check the table against what you changed.
+- End by committing, releasing the lock, and saying in plain English what each lane can and cannot do now.
 
-## Picks engine (approved 2026-11-21; this is the product)
+## History (what the phases built)
 
-The goal is an agent that does the handicapping on a schedule and alerts Kylor when there is a bet to place. The line logger, audit and reports above are plumbing for it. Research and design: `docs/research/01-picks-engine.md`. Decision: `docs/decisions/0004`.
-
-- **Code owns every number.** `engine slate` builds the slate sheet: your book's price, Pinnacle (free, sharp) and DraftKings; three independent fair numbers (ratings backed out of the market's own closing lines, the average of about 50 public rating systems, Pinnacle with the vig removed); the blended fair line (55% Pinnacle, 45% model); the edge using how real games landed on each margin; the "don't bet past" number; the stake.
-- **The agent owns research and judgment.** It reads the slate sheet, checks injuries, availability reports, weather and why a line moved, and writes a decisions file with status and reasons only. It may add entries to `adjustments.yaml` (each with points, reason, source link and time). It cannot type a line, price, edge or stake; `engine card` refuses a Bet the numbers do not support.
-- **A Bet needs all four:** an edge of at least 2% at the book's current number (the model leg is off, so "the model on the same side" no longer applies, 2026-11-23); a written reason that is not "the line moved"; the book's number re-checked in the same minute as the alert. An edge that exists only because of the agent's own estimated adjustment is not a Bet.
-- **Statuses:** Bet, Conditional (with the exact condition), Pass (with why, and the number that would change it).
-- **Sizing:** 1 unit per Bet, 0.5 for a Conditional, until the engine has 100 graded picks. Then revisit 0.5 to 3 units by edge.
-- **Totals** are not picked from ratings alone. The wind totals model (`models.wind_totals`, decision 0005) is computed in code and can make an Under a Conditional; anything else needs a specific sourced adjustment (quarterback, star out).
-- **Models earn their way in** one market at a time by beating the market on seasons they never saw (decision 0005, `engine model-test`). Failed so far: full-game sides, pace totals, matchup power number, first-half habit, early-number opener pricing (`docs/research/09-early-number-openers.md`), the NFL injury report with practice status, college public rating systems, NBA rest and travel (`docs/research/14-deep-review.md`). No new full-game model without a new kind of input (decision 0017). Props models (NFL and NBA): built, priced and graded against Pinnacle every read, testing only until each passes decision 0006's gate (`engine props`, `engine props --sport NBA`).
-- **Fast reads** (`engine burst`, every 10 minutes inside the `burst:` windows in `config.yaml`: NFL around practice reports and inactives, College Friday afternoon and Saturday morning, NBA from 2 hours before the day's first tip; full-game Wagerhouse and Pinnacle only): measures how many minutes Wagerhouse trails Pinnacle after news (`engine wh-edge` section 4, keep/kill verdict per decision 0015). A new STALE NUMBER alert starts a research run for that sport (decision 0016).
-- **Research agent instructions:** `ops/agent_prompt.md` (shared) plus one guide per sport (`ops/agent_prompt_nfl.md`, `_college.md`, `_nba.md`). A Bet's reason is timestamped news Wagerhouse has not priced, or a tested model; matchup and luck numbers are context only.
-- **NFL Wong teasers (paper)** (`src/engine/picks/teasers.py`, decision 0014): eligible legs frozen at Wagerhouse's number every read, graded at +6, card `docs/cards/<date>-nfl-teasers.md`.
-- **NBA injury watcher** (`engine nba-watch`, 10am, 3pm and 5pm MT): ESPN report only; when a 22+ minute player crosses Out/Doubtful for a team playing within 30 hours, one Wagerhouse and Pinnacle read, a news message, and an NBA research run. It never prices the player; the number comes from Pinnacle against Wagerhouse.
-- **Betting splits** are logged and shown, never a reason.
-- **Get the early number.** The point is to be the one holding +10 before it becomes +6.5: numbers ready Sunday night for openers, injury and availability news checked hourly 7am to 5pm Mountain, and an alert within the hour when news lands and the book has not moved.
-- **Grading.** Every engine pick is logged at issue and graded on result and against Pinnacle's close, next to Kylor's own record. After 100 picks, if they have not beaten the close on average, the report says so.
-- **Order of work:** NFL slate and card (built) → scheduled agent runs and pick alerts → injury and news watcher → college football → NBA.
-
-## Phase 2: Decide where the edge is
-
-Read the Phase 1 measurements. If Wagerhouse lags, tune the alerts to that lag. If it does not, say so plainly; the remaining price edge would need a second book.
-
-## Phase 3: NBA, narrow version
-
-Injury-report change alerts for players who move a line, aimed at catching Wagerhouse not reposting. A props check that compares Wagerhouse's number with other books. No sub-minute requirement.
-
-## Phase 4: Football ratings (offseason 2027)
-
-NFL first, then college football with preseason priors. The model is blended with the market from day one, tested only on seasons it never saw, and passes only if it adds predictive value on top of the market line. Its job is to rank which openers to look at first. Use `nflreadpy` (not `nfl_data_py`, archived 2025) and CollegeFootballData.
-
-## Phase 5: Own props model
-
-Built early at Kylor's request (2026-11-22): `src/engine/models/props.py`, decision 0006. Picks only after the forward test against Pinnacle passes.
-
-## Rules the engine enforces as checks
-
-- Bet the number, not the team. No value at the current price, no bet.
-- Ask why a line moved, not only whether it moved.
-- No reverse-line-movement or bets-versus-money signals; the evidence is against them.
-- "Favorites early, dogs late" is a question the log answers, not a rule.
-- Don't double-count: a factor already in a rating is not added again by hand.
-- Teasers: only 2-team 6-point at −110 (Wagerhouse's "6/4 MIX") or 6.5-point at −120, NFL sides, both legs crossing 3 and 7 (Wong legs). Everything else is flagged.
-- Buying points: only on or off 3 in the NFL at 10 to 15 cents; on or off 7 at 10 cents is neutral; never in the NBA.
+Phase 1A: the bet audit (`engine audit`, research 01). Phase 1B: line logger, alerts, bet log, launchd jobs. The price-checker picks engine
+(Nov 21-22, research 01-14) was replaced by the playbook (Nov 23, decision 0018). The ratings, pace, first-half, openers, injury-report,
+college-systems and NBA rest models all failed against the close and are off; the game scripts, props models and teasers are what run now
+(`PLAYBOOK.md` section 9).
 
 ## Out of scope
 

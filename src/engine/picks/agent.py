@@ -133,8 +133,8 @@ def message(r: dict, kind: str, tz, sport: str, next_check: str = "", stage: int
     paper = stage is not None and stage < 1
     if kind in ("bet", "now_bet"):
         if paper:
-            head = "PAPER BET (Stage 0: tracked, no money yet)" + (" (the condition was met)" if kind == "now_bet" else "")
-            stake = f"Stake: $0 for now. At Stage 1 this would be ${r['dollars'] / 2:g}; see docs/lanes/READINESS.md."
+            head = "OLD PATH, $0 RECORD (not a bet; decision 0027)" + (" (the condition was met)" if kind == "now_bet" else "")
+            stake = "Stake: $0. The research agent's news decisions are graded as a record; picks come from the playbook."
         else:
             head = "BET NOW" if kind == "bet" else "BET NOW (the condition was met)"
             stake = f"Stake: ${r['dollars']:g}"
@@ -203,11 +203,7 @@ def finalize(cfg, env, day: str, sport: str = "NFL", send: bool = True, reason: 
         prev = {r[0]: {"status": r[1], "pick": r[2]} for r in con.execute(
             "SELECT pick_key, status, pick FROM engine_picks WHERE kickoff_utc > ?", [ts]).fetchall()}
         tz = config.display_tz(cfg)
-        try:
-            from engine import readiness
-            stage = readiness.stage(readiness.metrics(con, sport=sport), readiness.settings(cfg, sport))[0]
-        except Exception:
-            stage = 0           # if readiness cannot be read, never tell Kylor to stake money
+        stage = 0   # decision 0027: the old path is a $0 record; the readiness stages no longer gate anything
         alerts = changes(prev, rows, tz, lanes.tag(cfg, sport), next_check_text(cfg, datetime.now(tz)), stage)
         props_line = lanes.props_footer(cfg, con, sport)
         try:        # paper Leans: stamped by code, never staked, never a Telegram ping (kind "info")
@@ -270,8 +266,9 @@ def finalize(cfg, env, day: str, sport: str = "NFL", send: bool = True, reason: 
             telegram.send(env, f"{lanes.tag(cfg, sport)} · PAPER LEAN, DO NOT BET\n" + l.removeprefix("LEAN (paper) "), kind="info")
     for a in alerts:
         msg = a
-        if send:
-            telegram.send(env, msg, lanes.thread_key(cfg, sport), kind="bet")
+        if send:     # decision 0027: one pick path. The old path's Bet/Conditional/cancel messages are a $0 record, held back from Telegram
+            telegram.send(env, msg, lanes.thread_key(cfg, sport),     # unless `agent.send_picks: true` is set again
+                          kind="bet" if (cfg.get("agent") or {}).get("send_picks", False) else "info")
         sent.append(msg)
     # a short "nothing to do" note only when this run produced no pick message
     if not alerts and (cfg.get("agent") or {}).get("summary_message", True):

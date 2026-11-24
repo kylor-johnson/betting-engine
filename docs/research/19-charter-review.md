@@ -1,6 +1,6 @@
 # 19. Charter review (Mon Nov 23, 2026, night)
 
-**What you need to decide: the yes/no list in section 3 (16 questions). Nothing changes until you answer. I edited no charter, playbook, spec, code or config.**
+**Applied the same night (decision 0027): Kylor said "fix it", taken as yes to every recommendation in section 3. The bankroll (question 5) is still open.**
 
 ## 1. Does the charter say what you want, and what has to change?
 

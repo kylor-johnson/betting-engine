@@ -12,7 +12,7 @@ What this does:
   * Legs are paired in the order they were first seen, within the same NFL week (Tuesday to Monday) and from different games, into 2-team tickets
     for the record. A ticket wins only if both legs win; a push leg makes the ticket a one-leg bet, graded as void here (house rules vary).
   * Real money since 2026-11-23 (Kylor: "yes", decision 0019): whenever two open legs from different games are not yet in a ticket, a 2-team
-    ticket is formed and sent to Telegram as an A pick (1 unit, half size for the playbook's first weeks; same stop-loss as playbook picks).
+    ticket is formed and sent to Telegram as an A pick (1 NFL unit; the NFL stop counts teaser tickets, and the weekly cap applies; decision 0027).
     `teasers.real_money: false` turns it back to paper. The kill rule: fewer than 72.4% of legs win after 150 graded, or Wagerhouse's 2-team 6-point
     price is no longer -110 (checked by Kylor, recorded in config as `teasers.price`).
 """
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS teaser_grades (
   leg_key VARCHAR PRIMARY KEY, team_margin INTEGER, result VARCHAR, pinnacle_close DOUBLE, graded_utc TIMESTAMP);
 """
 DEFAULTS = {"enabled": True, "real_money": True, "points": 6.0, "price": -110, "max_total": 49.0,
-            "favorite": [-8.5, -7.5], "underdog": [1.5, 2.5], "kill_after_legs": 150}
+            "favorite": [-8.5, -7.5], "underdog": [1.5, 2.5], "kill_after_legs": 300}
 
 
 def settings(cfg: dict) -> dict:
@@ -107,11 +107,7 @@ def tickets_to_send(cfg: dict, con, now: datetime, send: bool = True, sender=Non
     legs = [r for r in con.execute("SELECT leg_key, event_id, game, team, line, teased_line, total, kickoff_utc FROM teaser_legs "
                                    "WHERE kickoff_utc > ? ORDER BY first_seen_utc", [now.replace(tzinfo=None)]).fetchall() if r[0] not in used]
     out, tz = [], config.display_tz(cfg)
-    down = 0.0
-    try:
-        down = con.execute("SELECT coalesce(sum(profit_units), 0) FROM playbook_grades").fetchone()[0]
-    except Exception:
-        pass
+    down = playbook.down_units(con, "NFL")      # NFL picks plus teaser tickets, in NFL units (decision 0027)
     while len(legs) >= 2:
         a = legs.pop(0)
         j = next((i for i, b in enumerate(legs) if b[1] != a[1]), None)
@@ -123,12 +119,17 @@ def tickets_to_send(cfg: dict, con, now: datetime, send: bool = True, sender=Non
         cap = playbook.settings(cfg)["game_cap_units"] * unit
         if dollars > 0 and any(playbook.game_exposure(con, ev) + dollars > cap + 1e-9 for ev in (a[1], b[1])):
             units, dollars, note = 0.0, 0.0, f"paper: a game in this ticket already carries money; the cap is one unit (${cap:g}) a game (decision 0025)"
+        elif dollars > 0:
+            weekly = playbook.over_weekly_cap(con, cfg, dollars, now)
+            if weekly:
+                units, dollars, note = 0.0, 0.0, weekly
         fav, dog = st["favorite"], st["underdog"]
         lines = []
         for leg in (a, b):
             k = leg[7].replace(tzinfo=timezone.utc).astimezone(tz)
             lines.append(f"{leg[3]} {leg[5]:+g} (from {leg[4]:+g}), {leg[2]}, {k:%a %-I:%M %p} MT")
-        text = (f"NFL · TEASER BET (A)\n2-team {st['points']:g}-point teaser at {st['price']:+d}:\n" + "\n".join(lines) +
+        head = "TEASER BET (A)" if dollars > 0 else "PAPER TEASER (A), DO NOT BET"
+        text = (f"NFL · {head}\n2-team {st['points']:g}-point teaser at {st['price']:+d}:\n" + "\n".join(lines) +
                 f"\nStake: ${dollars:g} ({note})\nOnly if each leg is still an underdog of {dog[0]:+g} to {dog[1]:+g} or a favorite of {fav[0]:g} to {fav[1]:g} "
                 f"at Wagerhouse before teasing, and the 2-team {st['points']:g}-point price is still {st['price']:+d}.\n"
                 f"Why: these legs cross 3 and 7; they won 75.8% in 2023-2026 against {breakeven(st['price']):.1%} needed (decision 0014).")

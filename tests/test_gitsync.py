@@ -15,6 +15,7 @@ def _repo(tmp_path, monkeypatch):
     run("add", "-A")
     run("commit", "-qm", "init")
     monkeypatch.setattr(config, "ROOT", tmp_path)
+    monkeypatch.setattr(config, "DATA", tmp_path / "data.nosync")
     return run
 
 
@@ -32,3 +33,23 @@ def test_skips_while_git_is_busy(tmp_path, monkeypatch):
     _repo(tmp_path, monkeypatch)
     (tmp_path / ".git" / "index.lock").write_text("")
     assert "skipped" in gitsync.commit_generated()
+
+
+def test_skips_while_a_session_holds_the_lock(tmp_path, monkeypatch):
+    from engine import session_lock
+    _repo(tmp_path, monkeypatch)
+    (tmp_path / "docs" / "cards" / "c.md").write_text("card\n")
+    assert session_lock.take("test session").startswith("Lock taken")
+    assert session_lock.take("second session").startswith("REFUSED")
+    assert gitsync.commit_generated().startswith("Auto-commit skipped: a session holds")
+    session_lock.release()
+    assert "scheduled-run outputs committed" in gitsync.commit_generated()
+
+
+def test_a_stale_lock_does_not_block(tmp_path, monkeypatch):
+    from datetime import datetime, timedelta, timezone
+    from engine import session_lock
+    _repo(tmp_path, monkeypatch)
+    session_lock.take("old", now=datetime.now(timezone.utc) - timedelta(hours=session_lock.STALE_HOURS + 1))
+    assert session_lock.held() is None
+    assert session_lock.take("new").startswith("Lock taken")

@@ -101,7 +101,7 @@ def _pb_con():
     return con
 
 
-def test_paper_lane_and_cleared_checks_are_paper_and_one_unit_per_game():
+def test_paper_lane_is_paper_cleared_checks_are_staked_and_one_unit_per_game():
     from engine.picks import playbook as pb
     con = _pb_con()
     c = {"grade": "B", "event_id": "g1"}
@@ -109,7 +109,7 @@ def test_paper_lane_and_cleared_checks_are_paper_and_one_unit_per_game():
     assert pb._paper_or_staked(con, paper, c, 0.5, 25.0, "B pick", 50, True)[:2] == (0.0, 0.0)
     assert pb._paper_or_staked(con, paper, c, 0.5, 25.0, "B pick", 50, False)[3] == 0.5          # nominal size kept
     staked = pb.settings({}, "NFL")
-    assert pb._paper_or_staked(con, staked, {**c, "cleared": True}, 0.5, 25.0, "B pick", 50, True)[:2] == (0.0, 0.0)
+    assert pb._paper_or_staked(con, staked, {**c, "cleared": True}, 0.5, 25.0, "B pick", 50, True)[:2] == (0.5, 25.0)   # decision 0027
     assert pb._paper_or_staked(con, staked, c, 0.5, 25.0, "B pick", 50, True)[:2] == (0.5, 25.0)
     # a $50 teaser ticket with a leg in this game already uses the game's one unit
     con.execute("INSERT INTO teaser_legs (leg_key, event_id) VALUES ('g1|away', 'g1'), ('g2|home', 'g2')")

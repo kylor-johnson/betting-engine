@@ -14,5 +14,6 @@ def test_only_bets_and_system_get_through(monkeypatch):
     assert len(calls) == 2
 
 
-def test_config_default_is_bets_system_and_stale_number():
-    assert telegram.allowed_kinds() == {"bet", "system", "stale", "recap"}
+def test_config_sends_only_bets_system_and_recap():
+    # decision 0027: Telegram carries staked picks, the recap and system lines; stale price alerts are held back
+    assert telegram.allowed_kinds() == {"bet", "system", "recap"}

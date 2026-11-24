@@ -4,7 +4,7 @@ units_by_sport:     # Kylor 2026-11-23 (decision 0020): NFL $50, NBA $25; colleg
   NFL: 50
   NBA: 25
 max_units: 2        # cap per bet, in units
-bankroll: 2500      # implied by a $25 unit at 1% a bet; change if this is wrong
+bankroll: 2500      # NOT CONFIRMED: set for the old $25 unit. Kylor to give the real number (decision 0027, CHARTER Money). Nothing reads it yet.
 
 # Scope
 sports: [NFL, College, NBA]
@@ -91,7 +91,8 @@ agent:
   timeout_minutes: 25
   run_on_news: true          # start a run when a quarterback's status changes or the book posts new NFL games
   cooldown_minutes: 90       # never more often than this
-  summary_message: true      # send a short Telegram summary after every research run, even with no bets
+  summary_message: true      # write a short summary after every research run (held back from Telegram: kind info)
+  send_picks: false          # decision 0027: one pick path; the old path's Bet/Conditional messages are a $0 record, not sent
   # Scheduled research runs, Mountain time. Each runs every sport your book has games posted for.
   # Run on change (decision 0016, 2026-11-24): news (quarterback, NBA watcher), a new NFL slate, or a new stale number (Pinnacle moved, Wagerhouse
   # has not) starts a run for that sport; the fixed runs are one early run a day (NBA and college mornings, NFL news) and Sunday evening for NFL openers.
@@ -196,7 +197,7 @@ teasers:
   max_total: 49.0
   favorite: [-8.5, -7.5]      # this side's own spread
   underdog: [1.5, 2.5]
-  kill_after_legs: 150        # judged here: under the break-even rate (72.4% at -110) means off
+  kill_after_legs: 300        # judged here (decision 0025 and research 18: 300 legs): under the break-even rate (72.4% at -110) means review
 
 # Playbook picks, NFL full-game markets (src/engine/picks/playbook.py, PLAYBOOK.md, decisions 0018 and 0019).
 # Weights on OUR number against the market are the playbook's starting weights, chosen by Kylor over the walk-forward result
@@ -218,26 +219,28 @@ playbook:
   move_chance: 0.10
   calibrate_props: [NBA]
   news_props: {enabled: true, window_min: 90, min_edge: 0.04, pass_clv: 0.04, pass_n: 100}   # NBA news-timed props, paper test
+  # Decision 0027 (research 19): at most this many dollars recommended on Telegram a week (Monday to Sunday MT), all sports and teasers.
+  # A pick past it is issued as paper and named in the 9am recap. CHECK-cleared picks are staked like any other B pick.
+  weekly_cap_dollars: 500
   # Per sport (decision 0022). full_game: stake = real money, paper = issued and graded at $0, show = C on the card only.
-  # props_stake: false = props issued and graded at $0. Decision 0025 (research 18): NFL full-game and all props are paper until their
-  # closing-line value clears the restart numbers in docs/research/18-model-evaluation.md. Units are unchanged (NFL $50, NBA $25).
+  # props_stake: false = props issued and graded at $0. Current state (decision 0026, kept by 0027): NFL full-game, NFL props and NBA props
+  # staked; NBA and college full-game shown only. Research 18's restart numbers are the yardstick for keeping a lane staked.
   sports:
-    # Decision 0026 (Kylor, Nov 23 evening: "telegram is the place where i use this whole model to place the bets you find, that is the
-    # source of truth"): NFL full-game picks and NFL/NBA props are staked and sent to Telegram again; decision 0025's guards stay on.
     NFL: {full_game: stake, props: true, props_stake: true, period: week, max_per_period: 5, props_per_period: 10, props_per_game: 2}
     NBA: {full_game: show, props: true, props_stake: true, period: day, max_per_period: 2, props_per_period: 4, props_per_game: 2}
     College: {full_game: show, props: false, period: week, max_per_period: 5}
 
-# Telegram only pings for things you must act on (changed 2026-11-23, Kylor: "only ping me when it has a bet for me to place").
-# Kinds: bet = a Bet, a Conditional, or the cancellation of one; stale = a STALE NUMBER price alert (src/engine/stale.py; added 2026-11-23, Kylor asked); system = the engine is broken (a read failed, a scheduled research run
-# did not happen) or you asked by command. Everything else (NO BETS summaries, openers, QB and NBA news, price gaps, lane status,
-# graded picks, props, paper Leans) is held back; it is still on the cards and board.html. Add "info" to see everything again.
+# Telegram is the source of truth (CHARTER, decisions 0026 and 0027): staked picks, the 9am recap, and system lines only.
+# Kinds: bet = a staked playbook pick or teaser ticket; recap = the tracker's 9am summary (with what was not sent and why);
+# system = the engine is broken, or a lane changed (a model or lane switched, a stop tripped, a lane fell below its review line).
+# Held back (still on the cards and board.html): stale = STALE NUMBER price alerts; info = the old path's $0 picks, NO BETS summaries,
+# openers, news, paper picks. Add a kind here to see it again.
 telegram:
-  send_kinds: [bet, system, stale, recap]   # recap: the tracker's 9am summary (Kylor, Nov 23)
+  send_kinds: [bet, system, recap]
 
 # Paper Leans (src/engine/picks/leans.py): the agent's judgment picks, never staked. Kylor, 2026-11-23: "leans paper-only".
 leans:
-  enabled: true
+  enabled: false                    # retired by decision 0027 (merged into the playbook: sourced opinions go in adjustments.yaml or CHECK verdicts)
   paper_only: true                  # no stake exists in the code path; a change here needs Kylor
   max_per_lane_per_week: 3          # per sport, Monday to Sunday Mountain
   max_pinnacle_move_since_news: 0.5 # a news lean is refused if Pinnacle already moved this far toward the side since the news
@@ -267,7 +270,8 @@ burst:
         fri: ["13:00-15:30"]
         sat: ["07:30-10:30", "11:30-13:30"]
 
-# When real money may go on an engine pick (src/engine/readiness.py, docs/decisions/0012-go-no-go-rules.md). Changing these is an event: write a decision note.
+# Retired as a gate by decision 0027 (the old path no longer sends picks). Only `pause_n` and `pause_clv` are still read: a staked playbook lane
+# whose average closing-line value is below pause_clv on pause_n graded picks gets a REVIEW line (Telegram system + PLAYBOOK-RECORD.md).
 go_live:
   weeks_min: 3                  # full weeks since the rules were frozen (first rule version, Nov 23 2026)
   graded_min: 10                # graded Bets and Conditionals since the freeze

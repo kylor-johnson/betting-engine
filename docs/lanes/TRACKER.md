@@ -1,15 +1,22 @@
 # Tracker: the model's picks against your bets (generated; do not edit)
 
-From 2026-11-23 (Mountain). Updated Mon Nov 23, 5:42 PM MT. Your wagers come from the account history, which shows a bet once it is graded; open bets are entered from your open-bets screen (data.nosync/tracker/open_bets.yaml) until they settle. Picks come from what Telegram sent.
+From 2026-11-23 (Mountain). Updated Mon Nov 23, 6:29 PM MT. Your wagers come from the account history, which shows a bet once it is graded; open bets are entered from your open-bets screen (data.nosync/tracker/open_bets.yaml) until they settle. Picks come from what Telegram sent.
 
 ## Scoreboard
 
 | | Bets | Record | Net | Notes |
 |---|---|---|---|---|
 | **Model** (every staked pick, at the stake and number sent) | 11 sent, 0 graded | 0-0-0 | +$0.00 | $262.50 recommended in all |
+| **Model, paper picks** (not sent; graded at the stake they would carry) | 0 issued, 0 graded | 0-0-0 | +$0.00 | not sent: paper lanes, the one-unit-a-game cap, the weekly cap, a stop |
 | **You, on the model's picks** | 11 | 0-0 | +$0.00 | followed 10 of 11 picks |
 | **You, your own bets** | 0 | 0-0 | +$0.00 | not on the model's list |
 | **You, everything** | 12 (12 open) | 0-0 | +$0.00 | the account's own grading |
+
+## Money rules
+
+- This week (Monday to Sunday MT): $262.50 recommended of the $500 weekly cap.
+- NFL (with teasers): +0.00 units staked result; the stop is at -10 (10.0 units left).
+- NBA: +0.00 units staked result; the stop is at -10 (10.0 units left).
 
 ## Every pick sent, and what you did
 

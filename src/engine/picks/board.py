@@ -185,17 +185,18 @@ def build() -> Path:
             vc.close()
     except Exception as e:
         parts.append(f"<p class=sub>Rule version unavailable: {_e(type(e).__name__)}</p>")
-    try:
-        from engine import readiness
+    try:        # decision 0027: the money rules (weekly cap, stops) replace the old readiness stages on the page
+        from engine.bets import tracker as _tr
         from engine.odds import snapshots as snap2
+        from datetime import datetime as _dt, timezone as _tz
         rc = snap2.connect(config.DB)
         try:
-            line = readiness.summary_line(cfg, rc)
+            lines = [l.removeprefix("- ") for l in _tr.money_lines(rc, cfg, _dt.now(_tz.utc)) if l.startswith("- ")]
         finally:
             rc.close()
-        parts.append(f"<p class=sub><b>Betting readiness: {_e(line)}.</b> Criteria and what each stage allows: docs/lanes/READINESS.md.</p>")
+        parts.append("<p class=sub><b>Money rules:</b> " + _e(" ".join(lines)) + "</p>")
     except Exception as e:
-        parts.append(f"<p class=sub>Readiness unavailable: {_e(type(e).__name__)}</p>")
+        parts.append(f"<p class=sub>Money rules unavailable: {_e(type(e).__name__)}</p>")
     try:      # the tracker: model picks against Kylor's real wagers (docs/lanes/TRACKER.md)
         tpath = config.ROOT / "docs" / "lanes" / "TRACKER.md"
         if tpath.exists():

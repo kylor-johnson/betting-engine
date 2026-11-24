@@ -1,6 +1,6 @@
 # Playbook: how this engine picks bets
 
-**Approved 2026-11-23 (decision 0018); built the same night (decisions 0019 to 0022).** This file sits next to `CHARTER.md` and outranks every handoff, prompt and research note on *how a pick is chosen*. The charter still owns the locked rules (Wagerhouse only, no paid data, the engine never places bets, $25 unit, code owns every number).
+**Approved 2026-11-23 (decision 0018); built the same night (decisions 0019 to 0022); kept in line with the charter by decision 0027.** This file sits next to `CHARTER.md` and outranks every handoff, prompt and research note on *how a pick is chosen*. The charter owns the purpose, what reaches Telegram, the money rules (units, cap, stops) and the locked rules. This file never quotes a dollar amount.
 
 ## 1. What changed and why
 
@@ -22,30 +22,30 @@ First, predict how each game will play out (the **game script**): who leads, by 
 | Expected lead path | Implied margin, plus how often teams with this margin lead at halftime | nflverse play-by-play 2015+ |
 | Plays per team | Neutral-situation pace (seconds per play when the score is within 7), adjusted for the expected lead: leaders slow down, trailers speed up | Play-by-play |
 | Pass rate | Pass rate over expected (PROE) in neutral situations, then shifted by the expected lead (trailing teams throw more) | Play-by-play has `pass_oe` and `xpass` |
-| Throw out outliers | Games against the league's top and bottom 3 defenses get half weight in a team's averages | Play-by-play |
+| Throw out outliers | Games against the league's top and bottom 3 defenses get half weight in a team's averages | Tested, no held-out gain, off (research 17) |
 
 ### Step 2: adjust the script
 
 | Adjustment | Rule | Status |
 |---|---|---|
 | Quarterback out | Backup's own numbers if he has 100+ dropbacks; otherwise a league-average replacement-level drop | Measured: QB news moves lines about 2.5 to 2.7 points (research 14, 2b) |
-| Injury clusters | Two or more starters out in one unit (OL, DL, secondary) shift that matchup: rushing efficiency up against a gutted defensive line, targets up against backup corners | Not tested yet; tracked from day one |
+| Injury clusters | Two or more starters out in one unit (OL, DL, secondary) shift that matchup: rushing efficiency up against a gutted defensive line, targets up against backup corners | Tested, no held-out gain, off (research 17) |
 | Who absorbs the volume | A player out → his targets, carries or minutes go to teammates by their recent share. A player returning → the others lose share | Built in both props models; the history says the target bump is smaller than people expect (research 06) |
-| Wind | 8 mph or more starts to matter; scaled per mph | Tested: 10 to 19 mph Unders hit 56 to 60% (research 04, 05); effect weaker since 2024 |
-| Rain | Fewer passing yards | Not tested yet; Open-Meteo has rain history, so it can be |
+| Wind | 8 mph or more starts to matter; scaled per mph | Tested: 10 to 19 mph Unders hit 56 to 60% (research 04, 05); effect weaker since 2024. The script's totals lead used actual kickoff wind, not the forecast; re-test on forecasts (research 18) |
+| Rain | Fewer passing yards | Live input to the NFL script since it was built; not tested on its own |
 | Rest and travel | Short week, off a bye, long trip, altitude | NBA tested and already priced (research 14, 2d); NFL not tested |
-| Referees | Crew penalty and total history | Small samples; **only used after a walk-forward test passes** |
+| Referees | Crew penalty and total history | Tested, no held-out gain, off (research 17) |
 | Look-ahead and trap spots | Rivalry or big game next week | Folklore until tested; tracked, zero weight |
 
 ### Step 3: our number for every market
 
 From the adjusted script, the engine prices:
 
-1. **Player props**: usage (target share, carries, snap share, air yards; minutes for the NBA) × the script's plays and pass rate × efficiency against this defense's coverage type, read off the median (books price the median, not the average).
+1. **Player props**: usage (target share, carries, snap share, air yards; minutes for the NBA) × the script's team points and expected margin, read off the median (books price the median, not the average). Coverage type is not buildable (free data has 2023 only); blitz and box splits were tested and are off (research 17).
 2. **Team totals**: each offense's scoring per drive against this defense, times the script's drives.
 3. **Game total**: the two team totals added up, plus weather.
 4. **Side**: the difference between the team totals, priced with how real games land (3 and 7 matter).
-5. **First half and quarters**: the script's early part (how often this favorite leads early).
+5. **First half and quarters**: not built. Period lines and team totals are logged only.
 
 ### Step 4: decide
 
@@ -61,24 +61,25 @@ For each market, **edge = our chance of winning − the chance Wagerhouse's pric
 
 **Where the market comes in, and only here:**
 - **Price filter.** Never bet a number worse than ours. If another book has a better number than Wagerhouse, the card says so (you can't bet it, but it tells you Wagerhouse is worse).
-- **Sanity check, not a veto.** If our number is far from the market (3+ points on a side, 4+ on a total, 15+ points of chance on a prop), the pick is marked **CHECK**. A gap that big usually means news we don't have. The research agent must find what the market knows before it can go out. If it finds nothing, the pick stands and is graded.
-- **Blend.** Our number is pulled part of the way toward the market before the edge is computed. That is the one lesson every serious modeller agrees on (Benter: a model that ignores the market loses to it). Starting weight on **our** number: props 0.5, team totals 0.4, totals 0.35, sides 0.25. Each weight is re-fitted every 4 weeks on graded picks and goes up when our picks beat the market.
+- **Sanity check, not a veto.** If our number is far from the market (3+ points on a side, 4+ on a total, 15+ points of chance on a prop), the pick is marked **CHECK**. A gap that big usually means news we don't have. The research agent must find what the market knows before it can go out. "Nothing found" is a hold. A clear needs a positive sourced reason the market is wrong and what the current number already assumes (decision 0025); a cleared pick is staked and sent like any other B pick (decision 0027).
+- **Blend.** Our number is pulled part of the way toward the market before the edge is computed. That is the one lesson every serious modeller agrees on (Benter: a model that ignores the market loses to it). Starting weight on **our** number: props 0.5, team totals 0.4, totals 0.35, sides 0.25. A weight changes only after 40 graded candidates, by a session, with a decision note (decision 0022); `engine playbook-record` shows the fitted weight against the current one.
 
 ### Step 5: always produce picks
 
-**Every slate gets a pick list.** For each lane, it shows the top picks by edge (up to 5 a week for NFL and college, up to 2 a day for the NBA) with a grade:
+**Every slate gets a pick list.** For each lane, it shows the top picks by edge with a grade. Caps: full-game, 5 a week for NFL and college and 2 a day for the NBA; props, 10 a week and 2 a game for the NFL, 4 a day and 2 a game for the NBA; one unit a game across everything; the charter's weekly cap. A pick past a cap is paper.
 
 - **A**: clears the minimum edge, no CHECK flag, and the principle behind it has passed a test.
 - **B**: clears the minimum edge; the principle is untested or the pick is CHECK-cleared.
 - **C**: the best the model has that day, under the minimum edge. Shown so you always see what the model thinks; never staked.
 
-"No pick" is never the whole message. If nothing clears the bar, you see the best C picks and why they fell short.
+"No pick" is never the whole answer: the card and the board show the best C picks and why they fell short. Telegram carries only staked picks; the 9am recap says what was not sent and why.
 
 ## 4. Staking and grading
 
 - Every pick is frozen at the Wagerhouse number when issued, with a "don't bet past" number, and graded on the result and against the closing number.
-- **Stakes (decision 0025, 2026-11-23):** units are NFL $50, NBA $25, college $25. Only NFL Wong teasers are staked (1 unit a ticket). Every other A and B pick is a paper pick: issued, frozen and graded at $0 until its lane's closing-line value clears the restart number in `docs/research/18-model-evaluation.md`. At most one unit is staked on a game across picks and teaser legs.
-- **Every principle keeps its own record.** After 4 weeks and 40 picks, a principle whose picks lose against the closing number is cut to zero weight, with a note and a message (charter drift guard). A principle that wins gets more weight.
+- **Stakes:** A = 1 unit, B = half a unit, C = nothing; units, the weekly cap and the stops are in the charter's Money section. Staked lanes (decision 0026): NFL full-game, NFL props, NBA props and NFL Wong teasers. NBA and college full-game picks are shown only (research 16). Research 18's restart numbers are the yardstick for keeping a lane staked.
+- **Every pick shows where its edge came from:** the part it would have if our number were the market's (that is only Wagerhouse's price against Pinnacle) and the rest, which is our handicap (decision 0027). The charter's rule stands: a price gap alone is never a reason.
+- **Every principle keeps its own record.** After 4 weeks and 40 picks, a principle whose picks lose against the closing number is cut to zero weight, with a decision note and a one-line Telegram lane message (charter drift guard). A principle that wins gets more weight.
 - Results alone take thousands of bets to prove anything, so the closing number is the scorecard week to week, and results are shown next to it.
 
 ## 5. Per sport
@@ -113,11 +114,11 @@ We copy methods, never picks. Warren Sharp's write-ups are one example; Walters,
 ## 7. What this replaces
 
 - **Pinnacle is no longer the fair line.** It becomes the sanity check and price filter in Step 4.
-- **"A Bet needs news Pinnacle hasn't moved for"** is replaced by Step 4's edge and grades.
-- **The stale-number alerts** stay as a price note on the card. They are no longer Telegram messages unless they line up with a model pick.
+- **"A Bet needs news Pinnacle hasn't moved for"** is replaced by Step 4's edge and grades. That old path still runs, but only as a $0 record on the card; it never sends (decision 0027).
+- **The stale-number alerts** stay as a price note on the card and a trigger for a research run. They are not Telegram messages (decision 0027).
 - **The research agent's job changes.** It no longer hunts for reasons to pass on a price gap. It checks the script's inputs (injuries, who is playing, weather, news the market has), clears CHECK flags, and writes the handicap in plain words. It still cannot type a number.
 
-## 8. Build order (after approval)
+## 8. Build order (all built by Nov 23: decisions 0019 to 0022)
 
 1. **NFL script engine** (pace, PROE, implied team points, lead path) and **team totals and game totals** priced from it, back-tested walk-forward on 2019 to 2025 to set the starting weights honestly. About 2 to 3 days.
 2. **NFL props wired to the script** (the props model exists; it gets plays and pass rate from the script instead of only the spread and total), plus coverage-type splits. About 2 days.
@@ -130,20 +131,21 @@ We copy methods, never picks. Warren Sharp's write-ups are one example; Walters,
 
 | Piece | Status | Where |
 |---|---|---|
-| NFL script, sides, totals, team totals | Live, **paper** (decision 0025): walk-forward weight 0 for 2024-26 (research 15); the totals lead was the actual-wind input (research 18) | `models/script.py`, `picks/playbook.py` |
-| NFL props | Live, **paper** (decision 0025): props model + script team points + expected margin (3 stats), blended 0.5 with Pinnacle | decision 0021, research 16 |
-| NBA props | Live, **paper** (decision 0025): NBA props model (minutes), re-centred on outcomes, + script team points, blended 0.5 | decision 0022 |
+| NFL script, sides, totals, team totals | Live, **staked** (decision 0026): walk-forward weight 0 for 2024-26 (research 15); the totals lead was the actual-wind input (research 18) | `models/script.py`, `picks/playbook.py` |
+| NFL props | Live, **staked** (decision 0026): props model + script team points + expected margin (3 stats), blended 0.5 with Pinnacle | decision 0021, research 16 |
+| NBA props | Live, **staked** (decision 0026): NBA props model (minutes), re-centred on outcomes, + script team points, blended 0.5 | decision 0022 |
 | NBA sides, totals, team totals | Shown only (walk-forward lost, research 16) | `models/nba_script.py` |
 | College sides, totals, team totals | Shown only (walk-forward lost; totals weight a lead, research 16) | `models/college_script.py` |
-| NFL Wong teasers | Live, staked (A), the only staked lane (decision 0025) | decision 0014, 0019 |
-| CHECK clearing by the research agent | Live for all three sports | `docs/cards/decisions/<date>-<sport>-checks.yaml` |
+| NFL Wong teasers | Live, staked (A), 1 NFL unit a ticket; judged at 300 legs | decision 0014, 0019 |
+| CHECK clearing by the research agent | Live for all three sports; a cleared pick is staked (decision 0027) | `docs/cards/decisions/<date>-<sport>-checks.yaml` |
 | Per-principle record and weight re-fit on every candidate | Live | `engine playbook-record`, `docs/lanes/PLAYBOOK-RECORD.md` |
 | Schedule-adjusted form (NFL script) | Live: the one addition that helped (NFL totals, research 17) | `script.ADJUST` |
 | Rain, wind | Live inputs to the NFL script since the start | `script.py` |
 | Outlier half weight, injury clusters, referees | Built, tested, off (no held-out gain, research 17) | `script.py` |
 | Blitz and stacked-box matchup splits for props | Built, tested, off (no held-out gain, research 17) | `props_matchup.py` |
 | Coverage-type (man/zone) splits | Not buildable: free data has 2023 only | |
-| Never into a move, one unit a game, CHECK clears with a reason, closing grades for props and team totals | Live (decision 0025) | `picks/playbook.py` |
+| Never into a move, one unit a game, CHECK clears with a reason, closing grades for props and team totals | Live (decision 0025, kept by 0026) | `picks/playbook.py` |
+| Weekly cap, NFL stop with teasers, review line, edge split (price against handicap) | Live (decision 0027) | `picks/playbook.py`, `bets/tracker.py` |
 | NBA news-timed props | Paper test (decision 0025) | `picks/news_props.py`, `docs/lanes/NEWS-PROPS.md` |
 
 Commands: `engine playbook --dry-run [--sport NFL|NBA|College]` shows the current lists without sending or writing; `engine playbook-record`.
