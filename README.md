@@ -31,6 +31,7 @@ uv run engine telegram-setup                  # after sending your bot any messa
 | `uv run engine poll --force --no-send` | Same, but print alerts instead of sending |
 | `uv run engine playbook --dry-run` | The playbook pick lists for NFL, NBA and college right now (PLAYBOOK.md), without sending or saving anything; `--sport NBA` for one |
 | `uv run engine playbook-record` | Playbook record by sport and market, and the weight re-fit from every priced candidate (`docs/lanes/PLAYBOOK-RECORD.md`) |
+| `uv run engine tracker` | Every Telegram pick next to your actual Wagerhouse bets since Nov 23: the model's record, yours on its picks, yours on your own bets, and how closely each pick was followed (`docs/lanes/TRACKER.md`; synced twice a day automatically, 9am recap on Telegram) |
 | `uv run engine poll` | What the scheduled job runs: reads only in the hours listed in `config.yaml` |
 | `uv run engine watch add "Kansas State +10 -115"` | Alert when Wagerhouse has +10 or better at −115 or better |
 | `uv run engine watch add "Bills/Jets o44"` / `"Bills ML -150"` | Totals and moneylines |

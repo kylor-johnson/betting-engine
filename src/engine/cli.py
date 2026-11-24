@@ -615,6 +615,21 @@ def cmd_playbook_record(args) -> int:
     return 0
 
 
+def cmd_tracker(args) -> int:
+    """The model's picks against your actual wagers since Nov 23 (docs/lanes/TRACKER.md). Syncs the account first unless --no-sync."""
+    from engine.bets import tracker
+    cfg, env = config.load_config(), config.load_env()
+    if not args.no_sync:
+        print(tracker.sync(env, weeks=1))
+    con = _db.connect(config.DB)
+    try:
+        path = tracker.write(con, cfg)
+        print(path.read_text())
+    finally:
+        con.close()
+    return 0
+
+
 def cmd_stale(args) -> int:
     from engine import stale
     con = _db.connect(config.DB)
@@ -743,6 +758,9 @@ def main(argv=None) -> int:
     a.set_defaults(func=cmd_playbook)
     a = sub.add_parser("playbook-record", help="playbook record by sport and market, and the weight re-fit (writes docs/lanes/PLAYBOOK-RECORD.md)")
     a.set_defaults(func=cmd_playbook_record)
+    a = sub.add_parser("tracker", help="the model's picks against your actual wagers since Nov 23 (writes docs/lanes/TRACKER.md)")
+    a.add_argument("--no-sync", action="store_true", help="skip the account read")
+    a.set_defaults(func=cmd_tracker)
     a = sub.add_parser("wh-edge", help="where Wagerhouse is soft against Pinnacle and how fast it follows (writes docs/research/12-...md)")
     a.set_defaults(func=cmd_wh_edge)
     a = sub.add_parser("stale", help="stale-number price alerts: grade them and show the record")

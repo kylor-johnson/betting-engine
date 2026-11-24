@@ -207,6 +207,14 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
             _playbook.grade(con, cfg)
             _playbook.grade_candidates(con)
             (config.ROOT / "docs" / "lanes" / "PLAYBOOK-RECORD.md").write_text(_playbook.record_markdown(con, cfg))
+            from engine.bets import tracker as _tracker
+            _tracker.write(con, cfg)
+            local = now.astimezone(config.display_tz(cfg))
+            rstamp = config.DATA / "raw" / ".tracker_recap"
+            if send_alerts and local.hour >= 9 and (not rstamp.exists() or rstamp.read_text().strip() != local.date().isoformat()):
+                from engine.alerts import telegram as _tg
+                _tg.send(env, _tracker.recap(con, cfg), kind="recap")
+                rstamp.write_text(local.date().isoformat())
             for gl in grade.run(cfg, con):
                 if gl.startswith(("GRADED", "NOT GRADED")):
                     out.append(gl)
@@ -275,6 +283,17 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
             (config.ROOT / "docs" / "cards" / f"{day}-nfl-teasers.md").write_text(teasers.card(con, cfg, now))
         except Exception as e:
             out.append(f"Teaser lane failed: {type(e).__name__}: {e}")
+        try:   # tracker (Kylor, Nov 23): the graded history twice a day (first read from 8am, first from 5pm); a 9am recap.
+            # The site's report does not return open bets (graded: 0 returns graded ones), so a bet shows once it is graded.
+            from engine.bets import tracker
+            local = now.astimezone(config.display_tz(cfg))
+            stamp = config.DATA / "raw" / ".tracker_full_sync"
+            slot = f"{local.date().isoformat()}-{'pm' if local.hour >= 17 else 'am'}"
+            if local.hour >= 8 and (not stamp.exists() or stamp.read_text().strip() != slot):
+                out.append(tracker.sync(env, weeks=1, wh=wh))
+                stamp.write_text(slot)
+        except Exception as e:
+            out.append(f"Tracker sync failed: {type(e).__name__}: {e}")
         from engine.picks import playbook
         for pb_sport, ctx in (("NFL", nfl_props_ctx), ("NBA", nba_props_ctx), ("College", None)):   # playbook picks (decisions 0018-0022)
             if pb_sport not in cfg.get("sports", []):

@@ -245,3 +245,26 @@ def test_props_matchup_factor_math():
     f = st.factor("qb1", 2024, "MIA", "pass")
     assert f is not None and f > 1.0                       # a QB who is better against the blitz, facing a blitz-heavy defense
     assert pm.live_factor(2024, "qb1", "MIA", "passing_yards", {"passing_yards": {"use": False, "g": 1.0}}) == 1.0
+
+
+def test_tracker_matches_picks_to_wagers_and_grades_the_follow():
+    from engine.bets import tracker as tr
+    from engine.bets.history import Leg, Wager
+    t = datetime(2026, 11, 24, 0, 0, tzinfo=UTC)
+    rec = tr.Rec("k", "pick", "NFL", t, "Jacksonville Jaguars at Tennessee Titans", "side", "home", "Tennessee Titans +15", 15.0, -110, 25.0,
+                 "Tennessee Titans +14.5", t + timedelta(days=5), None, None, 50.0)
+    prop = tr.Rec("p", "pick", "NFL", t, "Cincinnati Bengals at Washington Commanders", "prop", "under", "Stefon Diggs under 4.5 Receptions", 4.5, 109,
+                  25.0, None, t + timedelta(hours=2), None, None, 50.0)
+    def W(key, legs, desc, risk=25.0, status="W", typ="S"):
+        return Wager(int(key), 1, typ, "pregame", t + timedelta(minutes=10), risk, 22.7, 22.7 if status == "W" else 0, 0 if status == "W" else risk,
+                     status, False, "", desc, "2026-11-24", legs)
+    spread = Leg(1, "spread", "NFL", "Jacksonville Jaguars", "Tennessee Titans", "Tennessee Titans", 14.5, 14.5, 0, 0, "", -110, None, "W", "Game")
+    pleg = Leg(1, "prop", "NFLPLRPROPS", "Stefon Diggs", "Receptions", "Stefon Diggs/Receptions", 4.5, 4.5, 0, 0, "U", 105, None, "W", "Game")
+    other = Leg(1, "total", "NBA", "Lakers", "Jazz", "Lakers/Jazz", 225.0, 225.0, 0, 0, "O", -110, None, "L", "Game")
+    ws = [W(1, [spread], "Football Tennessee Titans +14½ -110", risk=50.0), W(2, [pleg], "Football Stefon Diggs/Receptions U 4½ +105"),
+          W(3, [other], "Basketball Lakers/Jazz O 225 -110", status="L")]
+    own = tr.match([rec, prop], ws)
+    assert [w.ticket for w in own] == [3] and rec.matched and prop.matched
+    g = tr.grade_follow(rec)
+    assert "0.5 points worse" in g and "stake $50 vs $25 sent" in g
+    assert tr.grade_follow(prop).startswith("bet: same number") and "price +105 vs +109 sent" in tr.grade_follow(prop)

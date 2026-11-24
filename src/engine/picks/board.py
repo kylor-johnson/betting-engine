@@ -194,6 +194,15 @@ def build() -> Path:
         parts.append(f"<p class=sub><b>Betting readiness: {_e(line)}.</b> Criteria and what each stage allows: docs/lanes/READINESS.md.</p>")
     except Exception as e:
         parts.append(f"<p class=sub>Readiness unavailable: {_e(type(e).__name__)}</p>")
+    try:      # the tracker: model picks against Kylor's real wagers (docs/lanes/TRACKER.md)
+        tpath = config.ROOT / "docs" / "lanes" / "TRACKER.md"
+        if tpath.exists():
+            rows = [l for l in tpath.read_text().splitlines() if l.startswith("| **")]
+            trs = "".join("<tr>" + "".join(f"<td>{_e(c.strip().strip('*'))}</td>" for c in l.strip("|").split("|")) + "</tr>" for l in rows)
+            parts.append("<h2>Tracker: the model's picks against your bets</h2><table><tr><th></th><th>Bets</th><th>Record</th><th>Net</th><th>Notes</th></tr>"
+                         f"{trs}</table><p class=sub>Every pick and what you did with it: docs/lanes/TRACKER.md (`engine tracker`).</p>")
+    except Exception as e:
+        parts.append(f"<p class=sub>Tracker unavailable: {_e(type(e).__name__)}</p>")
     parts.append("<h2>The lanes: what each one looks at, and its record</h2>" + _lanes_html(cfg))
     parts.append("<h2>Paper Leans (unproven, never staked)</h2>" + _leans_html(cfg, tz))
     parts.append("<h2>How the engine's picks have done</h2>" + _grades_html(tz))

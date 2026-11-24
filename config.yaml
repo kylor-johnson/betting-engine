@@ -222,7 +222,7 @@ playbook:
 # did not happen) or you asked by command. Everything else (NO BETS summaries, openers, QB and NBA news, price gaps, lane status,
 # graded picks, props, paper Leans) is held back; it is still on the cards and board.html. Add "info" to see everything again.
 telegram:
-  send_kinds: [bet, system, stale]
+  send_kinds: [bet, system, stale, recap]   # recap: the tracker's 9am summary (Kylor, Nov 23)
 
 # Paper Leans (src/engine/picks/leans.py): the agent's judgment picks, never staked. Kylor, 2026-11-23: "leans paper-only".
 leans:
