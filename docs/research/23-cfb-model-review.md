@@ -1,4 +1,4 @@
-**Kylor: answer yes or no to the 8 items in "What I'd like you to decide" at the bottom. My advice: yes to 1-4 and 6-7, no to 5 (staking college's own model) and 8 (college props).**
+**Kylor: answer yes or no to the 8 items in section 5 at the bottom. My advice: yes to 1, 2, 3, 4, 6 and 7; no to 5 (putting money on college's own model) and 8 (college props).**
 
 # 23. College football model review (Nov 24, 2026)
 
@@ -73,7 +73,45 @@ stats, so a season's history is about 5 calls. This review used about 40.
 
 ## 2. How college is handicapped well, and where it differs for a reason
 
-RESEARCH_PLACEHOLDER
+Full sourced brief, every claim tagged [DATA], [CLAIM] or [OPINION] with a link: `docs/research/23a-sources.md` (researched Nov 24 by a
+sub-agent; I checked the parts this note leans on). A named handicapper here is an example to red-team, never an input.
+
+**What the published systems use, and whether anyone shows them beating the close:**
+
+| Method | What it uses | Evidence against the closing line |
+|---|---|---|
+| SP+ (Connelly) | Tempo- and opponent-adjusted efficiency (success rate, explosiveness, field position, finishing drives, turnovers). Preseason: last year's rating plus returning production (about two-thirds), recruiting (weight cut since the portal), recent history | **None found.** Fragments only: 55% through nine weeks of 2018, 53.3% early in 2026, neither saying opener or close [CLAIM]. Not graded by The Prediction Tracker |
+| FEI (Fremeau) | Drive-based, opponent-adjusted, garbage time removed (10.7% of FBS possessions, 2007-2023) [DATA] | Prediction Tracker 2025: 50.7% against the spread [DATA]. **In our research 14 test, failed** |
+| ESPN FPI | Efficiency, preseason priors, game control | ESPN reports straight-up winners only; where FPI and Vegas disagreed, FPI's winner won 55% [CLAIM]. Prediction Tracker 2025: 48.2% [DATA]. **In research 14, failed** |
+| Sagarin, Massey, Elo, Colley | Scores and margins (Colley: wins only) | Sagarin 52.8%, Massey 49.9% in 2025 [DATA]. Sagarin, Massey and an Elo were **in research 14's test, failed** |
+| Phil Steele | Returning starters, experience, turnover margin regression | Turnover luck does reverse (12 of 14 lucky 2024 teams fell back in 2025) [DATA], but **no test that the market misses it** |
+| Dr. Bob (Stoll) | Statistical model, high level | **Self-reported** 55.1% on college Best Bets since 1999 [CLAIM]; no outside verifier found. A 2006 column shows his releases moved lines within minutes [DATA] |
+| Billy Walters ("Gambler") | Power ratings, 90% old and 10% new each week, bet favorites early and dogs late [CLAIM] | Nothing college-specific that can be checked |
+| Academic | Fair and Oster (2007): ranking systems, alone or combined, add **no information beyond the final spread** [DATA] | The independent grader agrees: the closing line had the lowest error of every system in 2025 (11.85 points) and 2026 (11.70; opener 12.19) [DATA] |
+
+**Which systems were already in our research 14 test:** FEI, ESPN FPI, Sagarin (three versions), Massey, an Elo, Loudsound and about 50
+others. **SP+ was not.** SP+'s method is close to what T1 tested here (per-play efficiency with tempo, opponent-adjusted, preseason priors),
+and SP+ itself is a free CFBD endpoint, so the remaining gap is small.
+
+**Where college differs from the NFL for a structural reason (and what our data says):**
+
+| Difference | Evidence | Tested here |
+|---|---|---|
+| More plays and more variance: about 176-179 plays a game against 151-155 [DATA] | Per-play efficiency times tempo should beat points per game | T1: more accurate, not better than the close |
+| Garbage time distorts per-game numbers | 10.7% of possessions [DATA] | T2: removing it barely matters once you use per-play numbers |
+| Roster churn (portal, returning production) | Last season's top 10 covered 42.5% in the next opener, 2008-2016 [DATA, Bennett 2019]; research 14's systems lost in weeks 1-4 since 2021 | T3: our model with or without priors loses 46-48% in weeks 1-4. Direction confirmed, bet not proven |
+| Softer market in small games | Power vs mid-major mismatches mispriced 2002-2011 [DATA, two papers]; non-Power-5 reactions 2006-2018 [CLAIM]; no conference effect 1985-2003 [DATA] | T5: Group of 5 games no softer than power games in 2023-2026 |
+| Flatter key numbers | Our data: margins of 3 are 9.8% of college games against 14.9% NFL | Explains why college teasers failed (research 14) and why a half-point is worth less |
+| Scores can't go below zero, so implied team scores are skewed in mismatches | Arscott 2023: a team-total rule over 55% [DATA, abstract] | T6: the underdog averages 0.8 more than implied, but the Over at that number loses (47.6%) |
+| Home field smaller than folklore and falling | 2.8 points 2005-2023 [DATA]; our config uses 2.5 | Not tested; small |
+| QB value bigger than the NFL | Research 21 and 22: about 4 points (NFL 2.5 to 2.7) | Already live; the biggest measured effect we have |
+| Bowl season: opt-outs and portal exits arrive after the lines open | Lines open weeks ahead | Not testable with free history; the news lane covers it |
+| Public money on big brands | Paul et al. 2013 [DATA] | Not testable: no free betting splits, and splits are never a reason anyway (charter) |
+
+**What the sources add up to:** nobody publishes a college model with an independent record of beating the close. What separates college
+from the NFL is real (tempo, churn, QB size, flat key numbers), but the closing line already prices it. The places an individual can
+still win are the same as in the NFL, only larger: **being early on news** (a college QB is worth more, and bowl opt-outs land after
+the open) and **being early on the number** (T4's move toward us).
 
 ## 3. What I tested and what it showed
 
@@ -128,7 +166,7 @@ those numbers would have won about 52 to 53%, which is barely above break-even a
 | Sides, 3+ | 801-775 (50.8%) | +0.29 points |
 | Totals, 4+ | 378-363 (51.0%) | +0.40 points |
 
-The move is not luck (with about 1,600 bets, +0.29 is several standard errors from zero): the market does move toward our number during
+The move is not luck (each is about five times its standard error: 0.29 ± 0.06 on 1,604 side bets, 0.40 ± 0.08 on 749 totals): the market does move toward our number during
 the week. But 0.3 to 0.4 points in college is about 1 point of win chance, and -110 needs 2.4. So: real, too small to bet alone.
 
 **T5, where the close is weakest: one slice passed, and it can't be bet.** 18 slices; the pass rule was 54%+ on 200+ bets and 52.4%+ in
@@ -137,19 +175,57 @@ by luck, and those games are almost all FCS against FCS: since the engine starte
 every one FBS against FBS. Late-season team totals (558-457, 55.0%) and totals (293-246, 54.4%) failed the both-halves rule: strong in
 2023-24, a coin flip in 2025-26. Group of 5 games were no softer than power games (G5 sides 265-246, totals 151-158).
 
+**T6, team totals in mismatches (Arscott): failed.** FBS against FBS, closing spread 21+, 2021-2026 (642 games): the underdog's team total
+Over at its implied number went 300-330 (47.6%; 167-169 then 133-161). The underdog does score 0.8 points more than implied **on average**,
+as the paper says, but that average comes from a few blowouts the other way, not from the typical game, and a bet at -110 needs the
+typical game. At 14+ points: 647-715 (47.5%). The favorite's Under: 320-317 at 21+, 676-694 at 14+. Seen after looking, so only a
+hypothesis: the underdog's Under in those games went 330-300 (52.4%), exactly break-even.
+
 **Descriptive:** college margins (8,406 games, 2021-2026) land on 3 9.8% of the time, 7 8.2%, 10 4.3%; NFL (2015-2026) 14.9%, 8.6%, 4.7%.
 Only 3 is much flatter. College spreads move 1.35 points on average from open to close (39% move 1.5+, 13% move 3+); totals 1.56.
 
-**Variants tried:** the five pre-registered tests; one model specification each; one ridge penalty; the fixed thresholds. Beyond the list:
+**Variants tried:** the six pre-registered tests (T6 written after T1-T5 ran, before it was run); one model specification each; one ridge penalty; the fixed thresholds. Beyond the list:
 the FBS-only totals count above (one variant) and a check of whether Wagerhouse posts FCS games.
 
 ## 4. Where college fell behind, ranked by expected value
 
-POV_PLACEHOLDER
+1. **News speed in bowl season (highest).** The biggest measured college effect is a starting QB ruled out (about 4 points, research 22),
+   and in bowl season opt-outs and portal exits land after the lines open. The news lane is already staked (decision 0029). What's
+   missing is coverage: the college research runs once a day at 8:15, while opt-outs break at any hour. Cheapest real gain.
+2. **The early number.** T4 found our number knows something the opener doesn't (the line moved our way 0.3 to 0.4 points). Too small to
+   bet alone at -110, but it's the one model signal in this whole review, and NFL openers already get a trigger and messages; college gets
+   neither. Worth logging on paper.
+3. **Model inputs (parity).** Efficiency and tempo made our own number more accurate in every market. It does not create a bet, but the
+   card's C picks and the CHECK verdicts get a better number to argue with, and college stops being the thinner model.
+4. **Agent context.** The NFL agent sees a matchup block and a luck block; the college agent sees only lines. CFBD gives what's needed for
+   free. Context only, never a reason.
+5. **Stale QB value text.** Two documents still tell the agent 3.5 points. Small, but it sizes every college news pick.
+6. **Early season (2027).** Two different models now agree that numbers built on last season lose in September. Pre-register it now;
+   it can only be tested next August.
+7. **Props (lowest).** Wagerhouse props aren't readable, Pinnacle's college props aren't read, and there is no free prop-line history.
+
+**On staking college the way the NFL is staked.** The evidence is the same: both models earn about zero weight against the close. The NFL
+is staked because you chose to build a record with money (decision 0019), not because it passed. So the asymmetry is a choice, not a
+result. I'd still say no for college: with about six weeks of games left, staking would mostly add Wagerhouse's margin and luck. A paper
+record of the new model and the opener signal costs nothing, and it gives you something to decide on in August.
 
 ## 5. What I'd like you to decide
 
-DECIDE_PLACEHOLDER
+Each item: what it is, about how long, and the number that turns it off. Units, not dollars.
+
+| # | Change | Hours | Kill number | My advice |
+|---|---|---|---|---|
+| 1 | **Fix the stale QB value.** Change 3.5 to "about 4, about 5 for a weak passer" in `ops/agent_prompt.md` and the college parity note in `config.yaml`, and fix the wrong "no play-level data" comment in `college_script.py` | 0.5 | none | **Yes** |
+| 2 | **More college research runs in bowl season.** Add college research runs at 12:15 and 4:15 MT from Dec 14 to Jan 12, so opt-out and portal news reaches the news lane before Pinnacle moves | 1 | Back to one run a day if college news picks' closing-line value is below zero after 15 picks | **Yes** |
+| 3 | **College openers on paper.** Each week, record our number against Wagerhouse's first posted college number, issue paper picks where we differ by 3+ (side) or 4+ (total), and grade the move to the close. No Telegram, $0 | 3 | Off after 150 graded if the average move toward us is under 0.25 points or the record at the opener is under 52.4% | **Yes** |
+| 4 | **Upgrade the college script to efficiency and tempo** (T1: PPA per play, success rate, plays per game, garbage time removed), trained on FBS against FBS games only, since those are the only ones Wagerhouse posts. The lane stays shown | 3 | Revert if, rerun in January with all of 2026, the blend is worse than the current model's | **Yes** |
+| 5 | **Stake college full-game picks from its own model** at the playbook's starting weights, like the NFL (decision 0019). Risk: B picks at half a unit, up to 5 a week, is up to 2.5 units a week. With no edge that's about 0.1 unit a week lost to the margin and swings of about ±1 unit a week; the 10-unit stop could trip in a month on luck alone | 0.5 | The existing 10-unit stop and review line | **No** (revisit in August with item 3's record) |
+| 6 | **College context block for the agent:** a matchup block (per-play efficiency, success rate, tempo, against the opponent's) and a luck block (turnover margin against expected) from CFBD, context only, like the NFL's | 3 | Remove if the agent ever cites it as the reason for a clear | **Yes** |
+| 7 | **Pre-register the 2027 early-season test now:** in weeks 1-4 of 2027, paper-bet against our model's side where it differs from the close by 3+, alongside research 14's planned test with returning production and transfers | 1 | Dropped if under 52.4% on 2027 weeks 1-4 | **Yes** |
+| 8 | **College props model** (CFBD player stats are free) | 8+ | n/a | **No**: nothing to bet it at (Wagerhouse props unreadable, no Pinnacle college props read, no free prop-line history) |
+
+Items 1, 2, 4 and 6 change `ops/`, `config.yaml` or `src/` and need a decision note when you say yes. None of them changes money, stakes
+or what reaches Telegram, except item 2, which can only add news picks the existing rules already allow.
 
 ## Pre-registered tests (written before looking, Nov 24, commit d9d268b)
 
