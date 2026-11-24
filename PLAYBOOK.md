@@ -32,7 +32,7 @@ First, predict how each game will play out (the **game script**): who leads, by 
 | Sourced news, every sport | The research agent's `adjustments.yaml` entries move our number by the part Pinnacle has not moved for since the news broke; added after the blend, at full size. In a shown-only lane, a pick is staked only when that news is what clears the bar (a news pick), and that test runs before one pick per game is chosen; no lane is shown-only today (decision 0035). News counts only once Pinnacle has been read since it broke. | Live (decisions 0029, 0033). College starter ruled out before the game = about 4 points; NFL starter out = 2.5 to 2.7 (research 14, 22) |
 | Injury clusters | Two or more starters out in one unit (OL, DL, secondary) shift that matchup: rushing efficiency up against a gutted defensive line, targets up against backup corners | Tested, no held-out gain, off (research 17) |
 | Who absorbs the volume | A player out → his targets, carries or minutes go to teammates by their recent share. A player returning → the others lose share | Built in both props models; the history says the target bump is smaller than people expect (research 06) |
-| Wind | 8 mph or more starts to matter; scaled per mph | Tested: 10 to 19 mph Unders hit 56 to 60% (research 04, 05); effect weaker since 2024. The script's totals lead used actual kickoff wind, not the forecast; re-test on forecasts (research 18) |
+| Wind | Above 6 mph, scaled per mph (the script's and the wind model's knot; published studies say about 8) | Tested: 10 to 19 mph Unders hit 56 to 60% (research 04, 05); effect weaker since 2024. The script's totals lead used actual kickoff wind, not the forecast; re-test on forecasts (research 18) |
 | Rain | Fewer passing yards | Live input to the NFL script since it was built; not tested on its own |
 | Rest and travel | Short week, off a bye, long trip, altitude | NBA tested and already priced (research 14, 2d); NFL not tested |
 | Referees | Crew penalty and total history | Tested, no held-out gain, off (research 17) |
@@ -140,7 +140,7 @@ We copy methods, never picks. Warren Sharp's write-ups are one example; Walters,
 | College openers | Paper: our number against Wagerhouse's first number, graded on the move to the close; off at 150 graded if the move is under 0.25 points or the record under 52.4% (decision 0034) | `picks/college_openers.py`, `docs/lanes/COLLEGE-OPENERS.md` |
 | College matchup and luck blocks for the agent | Live, context only (decision 0034) | `models/college_context.py` |
 | NFL Wong teasers | Live, staked (A), 1 NFL unit a ticket; judged at 300 legs | decision 0014, 0019 |
-| CHECK clearing by the research agent | Live for all three sports; a cleared pick is staked in a staked lane (decision 0027), and in NBA and college full-game only as a news pick | `docs/cards/decisions/<date>-<sport>-checks.yaml` |
+| CHECK clearing by the research agent | Live for all three sports; a cleared pick is staked in a staked lane (decision 0027); every lane is staked today (decision 0035) | `docs/cards/decisions/<date>-<sport>-checks.yaml` |
 | Per-principle record and weight re-fit on every candidate | Live | `engine playbook-record`, `docs/lanes/PLAYBOOK-RECORD.md` |
 | Schedule-adjusted form (NFL script) | Live: the one addition that helped (NFL totals, research 17) | `script.ADJUST` |
 | Rain, wind | Live inputs to the NFL script since the start | `script.py` |

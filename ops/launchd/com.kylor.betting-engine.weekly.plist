@@ -11,7 +11,8 @@
   <key>EnvironmentVariables</key>
   <dict>
     <key>UV_PROJECT_ENVIRONMENT</key><string>/Users/kylorjohnson/Library/Mobile Documents/com~apple~CloudDocs/Bettng Model/.venv.nosync</string>
-    <key>PATH</key><string>/opt/homebrew/bin:/usr/bin:/bin</string>
+    <key>PATH</key><string>/Users/kylorjohnson/.nvm/versions/node/v25.2.1/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
+    <key>HOME</key><string>/Users/kylorjohnson</string>
   </dict>
   <!-- Tuesday 9:00 local time: the account week closes after Monday night football -->
   <key>StartCalendarInterval</key>

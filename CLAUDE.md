@@ -36,7 +36,8 @@ Owner: Kylor (Denver, Mountain time). Research is in `docs/research/`, decisions
 - **News:** the Rotoworld relay tagged by `ops/reporters.yaml`, the official NBA injury report PDF, then ESPN.
 - **History and stats:** nflverse (`nflreadpy`), CollegeFootballData (free key in `.env`), The Prediction Tracker, Open-Meteo.
 - If a source is down or returns junk, fail loudly. Today only these reach Telegram as `system`: a failed Wagerhouse read, missed reads, a
-  missed or failed research run, a lane change and the daily check. Other source problems are kind `problem` (held back, on the board and in
+  missed or failed research run, a lane change, a stop or review line, the daily check, and on every read a NOT DELIVERED line per staked pick
+  that has not reached Telegram or a $0 pick sent as a bet (decision 0033). A failed system line is sent again on the next read for 48 hours. Other source problems are kind `problem` (held back, on the board and in
   the log), and a playbook or teaser failure is only in the log until the daily check catches its effect. Never skip silently.
 
 ## Rules for code
@@ -60,7 +61,7 @@ Owner: Kylor (Denver, Mountain time). Research is in `docs/research/`, decisions
 - **The YAML key `on` loads as `True`;** use `enabled`.
 - **Teasers the code may build:** 2-team 6-point at -110 (Wagerhouse's "6/4 MIX"), NFL sides, both legs crossing 3 and 7 (Wong legs).
   Anything else in Kylor's own bets is flagged by the audit. Buying points: only on or off 3 in the NFL at 10 to 15 cents.
-- **Auto-commit** (`gitsync.py`) commits only the generated paths it lists, never `src/`, and skips while a session holds the lock.
+- **Auto-commit** (`gitsync.py`) commits only the paths it lists (generated files, plus `adjustments.yaml` and the agent's decisions files), never `src/`, and skips while a session holds the lock.
 
 ## Tests and finishing
 

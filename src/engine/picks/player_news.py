@@ -152,7 +152,18 @@ def parse(page: str, sport: str) -> list[Post]:
     return out
 
 
-def fetch(sport: str, since: datetime | None = None, max_pages: int = 4) -> list[Post]:
+MAX_PAGES = 15     # 10 posts a page; 4 pages lost 4-5 hours of NBA posts on a busy night when reads were hours apart (audit 24)
+
+
+class Truncated(SourceError):
+    """The pages ran out before reaching the last post already stored: some posts in between were never read.
+    Carries what was read and stored anyway (`new`, `first`) so a caller can use it and still report the gap."""
+    def __init__(self, msg: str, new: list | None = None, first: bool = False):
+        super().__init__(msg)
+        self.new, self.first = new or [], first
+
+
+def fetch(sport: str, since: datetime | None = None, max_pages: int = MAX_PAGES) -> list[Post]:
     """Newest first. Reads further pages until it reaches `since` (or `max_pages`)."""
     posts: list[Post] = []
     for page in range(1, max_pages + 1):
@@ -193,11 +204,23 @@ def last_seen(con, sport: str) -> datetime | None:
     return t.replace(tzinfo=timezone.utc) if t else None
 
 
+def gap(posts: list[Post], since: datetime | None) -> str | None:
+    """A problem line when the pages read never reached `since` (posts between were missed), else None."""
+    if since is None or not posts or min(p.posted for p in posts) <= since:
+        return None
+    return (f"Rotoworld: read {len(posts)} posts back to {min(p.posted for p in posts):%Y-%m-%d %H:%M} UTC but the last stored post is "
+            f"{since:%Y-%m-%d %H:%M} UTC; posts in between were not read")
+
+
 def update(con, sport: str, now: datetime) -> tuple[list[Post], bool]:
-    """Read new posts and store them. Returns (new posts, first run)."""
+    """Read new posts and store them. Returns (new posts, first run). Raises Truncated, after storing, if a gap was left."""
     since = last_seen(con, sport)
     posts = fetch(sport, since)
-    return store_new(con, posts, now), since is None
+    new = store_new(con, posts, now)
+    g = gap(posts, since)
+    if g:
+        raise Truncated(f"{sport} {g}", new, since is None)
+    return new, since is None
 
 
 def latest_signals(con, sport: str, now: datetime, hours: int = 36) -> dict[str, tuple[str, datetime, str]]:

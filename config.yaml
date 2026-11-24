@@ -25,7 +25,7 @@ key_numbers:
   College: [3, 7, 10, 14]
 
 timezone_display: America/Denver
-timezone_wagerhouse: America/New_York
+timezone_wagerhouse: America/New_York   # not read: Eastern is set in code (bets/history.py, tracker.py, playbook.py, slate.py)
 
 # Alerts
 alerts:
@@ -39,8 +39,8 @@ alerts:
 read_hours:
   sunday: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]   # news all day, openers in the evening
   other: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]                    # news breaks 7am to 5pm
-missed_read_alert_hours: 8
-opener_messages: [NFL]     # sports that get a "your book posted new games" message
+missed_read_alert_hours: 8   # poll.py adds 12 for the overnight gap, so the alert fires after 20 hours without a good read
+opener_messages: [NFL]     # sports that get a "your book posted new games" message on the log and board (kind info, held back from Telegram)
 
 # Picks engine
 picks:
@@ -63,7 +63,7 @@ models:
     forecast_bias_mph: 0.75    # day-before forecasts ran this much windier than the reanalysis (2024-2026)
     max_lead_hours: 60         # further out than this the forecast is shown, not used
     min_points: 1.0            # smaller adjustments are shown, not used
-    max_status: Conditional    # weaker since 2024 (74-62 on Unders, size already partly priced), so half a unit at most
+    max_status: Conditional    # caps the old path's wind lean, now a $0 record (decision 0027); wind also feeds the NFL script, which is staked
 
   college_openers:             # research 23 (test T4), decision 0034: our college number against Wagerhouse's first number, on paper ($0, never sent)
     enabled: true
@@ -75,10 +75,10 @@ models:
   props:                       # docs/research/06-props-model.md, decision 0006
     enabled: true              # price and grade Pinnacle's NFL props every read (testing only)
     nba_enabled: true          # same for NBA props (src/engine/models/nba_props.py), its own scorecard and gate
-    min_graded: 300            # before any prop can be a pick: this many graded props...
+    min_graded: 300            # the old props forward test's gate (decision 0006); playbook props are staked without it (decisions 0021, 0026)
     edge: 0.05                 # ...and the model's 5%+ disagreements with the price must have won money,
                                # and blending the model into Pinnacle must lower the error (best weight above 0)
-    max_status: Conditional    # even then, half a unit, and only at Wagerhouse at or better than Pinnacle's line
+    max_status: Conditional    # old forward test only; playbook props are B picks, half a unit
 
 
 # NBA injury watcher (engine nba-watch, launchd at the times below, Mountain). Changed 2026-11-23 from every 10 minutes: the point is early news and morning Outs, not minute-by-minute. Reads ESPN's public report only; reads
@@ -113,7 +113,7 @@ agent:
     - {sport: College, from: "2026-12-14", to: "2027-01-12", times: ["12:15", "16:15"]}
 
 
-# The lanes (CHARTER.md's five, plus NFL Wong teasers since 2026-11-24). `engine status` and every card and message header are generated from this
+# The lanes (CHARTER.md's six, including NFL Wong teasers). `engine status` and every card and message header are generated from this
 # section, the switches above and the database. Edit it in the same commit as any change to what a lane looks at.
 # inputs: what the lane reads (on: true/false). models: each model's test result (passed / passed_weak / testing / failed)
 # and, if it has a switch, where that switch lives in this file (`switch`), so the table cannot disagree with it.
@@ -203,7 +203,7 @@ lanes:
       news_props: {status: testing, switch: playbook.news_props.enabled, doc: docs/decisions/0025-research-18-paper-and-fixes.md, note: "news-timed props: a teammate ruled out, Pinnacle not moved yet (paper test, decision 0025)"}
     not_evaluating: ["any Wagerhouse prop price (Bet Builder is not readable; each pick says the worst line and price to take)", "props the model and Pinnacle disagree on by 15+ points until the research agent clears them"]
 
-# NFL Wong teasers, paper only (src/engine/picks/teasers.py, decision 0014, review 14 section 2f). Kylor approved 2026-11-23.
+# NFL Wong teasers, real money, 1 NFL unit a ticket (src/engine/picks/teasers.py, decision 0014, review 14 section 2f). Kylor approved 2026-11-23.
 # Wagerhouse's 2-team 6-point teaser pays -110 ("WH 6/4 MIX" in his tickets); if that changes, change `price` here (a kill condition).
 teasers:
   enabled: true
@@ -215,7 +215,7 @@ teasers:
   underdog: [1.5, 2.5]
   kill_after_legs: 300        # judged here (decision 0025 and research 18: 300 legs): under the break-even rate (72.4% at -110) means review
 
-# Playbook picks, NFL full-game markets (src/engine/picks/playbook.py, PLAYBOOK.md, decisions 0018 and 0019).
+# Playbook picks, all three sports and props (src/engine/picks/playbook.py, PLAYBOOK.md, decisions 0018, 0019, 0022, 0035).
 # Weights on OUR number against the market are the playbook's starting weights, chosen by Kylor over the walk-forward result
 # (zero weight 2024-2026, docs/research/15-script-model.md). Re-fit on graded picks every 4 weeks.
 playbook:
@@ -310,12 +310,13 @@ leans:
 # Fast reads (src/engine/burst.py): Wagerhouse and Pinnacle full-game lines every 10 minutes inside these windows, Mountain time, to measure how
 # many minutes Wagerhouse trails Pinnacle after news (section 4 of `engine wh-edge` judges it against the keep/kill rule, decision 0015) (docs/research/12a-reading-2026-11-23.md). Wednesday to Friday afternoon is when practice
 # reports land; Sunday and the weekday-night games are the inactives windows (about 90 minutes before kickoff). Bounded by max_reads_per_day.
-# Roughly 130 reads a week. Never alerts and never starts a research run.
+# Roughly 130 reads a week. Sends no Telegram message (stale-number notes are held back as `stale`), but a stale number can start a research run.
 burst:
   enabled: true
   sports:
     NFL:
-      max_reads_per_day: 40
+      max_reads_per_day: 50           # was 40; Thanksgiving Thursday needs about 47 with the window below (audit 24)
+      before_first_start: [120, 15]   # 2 hours before the day's first kickoff: the fixed windows missed Wed Nov 25 (6pm), Thanksgiving (11am) and Fri (1pm)
       windows:
         mon: ["16:30-18:30"]
         wed: ["12:00-15:30"]

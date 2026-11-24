@@ -58,7 +58,10 @@ def scoreboard(league: str, day: date, cache_dir: Path | None = None) -> list[Ev
         data = _get(f"https://site.api.espn.com/apis/site/v2/sports/{sport}/{slug}/scoreboard?dates={ymd}{extra}")
         if "events" not in data:
             raise SourceError(f"ESPN scoreboard for {league} {ymd} has no 'events' field")
-        if cache and day < datetime.now(timezone.utc).date():
+        # Cache a past day only once every game in it is final. ESPN's dates= is an Eastern date, so at 00:00 UTC tonight's
+        # slate is "yesterday" with nothing played yet; caching it then froze those games as unplayed (audit 24).
+        done = all(e.get("status", {}).get("type", {}).get("completed") for e in data["events"])
+        if cache and day < datetime.now(timezone.utc).date() and done:
             cache.parent.mkdir(parents=True, exist_ok=True)
             cache.write_text(json.dumps(data))
     out = []
@@ -200,6 +203,10 @@ ALIASES = {
     "texas el paso": "utep",
     "nevada las vegas": "unlv",
     "alabama birmingham": "uab",
+    "ul lafayette": "louisiana",            # Wagerhouse names (audit 24: these games were never logged)
+    "florida intl": "fiu",
+    "sam houston state": "sam houston",
+    "middle tennessee state": "middle tennessee",
 }
 
 

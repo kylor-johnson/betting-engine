@@ -274,6 +274,20 @@ def grade_follow(r: Rec) -> str:
     return "bet: " + (", ".join(notes) if notes else "as sent")
 
 
+def luck_dollars(recs: list) -> float:
+    """Two-standard-deviation swing of these graded picks' results for a bettor with no edge (CLAUDE.md: every report prints
+    the luck range). Risk is the stake sent; to-win from its price (-110 when a teaser or a pick has none)."""
+    from engine.odds.math import luck_range
+    bets = []
+    for r in recs:
+        if not r.result or r.result == "P" or not r.dollars:
+            continue
+        pr = r.price if r.price else -110
+        win = r.dollars * 100 / -pr if pr < 0 else r.dollars * pr / 100
+        bets.append((r.dollars, win))
+    return luck_range(bets)
+
+
 def report(con, cfg: dict, now: datetime | None = None) -> str:
     now = now or datetime.now(timezone.utc)
     tz = config.display_tz(cfg)
@@ -302,7 +316,7 @@ def report(con, cfg: dict, now: datetime | None = None) -> str:
            "## Scoreboard", "",
            "| | Bets | Record | Net | Notes |", "|---|---|---|---|---|",
            f"| **Model** (every staked pick, at the stake and number sent) | {len(recs)} sent, {len(graded)} graded | {mw}-{ml}-{mp} | "
-           f"{'+' if m_net >= 0 else '−'}${abs(m_net):,.2f} | ${m_risk:,.2f} recommended in all |",
+           f"{'+' if m_net >= 0 else '−'}${abs(m_net):,.2f} | ${m_risk:,.2f} recommended in all; luck range ±${luck_dollars(graded):,.2f} |",
            f"| **Model, paper picks** (not sent; graded at the stake they would carry) | {len(paper)} issued, {len(pg)} graded | "
            f"{sum(r.result == 'W' for r in pg)}-{sum(r.result == 'L' for r in pg)}-{sum(r.result == 'P' for r in pg)} | "
            f"{'+' if p_net >= 0 else '−'}${abs(p_net):,.2f} | not sent: paper lanes, the one-unit-a-game cap, the weekly cap, a stop |",
@@ -410,6 +424,9 @@ def recap(con, cfg: dict) -> str:
         cells = [c.strip() for c in l.strip("|").split("|")]
         keep.append(f"{cells[0].replace('**', '').split(' (')[0]}: {cells[2]}, {cells[3]} ({cells[1]})")
     now = datetime.now(timezone.utc)
+    lk = re.search(r"luck range ±\$([\d,.]+)", text)
+    if lk:      # CLAUDE.md: results always come with the luck range (audit 24: the recap had none)
+        keep.append(f"Luck range on the model's graded picks: ±${lk.group(1)} (a result inside it can be chance)")
     extra = [not_sent_line(con, now)] + [l.removeprefix("- ") for l in money_lines(con, cfg, now) if l.startswith("- ")]
     return "TRACKER (since Nov 23)\n" + "\n".join(keep + [x for x in extra if x]) + "\nDetails: docs/lanes/TRACKER.md and the board."
 

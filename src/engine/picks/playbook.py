@@ -105,6 +105,12 @@ def chance_needed(price: float) -> float:
     return 1 / american_to_decimal(price)
 
 
+def limit_value(st: dict, market: str, price: float) -> float:
+    """The expected profit per $1 at which "don't bet past" stops: half the minimum edge in win chance, times the price's decimal
+    odds, because Landing.limit walks on profit and CANCELLED tests chance edge (decision 0033 item 8: the same test; audit 24)."""
+    return st["min_edge"][market] / 2 * american_to_decimal(price)
+
+
 def edge_of(land: Landing, fair: float, line: float, side: str, price: float) -> tuple[float, float]:
     """(edge, win chance without pushes) for a bet at `line` and `price` when our fair line is `fair`."""
     win, push, lose = land.probs(fair, line, side)
@@ -322,9 +328,15 @@ def load_checks(now: datetime, cfg: dict, sport: str = "NFL") -> dict:
                 for c in (yaml.safe_load(p.read_text()) or {}).get("checks", []) or []:
                     if c.get("key") and c.get("verdict") in ("clear", "hold"):
                         out[str(c["key"])] = c
-            except Exception:
+            except Exception as e:     # never skip silently (CLAUDE.md): the card says the file was unreadable (audit 24)
+                out[f"_error|{p.name}"] = {"verdict": "error", "because": f"{p.name} could not be read: {type(e).__name__}: {e}"}
                 continue
     return out
+
+
+def checks_file_problems(checks: dict) -> list[str]:
+    """Problem lines for checks files that could not be read (their clears and holds were not applied)."""
+    return [v["because"] for k, v in checks.items() if k.startswith("_error|")]
 
 
 # ---------- props (PLAYBOOK step 3, item 1) ----------
@@ -694,6 +706,7 @@ def run(cfg: dict, env: dict, con, now: datetime, send: bool = True, props_ctx: 
         out += problems
         out += apply_news(con, games, sport, now)
         checks = load_checks(now, cfg, sport)
+        out += [f"PROBLEM: {m}; its clears and holds were not applied" for m in checks_file_problems(checks)]
         graded = grade_all(candidates(games, st, lands), st, checks=checks)      # shown-only lanes: news picks kept, the rest C
         shifts = None
         if props_ctx and st["props"] and sport in (st.get("calibrate_props") or []):
@@ -723,8 +736,10 @@ def run(cfg: dict, env: dict, con, now: datetime, send: bool = True, props_ctx: 
                            [sport, per]).fetchone()[0] >= st["max_per_period"]:      # past the cap: paper, named in the recap (research 22, 7)
                 units, dollars, note = 0.0, 0.0, f"paper: past the cap of {st['max_per_period']} full-game picks per {st['period']}"
             units, dollars, note, nominal = _paper_or_staked(con, st, c, units, dollars, note, unit, full_game=True, now=now, cfg=cfg)
+            # limit() walks on expected profit per $1; half the minimum edge is win chance. Profit = decimal odds x chance edge, so
+            # convert, or "don't bet past" and CANCELLED (which tests chance edge) disagree (audit 24; decision 0033 item 8 says same test).
             _, lim = c["land"].limit(c["our_line"], c["line"], c["side"] if c["market"] != "team_total" else c["tt_side"], c["price"],
-                                     st["min_edge"][c["market"]] / 2)
+                                     limit_value(st, c["market"], c["price"]))
             dbp = None if lim is None else _show(c, lim)
             _insert_pick(con, [key, now.replace(tzinfo=None), sport, c["event_id"], c["game"], c["market"], c["side"], c["pick"], c["line"], c["price"],
                                c["grade"], c["edge"], c["our_line"], c["market_line"], c["own_line"], units, dollars, dbp,
@@ -770,18 +785,18 @@ def grade_candidates(con, scorer=None) -> int:
     scorer = scorer or g.final_score
     con.execute(SCHEMA)
     now = datetime.now(timezone.utc).replace(tzinfo=None)
-    todo = con.execute("SELECT cand_key, sport, event_id, market, side, line, game FROM playbook_candidates WHERE outcome IS NULL AND kickoff_utc < ?",
+    todo = con.execute("SELECT cand_key, sport, event_id, market, side, line, game, kickoff_utc FROM playbook_candidates WHERE outcome IS NULL AND kickoff_utc < ?",
                        [now - timedelta(hours=4)]).fetchall()
     scores, n = {}, 0
     has_props = con.execute("SELECT count(*) FROM information_schema.tables WHERE table_name='prop_evals'").fetchone()[0]
-    for key, sport, eid, market, side, line, game in todo:
+    for key, sport, eid, market, side, line, game, kick in todo:
         if market == "prop":
             if not has_props:
                 continue
             parts = key.split("|")
             away, home = game.split(" at ", 1)
-            row = con.execute("SELECT outcome FROM prop_evals WHERE sport=? AND player_id=? AND stat=? AND away=? AND home=? AND outcome IS NOT NULL LIMIT 1",
-                              [sport, parts[2], parts[3], away, home]).fetchone()
+            row = con.execute(f"SELECT outcome FROM prop_evals WHERE sport=? AND player_id=? AND stat=? AND away=? AND home=? AND outcome IS NOT NULL AND {SAME_GAME} LIMIT 1",
+                              [sport, parts[2], parts[3], away, home, _naive(kick)]).fetchone()
             if row is None or row[0] == line:
                 continue
             val = 1.0 if row[0] > line else 0.0
@@ -832,11 +847,13 @@ def record_markdown(con, cfg: dict) -> str:
            "with a decision note (PLAYBOOK step 4).", "",
            "Units are at the grade's size, paper picks included (decision 0025). Closing-line value: sides and totals, win chance gained on the line; "
            "props and team totals, Pinnacle's no-vig closing chance of the bet minus the chance its price needed (above 0 = beat the close after the margin).", "",
-           "| Sport | Market | Graded picks | W-L | Units | Closing-line value (win chance) |", "|---|---|---|---|---|---|"]
+           "Luck range: how far the units could land from zero by chance alone for a bettor with no edge (two standard deviations).", "",
+           "| Sport | Market | Graded picks | W-L | Units | Luck range | Closing-line value (win chance) |", "|---|---|---|---|---|---|---|"]
     for sport, market, n, w, l, units, clv, cn in rows:
-        out.append(f"| {sport} | {market} | {n} | {w}-{l} | {units:+.2f} | {'n/a' if clv is None else f'{100 * clv:+.1f}% on {cn}'} |")
+        lk = luck_units(con, "p.sport = ? AND p.market = ?", [sport, market])
+        out.append(f"| {sport} | {market} | {n} | {w}-{l} | {units:+.2f} | ±{lk:.2f} | {'n/a' if clv is None else f'{100 * clv:+.1f}% on {cn}'} |")
     if not rows:
-        out.append("| none graded yet | | | | | |")
+        out.append("| none graded yet | | | | | | |")
     out += ["", "## Weight re-fit from graded candidates", "", "| Sport | Market | Graded candidates | Fitted weight | Current weight | Enough to apply (40+) |",
             "|---|---|---|---|---|---|"]
     rf = refit(con, cfg)
@@ -1099,9 +1116,11 @@ def cancel_reason(con, cfg: dict, row: dict, lands: tuple | None = None) -> str 
     half = st["min_edge"]["prop" if row["market"] == "prop" else row["market"]] / 2
     if row["market"] == "prop":
         _, pid, stat, side, line, _eid = row["pick_key"].split("|")
-        r = con.execute("""SELECT line, market_p_over FROM prop_evals WHERE coalesce(sport, 'NFL') = ? AND player_id = ? AND stat = ?
+        away_, home_ = row["game"].split(" at ", 1)
+        r = con.execute(f"""SELECT line, market_p_over FROM prop_evals WHERE coalesce(sport, 'NFL') = ? AND player_id = ? AND stat = ?
+                           AND home = ? AND away = ? AND {SAME_GAME}
                            AND market_p_over IS NOT NULL AND ts_utc >= ? ORDER BY ts_utc DESC LIMIT 1""",
-                        [row["sport"], pid, stat, row["first_seen_utc"] - timedelta(hours=12)]).fetchone()
+                        [row["sport"], pid, stat, home_, away_, _naive(row["kickoff_utc"]), row["first_seen_utc"] - timedelta(hours=12)]).fetchone()
         if not r:
             return None
         l1, m1 = r
@@ -1205,9 +1224,9 @@ def moved_against(con, c: dict, sport: str, st: dict) -> str | None:
                 return f"Not issued: Pinnacle's team total moved {against:g} against this side ({first:g} to {last:g})."
             return None
         if c["market"] == "prop":
-            rows = con.execute("""SELECT line, market_p_over FROM prop_evals WHERE coalesce(sport, 'NFL') = ? AND player_id = ? AND stat = ?
-                                  AND home = ? AND away = ? AND market_p_over IS NOT NULL ORDER BY ts_utc""",
-                               [sport, c["player_id"], c["stat"], c.get("home_name", c["home"]), c.get("away_name", c["away"])]).fetchall()
+            rows = con.execute(f"""SELECT line, market_p_over FROM prop_evals WHERE coalesce(sport, 'NFL') = ? AND player_id = ? AND stat = ?
+                                  AND home = ? AND away = ? AND {SAME_GAME} AND market_p_over IS NOT NULL ORDER BY ts_utc""",
+                               [sport, c["player_id"], c["stat"], c.get("home_name", c["home"]), c.get("away_name", c["away"]), _naive(c["kick"])]).fetchall()
             if len(rows) < 2:
                 return None
             (l0, p0), (l1, p1) = rows[0], rows[-1]
@@ -1328,7 +1347,12 @@ def lane_record(con, sport: str, props: bool) -> str:
     except Exception as e:
         return f"Playbook record unavailable ({type(e).__name__})."
     c = "closing-line value n/a" if not cn else f"closing-line value {100 * clv:+.1f}% on {cn}"
-    return f"Staked picks sent: {sent[0]}; graded {w}-{l}-{pu}, {units:+.2f} units, {c}."
+    try:
+        lk = luck_units(con, f"p.sport = ? AND p.units > 0 AND {cond}", [sport])
+    except Exception:
+        lk = None
+    luck = "" if lk is None else f" (luck range ±{lk:.2f})"
+    return f"Staked picks sent: {sent[0]}; graded {w}-{l}-{pu}, {units:+.2f} units{luck}, {c}."
 
 
 def lane_events(con, cfg: dict) -> list[tuple[str, str]]:
@@ -1360,6 +1384,21 @@ def lane_events(con, cfg: dict) -> list[tuple[str, str]]:
     return out
 
 
+def luck_units(con, where: str, args: list) -> float:
+    """Two-standard-deviation swing in units of the graded, decided picks matching `where` (on playbook_picks p), for a bettor with no
+    edge at those prices (CLAUDE.md: every report prints the luck range; audit 24). Stake = the grade's size (nominal units)."""
+    from engine.odds.math import luck_range
+    rows = con.execute(f"""SELECT coalesce(p.nominal_units, p.units), p.price FROM playbook_grades g JOIN playbook_picks p USING (pick_key)
+                           WHERE g.result IN ('W', 'L') AND {where}""", args).fetchall()
+    bets = []
+    for stake, price in rows:
+        if not stake:
+            continue
+        pr = price or -110
+        bets.append((stake, stake * 100 / -pr if pr < 0 else stake * pr / 100))
+    return luck_range(bets)
+
+
 def by_principle(con) -> list[tuple]:
     """Per-principle record (sport and market), PLAYBOOK step 4: the evidence for re-fitting weights every 4 weeks."""
     con.execute(SCHEMA)
@@ -1388,8 +1427,8 @@ def grade(con, cfg: dict, scorer=None) -> list[str]:
                 continue
             _, pid, stat, side_, _, _ = key.split("|")
             away, home = game.split(" at ", 1)
-            row = con.execute("SELECT outcome FROM prop_evals WHERE sport=? AND player_id=? AND stat=? AND away=? AND home=? AND outcome IS NOT NULL LIMIT 1",
-                              [sport, pid, stat, away, home]).fetchone()
+            row = con.execute(f"SELECT outcome FROM prop_evals WHERE sport=? AND player_id=? AND stat=? AND away=? AND home=? AND outcome IS NOT NULL AND {SAME_GAME} LIMIT 1",
+                              [sport, pid, stat, away, home, _naive(kick)]).fetchone()
             if row is None:
                 continue
             v = (row[0] - line) if side_ == "over" else (line - row[0])
@@ -1397,7 +1436,11 @@ def grade(con, cfg: dict, scorer=None) -> list[str]:
             close, cp, cc = prop_close(con, sport, pid, stat, home, away, side_, line, price, kick)
             hs = as_ = None
         else:
-            score = scorer(sport, eid)
+            try:        # one bad score must not stop the other picks' grading, the daily check or the recap (audit 24)
+                score = scorer(sport, eid)
+            except Exception as e:
+                out.append(f"NOT GRADED {game}: score read failed ({type(e).__name__}: {e})")
+                continue
             if score is None:
                 continue
             hs, as_ = score
@@ -1429,6 +1472,15 @@ def _nv_over(po: float | None, pu: float | None) -> float | None:
         return None
     a, b = 1 / american_to_decimal(po), 1 / american_to_decimal(pu)
     return a / (a + b)
+
+
+# A prop row belongs to this game only if its start is within 6 hours of the pick's kickoff: the same two NBA teams meet again,
+# and a query by player, stat and teams alone could read the other game (audit 24).
+SAME_GAME = "abs(epoch(CAST(replace(start_utc, 'Z', '') AS TIMESTAMP)) - epoch(CAST(? AS TIMESTAMP))) <= 21600"
+
+
+def _naive(t):
+    return t.astimezone(timezone.utc).replace(tzinfo=None) if getattr(t, "tzinfo", None) else t
 
 
 def prop_close(con, sport, pid, stat, home, away, side, line, price, kick) -> tuple:

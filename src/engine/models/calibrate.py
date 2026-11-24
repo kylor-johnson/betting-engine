@@ -58,7 +58,7 @@ def fit(con, sport: str, prior_n: float = 100.0) -> dict[str, float]:
     try:
         rows = con.execute("""
             WITH g AS (SELECT stat, model_p_over, outcome, line,
-                              row_number() OVER (PARTITION BY player_id, stat, home, away ORDER BY ts_utc) AS rn
+                              row_number() OVER (PARTITION BY player_id, stat, home, away, start_utc ORDER BY ts_utc) AS rn
                        FROM prop_evals WHERE coalesce(sport, 'NFL') = ? AND outcome IS NOT NULL AND outcome <> line
                          AND model_p_over IS NOT NULL)
             SELECT stat, model_p_over, CASE WHEN outcome > line THEN 1 ELSE 0 END FROM g WHERE rn = 1""", [sport]).fetchall()

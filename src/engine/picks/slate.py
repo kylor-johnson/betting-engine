@@ -52,6 +52,15 @@ def load_adjustments() -> list[dict]:
         if not str(a["source"]).startswith("http"):
             raise SourceError(f"adjustments.yaml entry needs a source link: {a}")
         out.append(a)
+    # One entry per game, market and team: two research runs writing the same news would add it twice in the playbook,
+    # which sums every entry (CLAUDE.md "don't double-count"; audit 24). Keep the first, refuse the file loudly.
+    seen: dict[tuple, dict] = {}
+    for a in out:
+        k = (str(a["game"]).strip().lower(), a["market"], str(a.get("team", "")).strip().lower())
+        if k in seen:
+            raise SourceError(f"adjustments.yaml has two entries for the same game, market and team; merge them into one: "
+                              f"{seen[k].get('reason', '')!r} and {a.get('reason', '')!r} ({a['game']}, {a['market']})")
+        seen[k] = a
     return out
 
 

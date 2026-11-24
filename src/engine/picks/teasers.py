@@ -73,8 +73,8 @@ def legs_from(snaps: list, now: datetime, st: dict) -> list[dict]:
     return out
 
 
-def scan(cfg: dict, con, snaps: list, now: datetime) -> list[str]:
-    """Freeze new eligible legs from this read. Never raises into the read."""
+def scan(cfg: dict, con, snaps: list, now: datetime, send: bool = True) -> list[str]:
+    """Freeze new eligible legs from this read. Never raises into the read. send=False (poll --no-send) never reaches Telegram."""
     st = settings(cfg)
     if not st["enabled"]:
         return []
@@ -90,7 +90,7 @@ def scan(cfg: dict, con, snaps: list, now: datetime) -> list[str]:
                         [leg["key"], now.replace(tzinfo=None), leg["event_id"], leg["game"], leg["side"], leg["team"], leg["line"], leg["teased"],
                          leg["total"], leg["kick"].astimezone(timezone.utc).replace(tzinfo=None), nfl_week(leg["kick"]), rv])
             out.append(f"teaser leg (paper): {leg['team']} {leg['line']:+g} -> {leg['teased']:+g}, total {leg['total']:g}, {leg['game']}")
-        out += tickets_to_send(cfg, con, now)
+        out += tickets_to_send(cfg, con, now, send=send)
     except Exception as e:
         out.append(f"teaser scan failed: {type(e).__name__}: {e}")
     return out

@@ -113,7 +113,11 @@ def collect(wh: Wagerhouse, sports: list[str], now: datetime) -> tuple[list[Snap
                 snaps.append(Snap(now, SHARP, sport, ev.event_id, l.away, l.home, ev.start, sl.home_spread,
                                   sl.home_spread_price, sl.away_spread_price, sl.home_ml, sl.away_ml, sl.total,
                                   sl.over_price, sl.under_price))
-            odds = espn.event_odds(ev, None)
+            try:        # DraftKings is history only (CLAUDE.md): one failure is a problem line, not a lost read (audit 24)
+                odds = espn.event_odds(ev, None)
+            except espn.SourceError as e:
+                problems.append(f"{sport}: DraftKings odds for {l.away} at {l.home}: {e}")
+                continue
             c = odds.current if odds else None
             if c is None or (c.home_spread is None and c.total is None and c.home_ml is None):
                 continue  # market has not posted this game yet

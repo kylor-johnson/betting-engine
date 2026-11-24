@@ -28,7 +28,7 @@ uv run engine telegram-setup                  # after sending your bot any messa
 | `uv run engine card` | Renders today's card from the latest slate sheet and `docs/cards/decisions/<date>-nfl.yaml` |
 | `uv run engine injuries` | Current NFL quarterback statuses (`--all` for every position, `--team Vikings`) |
 | `uv run engine poll --force` | Read Wagerhouse and market lines now, store them, send any alerts |
-| `uv run engine poll --force --no-send` | Same, but print alerts instead of sending |
+| `uv run engine poll --force --no-send` | Same, but nothing is sent now. Careful: staked picks and teaser tickets it issues are still frozen with their stakes, saved as not delivered, and the next scheduled read sends them marked SENT LATE. To look without issuing anything, use `engine playbook --dry-run` |
 | `uv run engine playbook --dry-run` | The playbook pick lists for NFL, NBA and college right now (PLAYBOOK.md), without sending or saving anything; `--sport NBA` for one |
 | `uv run engine playbook-record` | Playbook record by sport and market, and the weight re-fit from every priced candidate (`docs/lanes/PLAYBOOK-RECORD.md`) |
 | `uv run engine tracker` | Every Telegram pick next to your actual Wagerhouse bets since Nov 23: the model's record, yours on its picks, yours on your own bets, and how closely each pick was followed (`docs/lanes/TRACKER.md`; synced twice a day automatically, 9am recap on Telegram) |
@@ -52,7 +52,7 @@ uv run engine telegram-setup                  # after sending your bot any messa
 
 `PLAYBOOK.md` is the whole method. In short: code builds its own number for every market from a game-script handicap, pulls it toward Pinnacle, and picks where that beats Wagerhouse's price (A and B grades). Picks whose number is far from the market are held as CHECK until the research agent finds a sourced reason. Staked picks go to Telegram with stake, limit and how much of the edge was price and how much was handicap. Nothing else goes to Telegram except the 9am recap and system lines (`CHARTER.md`).
 
-Research runs happen at 8:15am every day and 6:45pm Sunday, Mountain (`config.yaml` `agent.schedule`; the agent launchd job matches it since decision 0033, and the hourly read starts a missed one), and on change: a quarterback's status change, new NFL games at your book, an NBA watcher hit, or a new stale number (for that sport), at most once every 90 minutes per trigger (`config.yaml` `agent:`, decision 0016).
+Research runs happen at 8:15am every day and 6:45pm Sunday, Mountain (`config.yaml` `agent.schedule`; the agent launchd job matches it since decision 0033, and the hourly read starts a missed one), and on change: a quarterback's status change, new NFL games at your book, an NBA watcher hit, or a new stale number (for that sport), at most once every 90 minutes for the NFL triggers, counted across every sport's runs, and every 20 minutes for the NBA watcher (`config.yaml` `agent:` and `nba_watch:`, decision 0016).
 
 ## Running on a schedule (launchd)
 
@@ -64,11 +64,12 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.kylor.betting-engine
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.kylor.betting-engine.weekly.plist
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.kylor.betting-engine.agent.plist
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.kylor.betting-engine.nba-watch.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.kylor.betting-engine.burst.plist
 launchctl kickstart gui/$(id -u)/com.kylor.betting-engine.poll    # run once now
 tail -5 ~/Library/Logs/betting-engine/poll.log ~/Library/Logs/betting-engine/poll.err.log   # check it worked
 ```
 
-To stop: `launchctl bootout gui/$(id -u)/com.kylor.betting-engine.poll` (and `.weekly`, `.agent`, `.nba-watch`).
+To stop: `launchctl bootout gui/$(id -u)/com.kylor.betting-engine.poll` (and `.weekly`, `.agent`, `.nba-watch`, `.burst`).
 
 After changing a plist in `ops/launchd/` (decision 0033 changed the agent's), copy and reload it:
 

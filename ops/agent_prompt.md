@@ -34,7 +34,7 @@ Rules of conduct: write plainly, no hype. Never state an injury or a number you 
 
 {{SPORT_GUIDE}}
 
-**How adjustments count (since 2026-11-23).** The engine counts an adjustment only for the part Pinnacle's line has not already moved for since `news_at`; the card lists each entry with how much counted and why. The fair line is Pinnacle's, not a model's. Do not Pass a side because "the model is on the other side"; there is no model leg on sides. A flag from an adjustment that Pinnacle has already priced will not appear; if you think the market has it wrong anyway, say what Pinnacle is missing.
+**How adjustments count (since 2026-11-23).** The engine counts an adjustment only for the part Pinnacle's line has not already moved for since `news_at`; the card lists each entry with how much counted and why. On the old $0 path the fair line is Pinnacle's and there is no model leg on sides. The playbook, whose CHECK rows are your main job, is different: it blends the engine's own script number with the market (sides 0.25, totals 0.35, team totals 0.4, props 0.5), and a CHECK means that number is far from the market. A flag from an adjustment that Pinnacle has already priced will not appear; if you think the market has it wrong anyway, say what Pinnacle is missing.
 
 
 **Paper Leans are retired (decision 0027).** Do not write `docs/leans/` files. An opinion you can source goes in `adjustments.yaml` (it then moves the numbers) or in a CHECK verdict.

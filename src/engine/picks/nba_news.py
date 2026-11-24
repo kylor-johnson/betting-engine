@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS nba_injury_changes (
   minutes DOUBLE, points DOUBLE, alerted BOOLEAN, comment VARCHAR);
 CREATE TABLE IF NOT EXISTS nba_watch_reads (ts_utc TIMESTAMP, reason VARCHAR);
 CREATE TABLE IF NOT EXISTS nba_official_status (name VARCHAR PRIMARY KEY, status VARCHAR, report VARCHAR, seen_utc TIMESTAMP);
+CREATE TABLE IF NOT EXISTS nba_official_teams (team VARCHAR, report VARCHAR);
 """
 OFFICIAL_INDEX = "https://official.nba.com/nba-injury-report-{y}-{y2:02d}-season/"
 OFFICIAL_PDF = "https://ak-static.cms.nba.com/referee/injury/Injury-Report_{d}_{hm}.pdf"
@@ -91,6 +92,31 @@ def parse_official(text: str) -> dict[str, str]:
     return out
 
 
+def official_teams(text: str) -> set[str]:
+    """Teams listed on an official report (ESPN-normalised names). The PDF only lists teams with games coming up."""
+    from engine.odds import espn
+    return {espn.norm(" ".join(m.split())) for m in TEAM_RE.findall(text)}
+
+
+ESPN_ABBR = {"ATL": "Atlanta Hawks", "BKN": "Brooklyn Nets", "BOS": "Boston Celtics", "CHA": "Charlotte Hornets",
+             "CHI": "Chicago Bulls", "CLE": "Cleveland Cavaliers", "DAL": "Dallas Mavericks", "DEN": "Denver Nuggets",
+             "DET": "Detroit Pistons", "GS": "Golden State Warriors", "HOU": "Houston Rockets", "IND": "Indiana Pacers",
+             "LAC": "LA Clippers", "LAL": "Los Angeles Lakers", "MEM": "Memphis Grizzlies", "MIA": "Miami Heat",
+             "MIL": "Milwaukee Bucks", "MIN": "Minnesota Timberwolves", "NO": "New Orleans Pelicans", "NY": "New York Knicks",
+             "OKC": "Oklahoma City Thunder", "ORL": "Orlando Magic", "PHI": "Philadelphia 76ers", "PHX": "Phoenix Suns",
+             "POR": "Portland Trail Blazers", "SA": "San Antonio Spurs", "SAC": "Sacramento Kings", "TOR": "Toronto Raptors",
+             "UTAH": "Utah Jazz", "WSH": "Washington Wizards"}   # ESPN stats teamShortName -> the PDF's team name
+
+
+def team_full(team: str) -> str:
+    """An ESPN short name ('PHI') or a full name, ESPN-normalised the way official_teams() normalises the PDF."""
+    from engine.odds import espn
+    return espn.norm(ESPN_ABBR.get(team, team))
+
+
+LAST_TEAMS: dict[str, set[str]] = {}      # report url -> teams on it, filled by latest_official
+
+
 def latest_official(now: datetime) -> tuple[str, dict[str, str]]:
     """The newest official report: from the season index page, else stepping back 15 minutes at a time (Eastern)."""
     from zoneinfo import ZoneInfo
@@ -116,30 +142,50 @@ def latest_official(now: datetime) -> tuple[str, dict[str, str]]:
         except (urllib.error.URLError, TimeoutError):
             continue
         if data[:4] == b"%PDF":
-            got = parse_official(official_pdf_text(data))
+            text = official_pdf_text(data)
+            got = parse_official(text)
+            LAST_TEAMS[u] = official_teams(text)
             if not got:
                 raise SourceError(f"official NBA injury report had no player rows ({u.rsplit('/', 1)[-1]})")
             return u, got
     raise SourceError("official NBA injury report not found (index page and the last three hours of report times)")
 
 
-def check_official(con, now: datetime, url: str, statuses: dict[str, str], persist: bool = True) -> tuple[list[tuple], bool]:
-    """(name, old, new) changes since the last stored official report. Off the report = available."""
+def check_official(con, now: datetime, url: str, statuses: dict[str, str], persist: bool = True,
+                   teams: set[str] | None = None, team_of: dict[str, str] | None = None) -> tuple[list[tuple], bool]:
+    """(name, old, new) changes since the last stored official report. Off the report = available.
+
+    The report lists only teams with games coming up, so when it rolls to the next day every player on a team that
+    played yesterday and plays tomorrow looked like news (Embiid "Out to Available", Nov 24; audit 24). With `teams`
+    (the teams on this report) and `team_of` (player -> team), a player who joined or left the report counts only when
+    his team is on both reports; a player whose team is unknown counts only for a status change on both reports."""
     con.execute(SCHEMA)
     prev = dict(con.execute("SELECT name, status FROM nba_official_status").fetchall())
+    prev_teams = {r[0] for r in con.execute("SELECT team FROM nba_official_teams").fetchall()}
     first = not prev
+    both = None if teams is None else (teams & prev_teams)
+    def on_both(n: str) -> bool:
+        if both is None:
+            return True
+        t = (team_of or {}).get(n)
+        return t is not None and t in both
     changes = []
     if not first:
         for n, st in statuses.items():
+            if n not in prev and not on_both(n):
+                continue
             if prev.get(n, "Available") != st:
                 changes.append((n, prev.get(n), st))
         for n, st in prev.items():
-            if n not in statuses and st != "Available":
+            if n not in statuses and st != "Available" and on_both(n):
                 changes.append((n, st, OFF))
     if persist:
         con.execute("DELETE FROM nba_official_status")
         con.executemany("INSERT INTO nba_official_status VALUES (?,?,?,?)",
                         [(n, st, url.rsplit("/", 1)[-1], now.replace(tzinfo=None)) for n, st in statuses.items()])
+        if teams is not None:
+            con.execute("DELETE FROM nba_official_teams")
+            con.executemany("INSERT INTO nba_official_teams VALUES (?,?)", [(t, url.rsplit("/", 1)[-1]) for t in sorted(teams)])
     return changes, first
 
 
@@ -399,7 +445,11 @@ def run(force: bool = False, send: bool = True) -> tuple[int, list[str]]:
         # reporters first: Rotoworld posts every beat-writer and insider item minutes after the tweet
         try:
             if send:
-                posts, first_news = player_news.update(con, "NBA", now)
+                try:
+                    posts, first_news = player_news.update(con, "NBA", now)
+                except player_news.Truncated as e:     # keep what was read; report the gap (audit 24)
+                    posts, first_news = e.new, e.first
+                    lines.append(f"PROBLEM: {e}")
             else:
                 seen = player_news.last_seen(con, "NBA")
                 posts, first_news = [p for p in player_news.fetch("NBA", seen) if seen is None or p.posted > seen], seen is None
@@ -414,7 +464,10 @@ def run(force: bool = False, send: bool = True) -> tuple[int, list[str]]:
         official, off_url, off_changes, off_first = {}, "", [], True
         try:
             off_url, official = latest_official(now)
-            off_changes, off_first = check_official(con, now, off_url, official, persist=send)
+            from engine.models.props import norm_name as _nn
+            team_of = {_nn(v["name"]): team_full(v["team"]) for v in impact.values()}
+            off_changes, off_first = check_official(con, now, off_url, official, persist=send,
+                                                    teams=LAST_TEAMS.get(off_url), team_of=team_of)
         except SourceError as e:
             lines.append(f"PROBLEM: {e}")
         espn_hits = [c for c in changes if c.crosses() and c.matters(min_minutes) and espn.norm(c.player.team) in playing]

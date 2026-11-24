@@ -52,11 +52,18 @@ def run(con, cfg: dict, now: datetime | None = None) -> list[tuple[str, bool, st
     out.append(("No $0 pick sent as a bet", ok, "none" if ok else f"{rows}"))
 
     # 3. limits and grading
+    # A read error fails the check with its reason; it used to crash here slicing the error (audit 24).
     rows = q("SELECT pick FROM playbook_picks WHERE dollars > 0 AND (dont_bet_past IS NULL OR dont_bet_past = '')")
-    out.append(("Every staked pick has a don't-bet-past number", not rows, "all have one" if not rows else f"missing on: {rows[:5]}"))
+    if isinstance(rows, Exception):
+        out.append(("Every staked pick has a don't-bet-past number", False, f"could not read: {rows}"))
+    else:
+        out.append(("Every staked pick has a don't-bet-past number", not rows, "all have one" if not rows else f"missing on: {rows[:5]}"))
     late = q("""SELECT p.sport, p.pick FROM playbook_picks p LEFT JOIN playbook_grades g USING (pick_key)
-                WHERE g.pick_key IS NULL AND p.kickoff_utc < ?""", [naive - timedelta(hours=28)])
-    out.append(("Every pick graded within a day of the game", not late, "none late" if not late else f"{len(late)} late, e.g. {late[0]}"))
+                WHERE g.pick_key IS NULL AND p.dollars > 0 AND p.kickoff_utc < ?""", [naive - timedelta(hours=28)])   # staked (charter, check 3)
+    if isinstance(late, Exception):
+        out.append(("Every staked pick graded within a day of the game", False, f"could not read: {late}"))
+    else:
+        out.append(("Every staked pick graded within a day of the game", not late, "none late" if not late else f"{len(late)} late, e.g. {late[0]}"))
 
     # 4. every lane in season has a recent candidate
     stale = []
@@ -102,9 +109,9 @@ def run(con, cfg: dict, now: datetime | None = None) -> list[tuple[str, bool, st
         out.append(("Hourly read ran in the last 2 hours", ok, f"last read {last:%a %H:%M} UTC" if last else "never"))
     else:
         out.append(("Hourly read ran in the last 2 hours", True, "outside read hours"))
-    r = q("SELECT max(ts_utc) FROM agent_runs")
+    r = q("SELECT max(ts_utc) FROM agent_runs WHERE ok")      # a finished, successful run; "started" rows (ok NULL) and failures don't count (audit 24)
     last = None if isinstance(r, Exception) else r[0][0]
-    out.append(("A research run in the last 26 hours", last is not None and naive - last < timedelta(hours=26),
+    out.append(("A research run finished in the last 26 hours", last is not None and naive - last < timedelta(hours=26),
                 f"last {last:%a %H:%M} UTC" if last else "never"))
 
     # 8. session lock

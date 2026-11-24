@@ -85,6 +85,32 @@ def _deliver(con, env: dict, alerts: list[rules.Alert], now: datetime, out: list
         con.execute("INSERT INTO alerts_sent VALUES (?,?,?,?,?)", [a.key, now.replace(tzinfo=None), a.kind, a.text, delivered])
 
 
+def lane_change_key(structure_hash: str, now: datetime) -> str:
+    """alerts_sent key for a lane change. The time is part of it: a lane that changes back to an earlier state (staked, paper,
+    staked) repeats an old hash, and with the hash alone the return was never sent (audit 24)."""
+    return f"status-changed|{structure_hash}|{now:%Y-%m-%dT%H:%M}"
+
+
+SYSTEM_KINDS = ("gap", "failure", "lane")
+
+
+def resend_system(con, env: dict, now: datetime, out: list[str], hours: int = 48) -> None:
+    """Send again any system line (engine broken, missed read, lane change, stop, review, NOT DELIVERED) whose send failed in the
+    last `hours`. `_deliver` saves a failed line as not delivered and never looks at its key again, so a stop that tripped while
+    Telegram was down was never told (audit 24). A line held back by telegram.send_kinds stays held back."""
+    rows = con.execute("SELECT key, text FROM alerts_sent WHERE kind IN ('gap', 'failure', 'lane') AND NOT delivered AND ts_utc >= ?",
+                       [(now - timedelta(hours=hours)).astimezone(timezone.utc).replace(tzinfo=None)]).fetchall()
+    for key, text in rows:
+        try:
+            sent = telegram.send(env, text, kind="system")
+        except SourceError as e:
+            out.append(f"NOT SENT again ({e}): {text.splitlines()[0]}")
+            continue
+        if sent:
+            con.execute("UPDATE alerts_sent SET delivered = true WHERE key = ?", [key])
+            out.append(f"sent late: {text.splitlines()[0]}")
+
+
 def _paper_props(con, cfg: dict, sport: str, model, priced: list, now: datetime, out: list) -> None:
     """Stamp this read's props with the model version, freeze new paper suggestions, refresh the props card. Never blocks a read."""
     from engine import version
@@ -161,7 +187,8 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
                 changed = lanes.check_changed(con, cfg, now)
                 extra = []
                 if changed:
-                    extra.append(rules.Alert(f"status-changed|{lanes.structure_hash(cfg)}", "lane", changed))
+                    # the time is in the key: a lane that changes back to an earlier state is a new event, not a repeat (audit 24)
+                    extra.append(rules.Alert(lane_change_key(lanes.structure_hash(cfg), now), "lane", changed))
                 for key, text in _pbk.lane_events(con, cfg):
                     extra.append(rules.Alert(key, "lane", text))
                 if extra:
@@ -216,6 +243,9 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
             from engine.picks import player_news
             rw_new, rw_first = player_news.update(con, "NFL", now)
             out.append(f"Rotoworld NFL: {len(rw_new)} new post(s).")
+        except player_news.Truncated as e:     # posts read are kept; the gap is a problem line (audit 24)
+            rw_new, rw_first = e.new, e.first
+            problems.append(str(e))
         except SourceError as e:
             problems.append(str(e))
         try:   # props model: price this read's Pinnacle props and grade finished ones (forward test, decision 0006)
@@ -246,23 +276,32 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
                     problems.append(f"NBA news props failed: {type(e).__name__}: {e}")
         except Exception as e:
             problems.append(f"NBA props model failed: {type(e).__name__}: {e}")
-        try:   # grade finished engine picks as games end; a failure is reported, never silent
-            from engine.picks import grade
-            from engine.picks import leans as _leans
-            _leans.grade(cfg, con)      # paper Leans are graded quietly, shown on the board
-            from engine import stale as _stale
-            _stale.grade(con, cfg=cfg)
-            from engine.picks import teasers as _teasers
-            _teasers.grade(con)
-            from engine.picks import playbook as _playbook
-            _playbook.grade(con, cfg)
-            _playbook.grade_candidates(con)
-            (config.ROOT / "docs" / "lanes" / "PLAYBOOK-RECORD.md").write_text(_playbook.record_markdown(con, cfg))
-            from engine.picks import news_props as _np
-            _np.grade(con)
-            (config.ROOT / "docs" / "lanes" / "NEWS-PROPS.md").write_text(_np.record_markdown(con, cfg))
-            from engine.bets import tracker as _tracker
-            _tracker.write(con, cfg)
+        # grade finished engine picks as games end; each step has its own try, so one failure cannot stop the others, the
+        # daily check or the 9am recap (audit 24: one bad ESPN score used to skip all of them). A failure is a problem line.
+        def _step(name, fn):
+            try:
+                return fn()
+            except Exception as e:
+                problems.append(f"{name} failed: {type(e).__name__}: {e}")
+        from engine.picks import grade
+        from engine.picks import leans as _leans
+        from engine import stale as _stale
+        from engine.picks import teasers as _teasers
+        from engine.picks import playbook as _playbook
+        from engine.picks import news_props as _np
+        from engine.bets import tracker as _tracker
+        _step("Lean grading", lambda: _leans.grade(cfg, con))      # paper Leans are graded quietly, shown on the board
+        _step("Stale-number grading", lambda: _stale.grade(con, cfg=cfg))
+        _step("Teaser grading", lambda: _teasers.grade(con))
+        for gl in (_step("Playbook grading", lambda: _playbook.grade(con, cfg)) or []):
+            if gl.startswith("NOT GRADED"):
+                out.append(gl)
+        _step("Candidate grading", lambda: _playbook.grade_candidates(con))
+        _step("Playbook record", lambda: (config.ROOT / "docs" / "lanes" / "PLAYBOOK-RECORD.md").write_text(_playbook.record_markdown(con, cfg)))
+        _step("News-props grading", lambda: _np.grade(con))
+        _step("News-props record", lambda: (config.ROOT / "docs" / "lanes" / "NEWS-PROPS.md").write_text(_np.record_markdown(con, cfg)))
+        _step("Tracker", lambda: _tracker.write(con, cfg))
+        try:
             local = now.astimezone(config.display_tz(cfg))
             rstamp = config.DATA / "raw" / ".tracker_recap"
             cstamp = config.DATA / "raw" / ".checks_run"
@@ -277,9 +316,15 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
                 except Exception as e:
                     out.append(f"Checks failed to run: {type(e).__name__}: {e}")
             if send_alerts and local.hour >= 9 and (not rstamp.exists() or rstamp.read_text().strip() != local.date().isoformat()):
-                from engine.alerts import telegram as _tg
-                _tg.send(env, _tracker.recap(con, cfg), kind="recap")
-                rstamp.write_text(local.date().isoformat())
+                try:
+                    from engine.alerts import telegram as _tg
+                    _tg.send(env, _tracker.recap(con, cfg), kind="recap")
+                    rstamp.write_text(local.date().isoformat())
+                except Exception as e:
+                    problems.append(f"9am recap failed: {type(e).__name__}: {e}")
+        except Exception as e:
+            problems.append(f"Checks or recap failed: {type(e).__name__}: {e}")
+        try:
             for gl in grade.run(cfg, con):
                 if gl.startswith(("GRADED", "NOT GRADED")):
                     out.append(gl)
@@ -344,7 +389,7 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
         day = now.astimezone(config.display_tz(cfg)).strftime("%Y-%m-%d")
         try:   # NFL Wong teasers (decisions 0014, 0019): freeze new legs, send tickets, refresh this week's card
             from engine.picks import teasers
-            out += teasers.scan(cfg, con, snaps, now)
+            out += teasers.scan(cfg, con, snaps, now, send=send_alerts)
             (config.ROOT / "docs" / "cards" / f"{day}-nfl-teasers.md").write_text(teasers.card(con, cfg, now))
         except Exception as e:
             out.append(f"Teaser lane failed: {type(e).__name__}: {e}")
@@ -361,6 +406,10 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
             out.append(f"Tracker sync failed: {type(e).__name__}: {e}")
         from engine.picks import playbook
         if send_alerts:      # every read: resend what Telegram missed, check delivery, cancel sent picks the market has moved past (research 22)
+            try:
+                resend_system(con, env, now, out)
+            except Exception as e:
+                out.append(f"System-line resend failed: {type(e).__name__}: {e}")
             try:
                 out += playbook.resend_undelivered(con, env, cfg, now)
                 from engine import checks as _ck

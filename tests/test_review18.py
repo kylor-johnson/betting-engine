@@ -131,12 +131,16 @@ def test_never_into_a_move():
     con.execute("UPDATE line_snapshots SET source = ?", [snap.SHARP])
     assert pb.moved_against(con, {"market": "side", "side": "home", "event_id": "g1"}, "NFL", st)
     assert pb.moved_against(con, {"market": "side", "side": "away", "event_id": "g1"}, "NFL", st) is None
+    # an earlier meeting of the same teams (the same NBA teams play again): its prices must not count for this game (audit 24)
+    con.execute("INSERT INTO prop_evals (ts_utc, sport, player_id, stat, home, away, line, market_p_over, start_utc) VALUES (?, 'NFL', 'qb', "
+                "'passing_yards', 'Buffalo Bills', 'Kansas City Chiefs', 244.5, 0.20, '2029-12-20T01:00:00Z')", [t0 - timedelta(days=13)])
     for i, (line, p) in enumerate(((244.5, 0.50), (244.5, 0.38))):     # Allen, Nov 23: -114 to +148 on the over
-        con.execute("INSERT INTO prop_evals (ts_utc, sport, player_id, stat, home, away, line, market_p_over) VALUES (?, 'NFL', 'qb', 'passing_yards', "
-                    "'Buffalo Bills', 'Kansas City Chiefs', ?, ?)", [t0 + timedelta(hours=i), line, p])
-    prop = {"market": "prop", "side": "over", "player_id": "qb", "stat": "passing_yards", "home": "Buffalo Bills", "away": "Kansas City Chiefs"}
+        con.execute("INSERT INTO prop_evals (ts_utc, sport, player_id, stat, home, away, line, market_p_over, start_utc) VALUES (?, 'NFL', 'qb', "
+                    "'passing_yards', 'Buffalo Bills', 'Kansas City Chiefs', ?, ?, '2030-01-02T01:00:00Z')", [t0 + timedelta(hours=i), line, p])
+    prop = {"market": "prop", "side": "over", "player_id": "qb", "stat": "passing_yards", "home": "Buffalo Bills", "away": "Kansas City Chiefs",
+            "kick": datetime(2030, 1, 2, 1, tzinfo=timezone.utc)}
     assert "12 points" in pb.moved_against(con, prop, "NFL", st)
-    assert pb.moved_against(con, {**prop, "side": "under"}, "NFL", st) is None
+    assert pb.moved_against(con, {**prop, "side": "under"}, "NFL", st) is None     # the old game's 0.20 would read as a move against the under
 
 
 def test_props_and_team_totals_get_a_closing_grade():
