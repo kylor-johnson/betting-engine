@@ -1,58 +1,50 @@
 # The agent's decisions for this card. Status and reasons only: every number on the
 # card comes from the slate sheet. A Bet the numbers do not support is refused.
 slate_note: >
-  This run was started by a stale-number alert. The only fresh quarterback news I found on a flagged game
-  is Syracuse: an ESPN item by Andrea Adelson (Nov 23, 2:07 PM, no timezone printed) says Steve Angeli is
-  ruled out against Notre Dame with a shoulder injury, and Malachi Nelson starts. That news goes against the
-  flagged Syracuse side. Pinnacle has not moved toward Notre Dame since, and Angeli was hurt in Saturday's
-  game, so I did not enter it as an adjustment: the opener most likely already carried it. I found no fresh
-  news for San Diego State at Washington State, Louisville at Kentucky or North Dakota State at San Jose
-  State, so all four flags are Passes. The playbook card has no CHECK rows today.
+  Scheduled morning run. Three sides are flagged (Syracuse, Kentucky, Washington State) and all three are Passes:
+  each is a half-point or juice gap with no news behind it, and fresh searches found no current quarterback news
+  for Kentucky, Louisville, Washington State or San Diego State. Of the four playbook CHECK rows, Clemson's price is
+  explained by Tait Reynolds being out for the season (Live5, Nov 15); the other three turned up nothing, so all four
+  are held. No college adjustments were added.
 decisions:
   - game: "Notre Dame Fighting Irish at Syracuse Orange"
     market: spread
     side: home
     status: Pass
     why_pass: >
-      The only news here hurts Syracuse. Starting quarterback Steve Angeli is ruled out with a shoulder
-      injury (ESPN, Nov 23), and backup Malachi Nelson also left Saturday's game with an ankle injury.
-      The book's half point over Pinnacle on Syracuse is a price gap with no news behind it, and the news
-      that does exist points the other way. I would not take Syracuse, and I would not take Notre Dame
-      either: Angeli left Saturday's game, the ruling has been public for about 17 hours, and Pinnacle has
-      not moved toward Notre Dame since. That says the number already carries it.
+      The only news here hurts Syracuse: starting quarterback Steve Angeli is ruled out with a shoulder injury
+      (ESPN, Nov 23), and backup Malachi Nelson also left Saturday's game hurt. Pinnacle has since gone a half point
+      toward Notre Dame and charges extra juice on Syracuse, so the book's extra half point is a price gap, not a
+      reason, and the news that exists points the other way.
   - game: "San Diego State Aztecs at Washington State Cougars"
     market: spread
     side: home
     status: Pass
     why_pass: >
-      This is the same half-point gap as yesterday: Pinnacle has Washington State a half point higher than
-      the book. I searched again and found no current quarterback report for either team. The San Diego
-      State pieces I found (Stone Saunders starting, Jayden Denegal day to day) are from Oct 27, before
-      these teams met on Oct 31. A price gap with no news behind it is not a reason.
+      Pinnacle has Washington State a half point higher than the book, and the line has risen from its open. I
+      searched again for either team's quarterback status for this game and found only 2024 and 2025 items. A price
+      gap with no news behind it is not a reason.
   - game: "Louisville Cardinals at Kentucky Wildcats"
     market: spread
     side: home
     status: Pass
     why_pass: >
-      The edge comes only from the book dealing Kentucky +3 at standard juice while Pinnacle charges more at
-      the same number. That is a price gap, not a reason. I searched again this morning for Louisville or
-      Kentucky quarterback news. Every result was from an earlier season. This would change with a sourced
-      Louisville quarterback injury the market has not followed.
+      The edge comes only from the book dealing Kentucky +3 at standard juice while Pinnacle charges more at the
+      same number. That is a price gap, not a reason. I searched again for Louisville or Kentucky quarterback news
+      this week; every result was from an earlier season. This would change with a sourced Louisville quarterback
+      injury the market has not followed.
   - game: "North Dakota State Bison at San José State Spartans"
     market: total
     side: over
     status: Pass
     why_pass: >
-      The book is a point under Pinnacle's total. I found no injury, weather or quarterback news for either
-      team. The search only returned an older North Dakota (not North Dakota State) game. The DraftKings
-      total has risen from its open, so the market has moved up for reasons I cannot see. A price gap I
-      cannot explain is a Pass.
+      No longer flagged. Yesterday I found no injury, weather or quarterback news for either team, and the total had
+      risen from its open for reasons I could not see. A price gap I cannot explain is a Pass.
   - game: "USC Trojans at UCLA Bruins"
     market: spread
     side: home
     status: Pass
     why_pass: >
-      Yesterday's Conditional rested on Pinnacle charging extra juice on UCLA +7 while the book dealt it at
-      standard juice. That gap is gone: Pinnacle now deals UCLA +7 at standard juice and the side is no
-      longer flagged. I found no new report on Ty Dieffenbach's hip after Monday's ESPN item. Once his
-      status is settled, every book will move, so waiting for it is not useful. Pass until there is news.
+      Not flagged. Pinnacle deals UCLA +7 at standard juice, so yesterday's juice gap is gone. I found no new report
+      on Ty Dieffenbach's hip after Monday's ESPN item, and once his status is settled every book will move. Pass
+      until there is news.

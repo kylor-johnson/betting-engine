@@ -1,0 +1,30 @@
+checks:
+  - key: "401856764|side|home"
+    verdict: hold
+    why: >
+      The market knows what the points-based model cannot see. Clemson's starting quarterback Tait Reynolds tore his left
+      meniscus against Georgia Tech on Nov 14 and is out for the season (WCSC Live5, Nov 15, 3:51 PM ET). Christopher
+      Vizzina left that game with a concussion and was already playing through an injury, and senior Trent Pearman was
+      next in line. Clemson's points so far were scored mostly with a quarterback who will not play, so a home underdog
+      price with a third-string-level room is what you would expect.
+    source: "https://www.live5news.com/2026/11/15/clemson-qb-tait-reynolds-miss-rest-season/?outputType=amp"
+  - key: "401858542|side|home"
+    verdict: hold
+    why: >
+      I looked for Rutgers and Michigan State quarterback news. The latest dated item I could open says Rutgers starter
+      Dylan Lonergan was out after a blow to the head and AJ Surace started against Michigan (ClutchPoints, Oct 31). I
+      found no current report on Lonergan or on Michigan State's quarterbacks; the Michigan State page would not load.
+      Nothing I found says the market is wrong.
+    source: "https://clutchpoints.com/ncaa-football/rutgers-football-news-aj-surace-starting-qb-michigan-benching"
+  - key: "401856760|side|away"
+    verdict: hold
+    why: >
+      I searched for Georgia Tech and Georgia quarterback news for this game and found no current injury report for
+      either side. A November AJC preview names Lincoln Kienholz as Georgia Tech's starter. Finding nothing is a hold.
+    source: "https://www.ajc.com/sports/2026/11/everything-to-know-georgia-tech-louisville/"
+  - key: "401862839|total|over"
+    verdict: hold
+    why: >
+      I searched for Tulane and South Florida quarterback or injury news this week. Every result was from 2022 or 2024.
+      I found no weather or availability news either. Finding nothing is a hold.
+    source: "https://www.tampabay.com/sports/bulls/2024/09/28/usf-quarterback-byrum-brown-injured-bulls-lopsided-loss-tulane/"
