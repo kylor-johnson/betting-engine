@@ -158,7 +158,9 @@ def build() -> Path:
                 f"<div><div class=k>Skip if worse than</div><div class=v>{_e(_limit(r))}</div></div>"
                 f"<div><div class=k>Edge</div><div class=v>{r['edge_points']:+.1f} pts</div></div></div>"
                 f"<div class=why><b>Why:</b> {_e(' '.join(str(d.get('summary') or d['reasons']['situation']).split()))}</div>"
-                f"<div class=why><b>What kills it:</b> {_e(' '.join(str(d['reasons']['kills_it']).split()))}</div></div>")
+                + (f"<div class=why><b>What the number already prices:</b> {_e(' '.join(str(d['reasons']['priced_in']).split()))}</div>"
+                   if d.get("reasons", {}).get("priced_in") else "")
+                + f"<div class=why><b>What kills it:</b> {_e(' '.join(str(d['reasons']['kills_it']).split()))}</div></div>")
 
     parts = [f"<h1>Betting board</h1><div class=sub>Updated {now:%A %b %-d, %-I:%M %p} Mountain. This page refreshes itself. "
              f"Units: NFL ${config.unit_for(cfg, 'NFL'):g}, NBA ${config.unit_for(cfg, 'NBA'):g}, college ${config.unit_for(cfg, 'College'):g}. You place every bet yourself.</div>"]

@@ -193,6 +193,12 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
                 graded = nba_props.grade(con)
                 out.append(f"NBA props model priced {len(priced)} Pinnacle props, graded {graded}.")
                 _paper_props(con, cfg, "NBA", nm, priced, now, out)
+                try:   # NBA news-timed props, paper test (research 18; decision 0025)
+                    from engine.models import calibrate as _cal
+                    from engine.picks import news_props as _np
+                    out += _np.log(con, cfg, nm, priced, now, shifts=_cal.fit(con, "NBA"))
+                except Exception as e:
+                    problems.append(f"NBA news props failed: {type(e).__name__}: {e}")
         except Exception as e:
             problems.append(f"NBA props model failed: {type(e).__name__}: {e}")
         try:   # grade finished engine picks as games end; a failure is reported, never silent
@@ -207,6 +213,9 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
             _playbook.grade(con, cfg)
             _playbook.grade_candidates(con)
             (config.ROOT / "docs" / "lanes" / "PLAYBOOK-RECORD.md").write_text(_playbook.record_markdown(con, cfg))
+            from engine.picks import news_props as _np
+            _np.grade(con)
+            (config.ROOT / "docs" / "lanes" / "NEWS-PROPS.md").write_text(_np.record_markdown(con, cfg))
             from engine.bets import tracker as _tracker
             _tracker.write(con, cfg)
             local = now.astimezone(config.display_tz(cfg))

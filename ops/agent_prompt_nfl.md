@@ -15,14 +15,21 @@
 ```
 checks:
   - key: "<the Key column, exactly>"
-    verdict: clear        # nothing found that explains the gap: the model's view stands and the pick is issued as a B pick
+    verdict: clear        # ONLY with a positive, sourced reason the market is wrong (decision 0025)
+    because: "<what you found that the market has wrong, with when it was published>"
+    market_assumes: "<what the current number already prices: who it assumes plays, which news it has already moved for>"
     why: "<one sentence: what you checked>"
-    source: "<a page you opened>"
+    source: "<a page you opened, https://...>"
   - key: "..."
-    verdict: hold         # you found what the market knows (name it, with the time it was published)
+    verdict: hold         # you found what the market knows (name it, with the time it was published), OR you found nothing
     why: "..."
     source: "..."
 ```
+
+**"I found nothing" is a hold, not a clear.** A CHECK row means the model is far from a market that is usually right, and the model cannot
+see most news, so finding nothing is what you would expect when the gap is noise. The code ignores a clear without `because`,
+`market_assumes` and a source link, or whose `because` says nothing was found. A cleared pick is issued as a paper pick (no money) until 50
+cleared picks show positive closing-line value (research 18).
 
 Never write a number. A verdict on a game already played is ignored.
 

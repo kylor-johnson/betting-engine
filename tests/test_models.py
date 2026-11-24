@@ -65,7 +65,8 @@ def _sheet_with_wind_side():
 
 
 CFG = {"timezone_display": "America/Denver", "unit": 25, "picks": {"max_units": 1, "conditional_units": 0.5, "market_weight": 0.55}}
-REASONS = {"price": "p", "matchup": "m", "situation": "s", "kills_it": "k"}
+REASONS = {"price": "p", "matchup": "m", "situation": "s", "kills_it": "k",
+           "priced_in": "the line before the news was 3 and the starter is worth about 2.5 points so the current number assumes he sits"}
 
 
 def test_card_refuses_a_bet_the_wind_model_only_allows_as_conditional():

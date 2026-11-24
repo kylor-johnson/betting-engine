@@ -30,6 +30,12 @@ def load_decisions(path) -> dict:
                 raise SourceError(f"decision is missing '{k}': {d}")
         if d["status"] not in STATUSES:
             raise SourceError(f"status must be one of {STATUSES}: {d}")
+        if d["status"] in ("Bet", "Conditional") and all(str((d.get("reasons") or {}).get(k, "")).strip() for k in REASON_KEYS) \
+                and len(str((d.get("reasons") or {}).get("priced_in", "")).split()) < 12:
+            # Kylor 2026-11-23 (UCLA +7): "there needs to be some reasoning as to why the line is at what it is right now" (decision 0025).
+            # A Bet or Conditional must say what the current number already prices; without it, it is a Pass and says why.
+            d = {**d, "status": "Pass", "why_pass": (f"Downgraded from {d['status']}: it does not say what the current number already prices "
+                                                    "(reasons.priced_in, decision 0025). " + " ".join(str(d.get("summary", "")).split())).strip()}
         if d["status"] in ("Bet", "Conditional"):
             r = d.get("reasons") or {}
             missing = [k for k in REASON_KEYS if not str(r.get(k, "")).strip()]
@@ -166,7 +172,8 @@ def build(sheet: dict, decisions: dict, note: str, cfg: dict, strict: bool = Tru
             if d["status"] == "Conditional":
                 out.append(f"- Bet only if: {' '.join(str(d['condition']).split())}")
             out += [f"- Price: {d['reasons']['price']}", f"- Matchup: {d['reasons']['matchup']}",
-                    f"- Situation: {d['reasons']['situation']}", f"- What kills it: {d['reasons']['kills_it']}", ""]
+                    f"- Situation: {d['reasons']['situation']}", f"- What the number already prices: {d['reasons'].get('priced_in', '')}",
+                    f"- What kills it: {d['reasons']['kills_it']}", ""]
     else:
         out += ["**No bets.** Nothing on this slate clears the bar at the current numbers.", ""]
 

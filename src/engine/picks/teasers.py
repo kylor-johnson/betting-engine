@@ -118,7 +118,11 @@ def tickets_to_send(cfg: dict, con, now: datetime, send: bool = True, sender=Non
         if j is None:
             break
         b = legs.pop(j)
-        units, dollars, note = playbook.stake(playbook.settings(cfg), "A", now, down, config.unit_for(cfg, "NFL"))
+        unit = config.unit_for(cfg, "NFL")
+        units, dollars, note = playbook.stake(playbook.settings(cfg), "A", now, down, unit)
+        cap = playbook.settings(cfg)["game_cap_units"] * unit
+        if dollars > 0 and any(playbook.game_exposure(con, ev) + dollars > cap + 1e-9 for ev in (a[1], b[1])):
+            units, dollars, note = 0.0, 0.0, f"paper: a game in this ticket already carries money; the cap is one unit (${cap:g}) a game (decision 0025)"
         fav, dog = st["favorite"], st["underdog"]
         lines = []
         for leg in (a, b):
@@ -130,9 +134,16 @@ def tickets_to_send(cfg: dict, con, now: datetime, send: bool = True, sender=Non
                 f"Why: these legs cross 3 and 7; they won 75.8% in 2023-2026 against {breakeven(st['price']):.1%} needed (decision 0014).")
         con.execute("INSERT INTO teaser_tickets VALUES (?,?,?,?,?,?,?,?)", [f"{a[0]}+{b[0]}", now.replace(tzinfo=None), a[0], b[0], units, dollars, st["price"], text])
         out.append(text)
+        delivered = False
         if send and units > 0:
             from engine.alerts import telegram
-            (sender or telegram.send)(config.load_env(), text, "nfl_teasers", kind="bet")
+            delivered = (sender or telegram.send)(config.load_env(), text, "nfl_teasers", kind="bet")
+        try:        # keep every ticket's text (research 18: sent picks were not saved anywhere)
+            con.execute("CREATE TABLE IF NOT EXISTS alerts_sent (key VARCHAR PRIMARY KEY, ts_utc TIMESTAMP, kind VARCHAR, text VARCHAR, delivered BOOLEAN)")
+            con.execute("INSERT INTO alerts_sent VALUES (?,?,?,?,?) ON CONFLICT DO NOTHING",
+                        [f"teaser|{a[0]}+{b[0]}", now.replace(tzinfo=None), "bet" if units > 0 else "paper", text, bool(delivered)])
+        except Exception:
+            pass
     return out
 
 

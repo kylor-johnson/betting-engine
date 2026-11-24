@@ -144,8 +144,12 @@ def test_playbook_blends_at_the_starting_weight_and_checks_big_gaps():
     graded = pb.grade_all(cands, st)
     assert len(graded) == 1                                      # one position per game
     key = pb.key_of(next(c for c in cands if c["market"] == "side" and c["side"] == "home"))
-    cleared = pb.grade_all(pb.candidates([_game()], st, lands), st, checks={key: {"verdict": "clear", "why": "nothing found"}})
-    assert any(c["grade"] == "B" for c in cleared)
+    nothing = pb.grade_all(pb.candidates([_game()], st, lands), st, checks={key: {"verdict": "clear", "why": "nothing found"}})
+    assert not any(c["grade"] == "B" for c in nothing)            # research 18: "nothing found" does not clear a CHECK
+    good = {"verdict": "clear", "because": "The home starter was cleared at Friday practice after the line moved on his injury.",
+            "market_assumes": "the backup starts", "source": "https://example.com/report"}
+    cleared = pb.grade_all(pb.candidates([_game()], st, lands), st, checks={key: good})
+    assert any(c["grade"] == "B" and c["cleared"] for c in cleared)
 
 
 def test_playbook_stakes_half_size_then_full_and_stop_loss():
@@ -192,7 +196,10 @@ def test_prop_candidates_feed_the_script_and_blend():
     assert abs(over["p"] - (0.45 + 0.5 * 0.25)) < 1e-9 and over["check"] is True
     assert pb.grade_props(cands, st)[0]["grade"] == "C"                    # held: CHECK
     key = pb.prop_key(over)
-    assert pb.grade_props(cands, st, {key: {"verdict": "clear", "why": "x"}})[0]["grade"] == "B"
+    assert pb.grade_props(cands, st, {key: {"verdict": "clear", "why": "x"}})[0]["grade"] == "C"         # no reason given: still held
+    good = {"verdict": "clear", "because": "Starter ruled out at 3pm; the receiver moves to the slot full time.", "market_assumes": "the old role",
+            "source": "https://example.com/news"}
+    assert pb.grade_props(cands, st, {key: good})[0]["grade"] == "B"
 
 
 def test_settings_per_sport_and_period_keys():

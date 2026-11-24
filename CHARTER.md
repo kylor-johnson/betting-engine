@@ -48,15 +48,7 @@ This is the rule that stops me finding out a week later that the engine is only 
 
 `engine status` now exists (built 2026-11-23). The table is generated into `docs/lanes/STATUS.md`, onto `board.html`, and to Telegram on Monday mornings and whenever it changes. Do not edit it by hand; change `config.yaml` (`lanes:` and the switches it points to).
 
-Generated table as of Monday Nov 23, 2026 (see `docs/lanes/STATUS.md` for the current one):
-
-| Lane | What produces a flag today | Own model that passed a test | Can issue a pick? | Record |
-|---|---|---|---|---|
-| NFL spreads and totals | Injury news the agent enters, counted only for the part Pinnacle has not moved for; wind on outdoor totals | Wind totals only | Sides: only on unpriced news. Totals: a half-unit Conditional from wind | 0-0 |
-| College spreads and totals | Injury news the agent enters, same rule | None | Only on unpriced news | 0-0 |
-| NBA spreads and totals | Injury news (checked 10am, 3pm, 5pm Mountain), same rule | None | Only on unpriced news | 0-1 (one Conditional, graded on result) |
-| NFL props | Nothing yet | Being scored, not passed | No | Not started (150 of 300 graded) |
-| NBA props | Nothing yet | Being scored, not passed | No | Not started (209 of 300 graded) |
+The current table is `docs/lanes/STATUS.md` (generated). A hand-typed copy used to sit here and went stale within a day (research 18), so it was removed.
 
 Models tested and switched off because they did not beat the closing line: sides from market ratings and public systems, sides from play-by-play ratings, totals from pace and efficiency, first-half scoring habits, early-week openers from ratings.
 
@@ -84,6 +76,8 @@ Do not reopen these without asking me.
 **Leans: decided 2026-11-23, paper only.** Built in `src/engine/picks/leans.py`. The agent's best handicapped opinions, never staked, at most 3 per lane per week, each with a code-stamped Wagerhouse number and "don't bet past" number and one of three reasons (timestamped news Pinnacle has not moved for, a forecast of where the line goes, a wind or weather case). Graded on closing-line value, result, and whether I bet it. Not to be bet until 50 are graded and the average closing-line value is above zero. They show on the board and cards, never in Telegram.
 
 **Real money from the start (2026-11-23, replaces the Stage 0 rule).** Playbook picks are staked from the first one: A picks 1 unit, B picks half a unit, C picks nothing, full size from the start. Units by sport: NFL $50, NBA $25 (decision 0020). Bankroll protection kept from decision 0012: if playbook picks are down 10 units, picks go back to paper until I say otherwise. Decision 0018.
+
+**Changed 2026-11-23 (decision 0025, after research 18):** only NFL Wong teasers are staked. NFL full-game picks and all props are paper picks (issued and graded at $0) until their closing-line value clears the restart numbers in research 18. Units unchanged. At most one unit on a game.
 
 **Telegram is for bets only (2026-11-23).** Playbook A and B picks ping; C picks stay on the board (decision 0018). Before the playbook picks go live, Telegram pings only for a Bet, a Conditional or a cancellation (`telegram.send_kinds` in `config.yaml`), plus alerts that the engine itself is broken. NO BETS summaries, openers, news, price gaps, the Monday lane table and grades stay on the cards and `board.html`. This replaces the drift guard's rule 2 for Telegram; the table is on the board and in `docs/lanes/STATUS.md`.
 

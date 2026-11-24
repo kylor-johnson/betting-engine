@@ -77,7 +77,7 @@ For each market, **edge = our chance of winning − the chance Wagerhouse's pric
 ## 4. Staking and grading
 
 - Every pick is frozen at the Wagerhouse number when issued, with a "don't bet past" number, and graded on the result and against the closing number.
-- **Stakes (Kylor decides; proposal):** A picks 1 unit ($25), B picks half a unit, C picks nothing. During the first 3 weeks, everything is half size.
+- **Stakes (decision 0025, 2026-11-23):** units are NFL $50, NBA $25, college $25. Only NFL Wong teasers are staked (1 unit a ticket). Every other A and B pick is a paper pick: issued, frozen and graded at $0 until its lane's closing-line value clears the restart number in `docs/research/18-model-evaluation.md`. At most one unit is staked on a game across picks and teaser legs.
 - **Every principle keeps its own record.** After 4 weeks and 40 picks, a principle whose picks lose against the closing number is cut to zero weight, with a note and a message (charter drift guard). A principle that wins gets more weight.
 - Results alone take thousands of bets to prove anything, so the closing number is the scorecard week to week, and results are shown next to it.
 
@@ -130,12 +130,12 @@ We copy methods, never picks. Warren Sharp's write-ups are one example; Walters,
 
 | Piece | Status | Where |
 |---|---|---|
-| NFL script, sides, totals, team totals | Live, staked (B) at the starting weights; walk-forward weight 0 for 2024-26 (research 15), Kylor chose to stake | `models/script.py`, `picks/playbook.py` |
-| NFL props | Live, staked (B): props model + script team points + expected margin (3 stats), blended 0.5 with Pinnacle | decision 0021, research 16 |
-| NBA props | Live, staked (B): NBA props model (minutes) + script team points, blended 0.5 | decision 0022 |
+| NFL script, sides, totals, team totals | Live, **paper** (decision 0025): walk-forward weight 0 for 2024-26 (research 15); the totals lead was the actual-wind input (research 18) | `models/script.py`, `picks/playbook.py` |
+| NFL props | Live, **paper** (decision 0025): props model + script team points + expected margin (3 stats), blended 0.5 with Pinnacle | decision 0021, research 16 |
+| NBA props | Live, **paper** (decision 0025): NBA props model (minutes), re-centred on outcomes, + script team points, blended 0.5 | decision 0022 |
 | NBA sides, totals, team totals | Shown only (walk-forward lost, research 16) | `models/nba_script.py` |
 | College sides, totals, team totals | Shown only (walk-forward lost; totals weight a lead, research 16) | `models/college_script.py` |
-| NFL Wong teasers | Live, staked (A) | decision 0014, 0019 |
+| NFL Wong teasers | Live, staked (A), the only staked lane (decision 0025) | decision 0014, 0019 |
 | CHECK clearing by the research agent | Live for all three sports | `docs/cards/decisions/<date>-<sport>-checks.yaml` |
 | Per-principle record and weight re-fit on every candidate | Live | `engine playbook-record`, `docs/lanes/PLAYBOOK-RECORD.md` |
 | Schedule-adjusted form (NFL script) | Live: the one addition that helped (NFL totals, research 17) | `script.ADJUST` |
@@ -143,5 +143,7 @@ We copy methods, never picks. Warren Sharp's write-ups are one example; Walters,
 | Outlier half weight, injury clusters, referees | Built, tested, off (no held-out gain, research 17) | `script.py` |
 | Blitz and stacked-box matchup splits for props | Built, tested, off (no held-out gain, research 17) | `props_matchup.py` |
 | Coverage-type (man/zone) splits | Not buildable: free data has 2023 only | |
+| Never into a move, one unit a game, CHECK clears with a reason, closing grades for props and team totals | Live (decision 0025) | `picks/playbook.py` |
+| NBA news-timed props | Paper test (decision 0025) | `picks/news_props.py`, `docs/lanes/NEWS-PROPS.md` |
 
 Commands: `engine playbook --dry-run [--sport NFL|NBA|College]` shows the current lists without sending or writing; `engine playbook-record`.

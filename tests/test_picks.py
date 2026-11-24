@@ -86,7 +86,8 @@ SHEET = {"built_utc": "2026-11-21T23:30:00+00:00", "problems": [], "adjustments_
               "numbers_say_bet": False, "dont_bet_past": "Jets +3.5", "win": 0.45, "push": 0.0}]}]}]}
 CFG = {"timezone_display": "America/Denver", "unit": 25,
        "picks": {"max_units": 1, "conditional_units": 0.5, "market_weight": 0.55}}
-REASONS = {"price": "p", "matchup": "m", "situation": "s", "kills_it": "k"}
+REASONS = {"price": "p", "matchup": "m", "situation": "s", "kills_it": "k",
+           "priced_in": "the line before the news was 3 and the starter is worth about 2.5 points so the current number assumes he sits"}
 
 
 def decide(tmp_path, items):
