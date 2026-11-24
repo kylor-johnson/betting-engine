@@ -6,7 +6,9 @@ Owner: Kylor. Written 2026-11-23. Every session reads this before `CLAUDE.md` an
 
 An agent that does the handicapping research on a schedule and tells me when there is a bet to place, early enough in the week that I'm the one holding the good number.
 
-It is not a bet tracker and it is not a price checker. Those are plumbing.
+**Telegram is the source of truth (decision 0026).** It is where I get every bet this model finds, with its stake and its "don't bet past" number, and I place them from there. Anything that is not on Telegram is not a bet.
+
+It is not a price checker. The tracker (`tracker.html`, decision 0024) grades every Telegram pick against what I actually bet; the price checks, logs and reports are plumbing.
 
 This repository is the betting engine only. Nothing else lives here: my DFS model has its own folder and its own repository, and the two never share code, data or settings.
 
@@ -19,9 +21,9 @@ The engine is separate lanes. Each has its own model, its own status, its own re
 3. NBA spreads and totals
 4. NFL player props
 5. NBA player props
-6. NFL Wong teasers, paper first (added 2026-11-23, decision 0014)
+6. NFL Wong teasers (added 2026-11-23, decision 0014; real money since decision 0019)
 
-Each sport also has its own research-agent guide (`ops/agent_prompt_<sport>.md`) and its own money-readiness thresholds (decisions 0016 and 0017), so no sport hides behind another's progress.
+Each sport has its own research-agent guide (`ops/agent_prompt_<sport>.md`) and its own record by market (`docs/lanes/PLAYBOOK-RECORD.md`), so no sport hides behind another's progress.
 
 A lane is never allowed to hide inside another lane's "no bets" message.
 
@@ -41,8 +43,8 @@ This is the rule that stops me finding out a week later that the engine is only 
    - which models are switched on, and whether each passed a test, failed, or is still being tested;
    - what can produce a pick in that lane today;
    - the lane's record and the date of its last pick.
-2. **It goes where I will see it.** The table is on the board page and is sent to Telegram every Monday morning and any time it changes.
-3. **Switching something off is an event.** If a session turns off a model, an input or a lane, it writes a decision note, the status table changes, and I get a message that day saying what was turned off and why.
+2. **It goes where I will see it.** The table is on the board page and in `docs/lanes/STATUS.md`. (It used to go to Telegram on Mondays; since Telegram became bets-only it does not. See "Telegram" below.)
+3. **Switching something off is an event.** If a session turns off a model, an input or a lane, it writes a decision note, the status table changes, and the session tells me in its summary what was turned off and why.
 4. **Cards say what they actually do.** Any sentence on a card or message that describes how a number was built must be generated from the same config the number came from.
 5. **Every session ends by checking the table** against what it changed, and says in its summary what each lane can and cannot do now.
 
@@ -50,11 +52,11 @@ This is the rule that stops me finding out a week later that the engine is only 
 
 The current table is `docs/lanes/STATUS.md` (generated). A hand-typed copy used to sit here and went stale within a day (research 18), so it was removed.
 
-Models tested and switched off because they did not beat the closing line: sides from market ratings and public systems, sides from play-by-play ratings, totals from pace and efficiency, first-half scoring habits, early-week openers from ratings.
+Tested against the closing line and left off (each has a write-up in `docs/research/`): sides from market ratings and public systems (04), sides from play-by-play ratings (03), totals from pace and efficiency (02), first-half scoring habits (05), early-week openers from ratings (09), the NFL injury report with practice status, college public rating systems, NBA rest and travel (14), NBA and college game scripts for staked picks (16), outlier half weight, injury clusters, referees, and blitz/stacked-box prop matchups (17). Passed and in use: wind on NFL totals (05), schedule-adjusted form in the NFL script (17), the props lead effect for three stats (16), the landing tables (11a).
 
 ## How picks are chosen
 
-**`PLAYBOOK.md` (approved 2026-11-23).** The engine handicaps each game (game script first, then injuries, weather, rest), builds its own number for every market, and picks where its number beats Wagerhouse's. Other books are a price filter and a sanity check, never the reason for a pick. Pinnacle is no longer the fair line. Every slate gets a pick list graded A, B or C.
+**`PLAYBOOK.md` (approved 2026-11-23).** The engine handicaps each game (game script first, then injuries, weather, rest), builds its own number for every market, and picks where its number beats Wagerhouse's. Other books are a price filter and a sanity check, never the reason for a pick. Every slate gets a pick list graded A, B or C. In code, "the market" our number is blended toward is Pinnacle's line when posted, else Wagerhouse's (`playbook.market_implied`).
 
 ## Locked decisions
 
@@ -71,7 +73,7 @@ Do not reopen these without asking me.
 - A price gap alone is never a reason for a pick.
 - Tests never look ahead, and anything tuned is checked on seasons it never saw.
 
-## Open decision I still owe
+## Decided since this page was first written
 
 **Leans: decided 2026-11-23, paper only.** Built in `src/engine/picks/leans.py`. The agent's best handicapped opinions, never staked, at most 3 per lane per week, each with a code-stamped Wagerhouse number and "don't bet past" number and one of three reasons (timestamped news Pinnacle has not moved for, a forecast of where the line goes, a wind or weather case). Graded on closing-line value, result, and whether I bet it. Not to be bet until 50 are graded and the average closing-line value is above zero. They show on the board and cards, never in Telegram.
 
@@ -80,7 +82,7 @@ Do not reopen these without asking me.
 **Changed 2026-11-23 (decision 0025, after research 18):** only NFL Wong teasers were staked; NFL full-game picks and all props were paper.
 **Reversed the same evening (decision 0026). Telegram is the source of truth: it is where I get the bets this model finds, and I place them from there.** NFL full-game picks, NFL props and NBA props are staked again and sent to Telegram, with teasers. Decision 0025's guards stay: at most one unit on a game, never into a Pinnacle move against us, every Bet says what the number already prices, a CHECK clears only with a sourced reason. NBA and college full-game picks stay shown-only (their tests lost). Paper picks never go to Telegram; the tracker grades everything Telegram sent against what I bet.
 
-**Telegram is for bets only (2026-11-23).** Playbook A and B picks ping; C picks stay on the board (decision 0018). Before the playbook picks go live, Telegram pings only for a Bet, a Conditional or a cancellation (`telegram.send_kinds` in `config.yaml`), plus alerts that the engine itself is broken. NO BETS summaries, openers, news, price gaps, the Monday lane table and grades stay on the cards and `board.html`. This replaces the drift guard's rule 2 for Telegram; the table is on the board and in `docs/lanes/STATUS.md`.
+**Telegram (current, `telegram.send_kinds` in `config.yaml`: bet, system, stale, recap).** It sends: staked playbook picks (A and B) and teaser tickets with their stake and limit; the old path's Bet, Conditional and cancellation messages; STALE NUMBER price alerts (labelled not a pick); the tracker's 9am recap; and alerts that the engine is broken. It never sends paper picks, C picks, NO BETS summaries, openers, news, the lane table or grades; those stay on the cards, `board.html` and `tracker.html`.
 
 ## How sessions work together
 
@@ -99,14 +101,12 @@ CLAUDE.md                  the build spec and working rules
 README.md                  every command
 config.yaml                every switch and threshold; the status table is generated from it
 adjustments.yaml           this week's sourced point adjustments
-board.html                 the page I look at
+PLAYBOOK.md                how picks are chosen (approved; what is built is in its section 9)
+board.html                 the picks page (generated, not in git)
+tracker.html               every Telegram pick against what I bet (generated, not in git)
 docs/
-  lanes/                   one folder per lane (to be created)
-    nfl-sides-totals/      what it evaluates, model status, tests run, record
-    college-sides-totals/
-    nba-sides-totals/
-    nfl-props/
-    nba-props/
+  lanes/                   generated: STATUS.md (lane table), PLAYBOOK-RECORD.md (record and weight re-fit by sport and market),
+                           TRACKER.md (picks against my bets), READINESS.md (the old Stage rules, kept for the old Bet path)
   research/                numbered research and test write-ups
   decisions/               one short note per decision, numbered
   handoffs/                handoffs between sessions, dated
@@ -114,5 +114,5 @@ docs/
 src/engine/                code
 tests/
 ops/                       scheduled jobs and the research agent's instructions
-data.nosync/               database and raw data (not synced, not in git)
+data.nosync/               database and raw data (not synced, not in git); data.nosync/tracker/open_bets.yaml holds open bets entered by hand
 ```
