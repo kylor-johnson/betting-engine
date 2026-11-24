@@ -1,0 +1,68 @@
+# The agent's decisions for this card. Status and reasons only: every number on the
+# card comes from the slate sheet. A Bet the numbers do not support is refused.
+slate_note: >
+  Quarterback-news run (07:03 MT). The four status changes are backups or unresolved: Carson Beck
+  (Arizona) and Kyler Murray (Minnesota) went from Out to Questionable this morning with no note
+  (ESPN feed 05:39 MT), Sam Darnold was suited up for Monday's unofficial practice (Bob Condotta,
+  Seattle Times, ESPN feed Nov 23 16:33 MT), and Athan Kaliakmanis is a Washington backup now active.
+  None moves a line on the sheet, Pinnacle has no line on Washington at Arizona, and I added no
+  adjustment. The only flagged side is the wind model's Under in Kansas City at Buffalo.
+decisions:
+  - game: "Kansas City Chiefs at Buffalo Bills"
+    market: total
+    side: under
+    status: Conditional
+    summary: >
+      The wind model's pick: the forecast for Thursday night in Buffalo is strong wind and cold, and
+      the model takes points off the total that Wagerhouse's number still includes.
+    condition: "Forecast still at or above 15 mph two hours before kickoff."
+    reasons:
+      price: >
+        Wagerhouse is a half point above Pinnacle's total, and the wind model takes points off
+        Pinnacle's no-vig number on top of that; the sheet holds the figures.
+      matchup: >
+        Context only. Buffalo's defense is #1 in EPA per play and points per drive over the last four
+        games, but against offenses ranked #28 in toughness, and it was #30 in the six games before.
+        Buffalo's offense is #5 in EPA per play this season. Kansas City is +8 in turnover margin with
+        67% of fumbles recovered, which flatters its points. The efficiency total is above the market
+        and is not a reason.
+      situation: >
+        Thanksgiving night game in Buffalo, open air, forecast near 37 degrees with light rain
+        (Open-Meteo, about 59 hours before kickoff). The tested wind model is the reason: Unders went
+        321-221 on held-out seasons since 2019 but only 75-63 since 2024 (research 14).
+      priced_in: >
+        DraftKings opened this total at 50.5 and it is 47.5 now, matching Pinnacle, so the market has
+        already taken three points off, some of which is likely the same wind forecast. The model's
+        points are added to Pinnacle's current number, so part of the edge may already be priced;
+        that is why this stays a half-unit Conditional, and since 2024 the edge has been small.
+      kills_it: >
+        The forecast drops below the condition, the game is moved or delayed, or Wagerhouse moves to
+        Pinnacle's number before the condition can be checked.
+  - game: "Atlanta Falcons at Minnesota Vikings"
+    market: spread
+    side: away
+    status: Pass
+    why_pass: >
+      Kept from Nov 23; the side is not flagged on this morning's sheet. New this morning: Kyler
+      Murray moved from Out to Questionable (ESPN feed 05:39 MT, no note). Kirk Cousins started the last
+      two games, and nothing says Murray will start, so it is not news the market has missed.
+      Pinnacle and Wagerhouse are both at Minnesota by 7. It would change with a named starter
+      announcement that Wagerhouse has not followed.
+  - game: "Denver Broncos at Pittsburgh Steelers"
+    market: spread
+    side: away
+    status: Pass
+    why_pass: >
+      Kept from Nov 23. Alex Highsmith is doubtful (McCarthy via Brooke Pryor, ESPN, Nov 23 13:06 MT),
+      Nick Herbig is listed Questionable this morning with no note, and Michael Pittman Jr. is expected
+      back (Nov 23 13:37 MT). All public and mixed, so no news the market has missed. It would change
+      if both Pittsburgh edge rushers are ruled out on Friday's final report and Wagerhouse has not moved.
+  - game: "Baltimore Ravens at Houston Texans"
+    market: spread
+    side: home
+    status: Pass
+    why_pass: >
+      Unchanged. The Lamar Jackson absence dates from Nov 1 and the market has priced Brissett for
+      weeks; the adjustment entry has no news_at time, so it counts for nothing and the side is not
+      flagged. It would change only with news the market has not priced, such as a Stroud or Brissett
+      injury.

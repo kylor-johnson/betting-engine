@@ -1,0 +1,50 @@
+# NFL playbook picks
+
+How these are made: PLAYBOOK.md. Our team points come from the NFL game-script model; our number is pulled toward the market at the playbook's starting weights (side 0.25, game total 0.35, team total 0.4, props 0.5). Full-game picks: staked. Props: staked. Units: $50; A = 1 unit, B = half a unit; a $0 stake is a paper pick: do not bet it. At most one unit a game across picks and teaser legs; a pick Pinnacle has moved against since we first priced it is not issued.
+
+**Record:** 1-0-0, +0.48 units at the grade's size (+0.48 staked), closing-line value +1.1% win chance; 8 open.
+
+## Issued (frozen at the number shown; $0 = paper)
+
+| Pick | Game | Grade | Stake | Don't bet past | Start (MT) | Why |
+|---|---|---|---|---|---|---|
+| DeVonta Smith under 64.5 Receiving Yards (-114) | Philadelphia Eagles at Dallas Cowboys | B | $25 | under 64.5 at -124 or better (a higher line is fine) | Thu 2:30 PM | typical outcome 52.9422 against a line of 64.5; chance over: ours 43%, Pinnacle 50%; PHI at 20.9 points in our script against 19.5 in the market. Win chance 57.4% against 53.3% at Pinnacle's price. |
+| Josh Allen over 244.5 Passing Yards (+148) | Kansas City Chiefs at Buffalo Bills | B | $25 | over 244.5 at +136 or better (a lower line is fine) | Thu 6:20 PM | typical outcome 246.4 against a line of 244.5; chance over: ours 44%, Pinnacle 38%; BUF at 25.3 points in our script against 25.5 in the market. Win chance 44.3% against 40.3% at Pinnacle's price. |
+| Under 48 (-110) | Kansas City Chiefs at Buffalo Bills | B | $25 | Under 47.5 | Thu 6:20 PM | our handicap Kansas City Chiefs 19.6, Buffalo Bills 24.1 (market Kansas City Chiefs 22.5, Buffalo Bills 25.0). Blended at the playbook weight, our total number is 46.2 against Wagerhouse's 48; win chance 55.6% against 52.4% needed. |
+| Pittsburgh Steelers +3 (-120) | Denver Broncos at Pittsburgh Steelers | B | paper | Pittsburgh Steelers +3 | Fri 1:00 PM | our handicap Denver Broncos 20.0, Pittsburgh Steelers 20.5 (market Denver Broncos 20.2, Pittsburgh Steelers 17.8). Blended at the playbook weight, our side number is 1.8 against Wagerhouse's 3; win chance 57.8% against 54.5% needed. |
+| Under 42.5 (-110) | Atlanta Falcons at Minnesota Vikings | B | $25 | Under 41.5 | Sun 11:00 AM | our handicap Atlanta Falcons 17.2, Minnesota Vikings 21.3 (market Atlanta Falcons 17.2, Minnesota Vikings 24.2). Blended at the playbook weight, our total number is 40.4 against Wagerhouse's 42.5; win chance 56.5% against 52.4% needed. |
+| Tennessee Titans +15 (-110) | Tennessee Titans at Jacksonville Jaguars | B | $25 | Tennessee Titans +14.5 | Sun 11:00 AM | our handicap Tennessee Titans 20.1, Jacksonville Jaguars 31.0 (market Tennessee Titans 16.5, Jacksonville Jaguars 31.0). Blended at the playbook weight, our side number is -13.6 against Wagerhouse's -15; win chance 56.4% against 52.4% needed. |
+
+## Best of the rest (C: shown, not staked)
+
+CHECK rows clear the edge but our number is far from the market. The research agent writes a verdict for each one in `docs/cards/decisions/<date>-nfl-checks.yaml` (`key`, `verdict: clear` or `hold`, `why`, `source`; a clear also needs `because`, a positive reason the market is wrong, and `market_assumes`, what the current number already prices); a cleared one is issued and staked like any other B pick on the next read (decision 0027).
+
+| Pick | Game | Edge | Our number / market / our handicap alone | Note | Key |
+|---|---|---|---|---|---|
+| Miami Dolphins +3.5 (-110) | New York Jets at Miami Dolphins | +8.6% | 1.9 / 3.5 / -2.8 | CHECK held: Malik Willis is on injured reserve with a groin/core injury (Hafley Monday, via Joe Schad, ESPN feed Nov 23 10:19 MT) and Kyle McCord starts; the model assumes the usual starter. | `401873089|side|home` |
+| Los Angeles Rams -2.5 (-110) | Green Bay Packers at Los Angeles Rams | +6.5% | -3.4 / -2.5 / -6.0 | CHECK held: Rams are without Puka Nacua (MCL surgery, out 4 to 5 months, ESPN feed Nov 21 18:25 MT), Davante Adams (IR) and Steve Avila; Green Bay lists Micah Parsons and Josh Jacobs out. The market knows this and the play-by-play model does not. | `401873079|side|home` |
+| Over 35.5 (-110) | New England Patriots at Los Angeles Chargers | +6.5% | 38.4 / 35.5 / 43.7 | CHECK held: Drake Maye is out and Tommy DeVito starts (Vrabel, ESPN feed Nov 21 08:06 MT), and Justin Herbert is in the concussion protocol (The Athletic, Nov 22 17:32 MT); Pinnacle has no line on the game. | `401873093|total|over` |
+| Over 41.5 (-110) | Washington Commanders at Arizona Cardinals | +5.1% | 44.0 / 41.5 / 48.7 | CHECK: our number is far from the market; held until the research agent finds what the market knows | `401873092|total|over` |
+| Indianapolis Colts +7 (-120) | New York Giants at Indianapolis Colts | +3.9% | 5.2 / 6.5 / 1.1 | CHECK held: Colts waived Daniel Jones and named Anthony Richardson the starter (Steichen, ESPN feed Nov 20 11:16 MT), and tackles Bernhard Raimann and Jalen Travis and corners Sauce Gardner and Charvarius Ward are listed out; the model's usual starter is wrong. | `401873088|side|home` |
+
+## Props: best of the rest (C: shown, not staked)
+
+| Prop | Game | Edge | Why | Note | Key |
+|---|---|---|---|---|---|
+| Kyle Monangai over 8.5 Rush Attempts (Pinnacle -114) | Chicago Bears at Detroit Lions | +12.4% | typical outcome 14 against a line of 8.5; chance over: ours 66%, Pinnacle 50% | CHECK: the model and Pinnacle disagree by 15+ points of chance; held until researched | `prop|00-0040236|carries|over|8.5|401873081` |
+| Josh Allen under 36.5 Rushing Yards (Pinnacle -115) | Kansas City Chiefs at Buffalo Bills | +10.6% | typical outcome 16.8 against a line of 36.5; chance over: ours 36%, Pinnacle 50%; role down (8% share last two games vs 20%) (-16% on the projection) | CHECK: the model and Pinnacle disagree by 15+ points of chance; held until researched | `prop|00-0034857|rushing_yards|under|36.5|401873082` |
+| J.K. Dobbins over 6.5 Rushing Yards (Pinnacle -114) | Denver Broncos at Pittsburgh Steelers | +9.4% | typical outcome 20 against a line of 6.5; chance over: ours 63%, Pinnacle 50%; role down (9% share last two games vs 40%) (-16% on the projection) | CHECK: the model and Pinnacle disagree by 15+ points of chance; held until researched | `prop|00-0036158|rushing_yards|over|6.5|401873083` |
+| Sam LaPorta under 4.5 Receptions (Pinnacle -148) | Chicago Bears at Detroit Lions | +7.4% | typical outcome 3 against a line of 4.5; chance over: ours 33%, Pinnacle 44%; listed Questionable (-15% on the projection) | CHECK: the model and Pinnacle disagree by 15+ points of chance; held until researched | `prop|00-0039065|receptions|under|4.5|401873081` |
+| Jonah Coleman under 69.5 Rushing Yards (Pinnacle -114) | Denver Broncos at Pittsburgh Steelers | +7.4% | typical outcome 50.3 against a line of 69.5; chance over: ours 39%, Pinnacle 50%; role up (67% share last two games vs 45%) (+10% on the projection) | CHECK: the model and Pinnacle disagree by 15+ points of chance; held until researched | `prop|00-0041496|rushing_yards|under|69.5|401873083` |
+| Kyle Monangai over 34.5 Rushing Yards (Pinnacle -114) | Chicago Bears at Detroit Lions | +7.3% | typical outcome 55 against a line of 34.5; chance over: ours 61%, Pinnacle 50% | CHECK: the model and Pinnacle disagree by 15+ points of chance; held until researched | `prop|00-0040236|rushing_yards|over|34.5|401873081` |
+| Jonah Coleman under 17.5 Rush Attempts (Pinnacle -112) | Denver Broncos at Pittsburgh Steelers | +6.6% | typical outcome 15 against a line of 17.5; chance over: ours 41%, Pinnacle 51%; role up (67% share last two games vs 45%) (+10% on the projection) | CHECK: the model and Pinnacle disagree by 15+ points of chance; held until researched | `prop|00-0041496|carries|under|17.5|401873083` |
+| Kaleb Johnson under 10.5 Rush Attempts (Pinnacle -131) | Green Bay Packers at Los Angeles Rams | +6.1% | typical outcome 7 against a line of 10.5; chance over: ours 37%, Pinnacle 47%; out: Josh Jacobs; role up (51% share last two games vs 28%) (+20% on the projection) | CHECK: the model and Pinnacle disagree by 15+ points of chance; held until researched | `prop|00-0040142|carries|under|10.5|401873079` |
+| Jaylen Waddle under 42.5 Receiving Yards (Pinnacle -114) | Denver Broncos at Pittsburgh Steelers | +5.7% | typical outcome 29.3 against a line of 42.5; chance over: ours 41%, Pinnacle 50% | CHECK: the model and Pinnacle disagree by 15+ points of chance; held until researched | `prop|00-0036613|receiving_yards|under|42.5|401873083` |
+| Xavier Worthy over 2.5 Receptions (Pinnacle +132) | Kansas City Chiefs at Buffalo Bills | +5.7% | typical outcome 3 against a line of 2.5; chance over: ours 49%, Pinnacle 40% | CHECK: the model and Pinnacle disagree by 15+ points of chance; held until researched | `prop|00-0039894|receptions|over|2.5|401873082` |
+
+## News on this card (adjustments.yaml)
+
+| Game | Entry | Counted? |
+|---|---|---|
+| Baltimore Ravens at Houston Texans | Baltimore Ravens -3: Lamar Jackson on injured reserve after right thumb surgery (ESPN feed Nov 18: chance of a Week 16 return); Jacoby Brissett starts. Hurt on the first snap of the | NO: not applied: no news_at time on the entry, so it cannot be shown unpriced |
+| New England Patriots at Los Angeles Chargers | New England Patriots -5: Drake Maye out with a fractured right fibula (reported Nov 20); Tommy DeVito named the starter for Nov 29. None of this is in the ratings. [https://www.espn.com | NO: not applied: no news_at time on the entry, so it cannot be shown unpriced |

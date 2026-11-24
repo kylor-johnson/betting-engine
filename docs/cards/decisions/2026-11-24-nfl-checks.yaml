@@ -1,0 +1,67 @@
+checks:
+  - key: "401873092|total|over"
+    verdict: hold
+    why: "Arizona's quarterback is unsettled: Josh Johnson started Sunday's 34-7 loss to Kansas City, and Carson Beck moved from Out to Questionable this morning (ESPN feed Nov 24 05:39 MT, no note). The model assumes the usual starter; the market has Washington a 7.5-point road favourite, so it is pricing a backup. Pinnacle has no line on the game, so there is no fair number to clear against."
+    source: "https://www.espn.com/nfl/injuries"
+  - key: "401873089|side|home"
+    verdict: hold
+    why: "Malik Willis is on injured reserve with a groin/core injury (Hafley Monday, via Joe Schad, ESPN feed Nov 23 10:19 MT) and Kyle McCord starts; the model assumes the usual starter."
+    source: "https://www.espn.com/nfl/injuries"
+  - key: "401873079|side|home"
+    verdict: hold
+    why: "Rams are without Puka Nacua (MCL surgery, out 4 to 5 months, ESPN feed Nov 21 18:25 MT), Davante Adams (IR) and Steve Avila; Green Bay lists Micah Parsons out, and Josh Jacobs is now Questionable after a limited Monday practice (Matt Schneidman, The Athletic, ESPN feed Nov 23 14:35 MT). The market knows this and the play-by-play model does not."
+    source: "https://www.espn.com/nfl/injuries"
+  - key: "401873093|total|over"
+    verdict: hold
+    why: "Drake Maye is out and Tommy DeVito starts (Vrabel via Mike Reiss, ESPN feed Nov 23 18:15 MT), and Justin Herbert is in the concussion protocol (The Athletic, Nov 22 17:32 MT); Pinnacle has no line on the game."
+    source: "https://www.espn.com/nfl/injuries"
+  - key: "401873090|side|away"
+    verdict: clear
+    because: "Cleared on Nov 23 and since issued; kept so the record shows it. Cam Ward and Trevor Lawrence are both active and no Tennessee starter absence explains the gap (ESPN feed Nov 22 to 23)."
+    market_assumes: "Both usual starting quarterbacks play; Tennessee's Tyjae Spears and Jaylen Harrell moves to injured reserve are known."
+    why: "Checked both teams' reports: Cam Ward and Trevor Lawrence are active; Tennessee's new absences (Tyjae Spears and Jaylen Harrell to IR) are not starters at quarterback and do not explain the gap; nothing else found."
+    source: "https://www.espn.com/nfl/injuries"
+  - key: "401873088|side|home"
+    verdict: hold
+    why: "Colts waived Daniel Jones and named Anthony Richardson the starter (Steichen, ESPN feed Nov 20 11:16 MT), and tackles Bernhard Raimann and Jalen Travis and corners Sauce Gardner and Charvarius Ward are listed out; the model's usual starter is wrong."
+    source: "https://www.espn.com/nfl/injuries"
+  - key: "prop|00-0040236|carries|over|8.5|401873081"
+    verdict: hold
+    why: "Checked Chicago's report: Roschon Johnson (ankle) did not practice Monday (ESPN feed Nov 23 18:37 MT), which the market can see as well as we can. A line of 8.5 carries says the market sees Monangai in a secondary role; I found nothing saying that role has changed."
+    source: "https://www.espn.com/nfl/injuries"
+  - key: "prop|00-0040236|rushing_yards|over|34.5|401873081"
+    verdict: hold
+    why: "Same as his carries row: the only Chicago backfield news is Roschon Johnson not practicing Monday (ESPN feed Nov 23 18:37 MT), which is public; nothing shows Monangai's role growing."
+    source: "https://www.espn.com/nfl/injuries"
+  - key: "prop|00-0034857|rushing_yards|under|36.5|401873082"
+    verdict: hold
+    why: "Josh Allen is active with no injury note (ESPN feed Nov 22). The model's projection rests on a two-game drop in his rushing share, which is not news; I found nothing the market is missing."
+    source: "https://www.espn.com/nfl/injuries"
+  - key: "prop|00-0036158|rushing_yards|over|6.5|401873083"
+    verdict: hold
+    why: "J.K. Dobbins has no entry on either team's injury list. A line of 6.5 yards says the market expects a very small role, which matches his 9% share over the last two games; the model's typical outcome leans on his older share. Nothing found."
+    source: "https://www.espn.com/nfl/injuries"
+  - key: "prop|00-0039065|receptions|under|4.5|401873081"
+    verdict: hold
+    why: "Sam LaPorta (ankle) was limited at Monday's walkthrough (Nolan Bianchi, The Detroit News, ESPN feed Nov 23 17:38 MT). The market has the same report; nothing says he is out or limited in role."
+    source: "https://www.espn.com/nfl/injuries"
+  - key: "prop|00-0041496|rushing_yards|under|69.5|401873083"
+    verdict: hold
+    why: "Checked Denver's and Pittsburgh's reports: Jonah Coleman has no entry and there is no running-back news for either team. Pittsburgh's Alex Highsmith is doubtful (McCarthy via Brooke Pryor, ESPN feed Nov 23 13:06 MT), which if anything helps the run game. Nothing found."
+    source: "https://www.espn.com/nfl/injuries"
+  - key: "prop|00-0041496|carries|under|17.5|401873083"
+    verdict: hold
+    why: "Same as his yards row: no running-back news on either team's report; nothing found that the market is missing."
+    source: "https://www.espn.com/nfl/injuries"
+  - key: "prop|00-0040142|carries|under|10.5|401873079"
+    verdict: hold
+    why: "The model treats Josh Jacobs as out, but the feed now lists him Questionable after a limited Monday practice (Matt Schneidman, The Athletic, ESPN feed Nov 23 14:35 MT). His status is unresolved and public, so the market has it; the model's input is out of date."
+    source: "https://www.espn.com/nfl/injuries"
+  - key: "prop|00-0036613|receiving_yards|under|42.5|401873083"
+    verdict: hold
+    why: "Jaylen Waddle has no entry on either team's injury list. Nothing found that explains the gap or that the market is missing."
+    source: "https://www.espn.com/nfl/injuries"
+  - key: "prop|00-0039894|receptions|over|2.5|401873082"
+    verdict: hold
+    why: "Kansas City's report shows Noah Gray (ribs) and Kenneth Walker III (groin) not practicing Monday (ESPN feed Nov 23), both public. Xavier Worthy has no entry. Nothing found that the market is missing."
+    source: "https://www.espn.com/nfl/injuries"
