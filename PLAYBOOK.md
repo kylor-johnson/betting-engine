@@ -29,6 +29,7 @@ First, predict how each game will play out (the **game script**): who leads, by 
 | Adjustment | Rule | Status |
 |---|---|---|
 | Quarterback out | Backup's own numbers if he has 100+ dropbacks; otherwise a league-average replacement-level drop | Measured: QB news moves lines about 2.5 to 2.7 points (research 14, 2b) |
+| Sourced news, every sport | The research agent's `adjustments.yaml` entries move our number by the part Pinnacle has not moved for since the news broke; added after the blend, at full size. In a shown-only lane (college), a pick is staked only when that news is what clears the bar (a news pick) | Live (decision 0029). College quarterback value not measured yet |
 | Injury clusters | Two or more starters out in one unit (OL, DL, secondary) shift that matchup: rushing efficiency up against a gutted defensive line, targets up against backup corners | Tested, no held-out gain, off (research 17) |
 | Who absorbs the volume | A player out → his targets, carries or minutes go to teammates by their recent share. A player returning → the others lose share | Built in both props models; the history says the target bump is smaller than people expect (research 06) |
 | Wind | 8 mph or more starts to matter; scaled per mph | Tested: 10 to 19 mph Unders hit 56 to 60% (research 04, 05); effect weaker since 2024. The script's totals lead used actual kickoff wind, not the forecast; re-test on forecasts (research 18) |

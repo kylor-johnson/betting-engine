@@ -67,7 +67,12 @@ def can_produce(cfg: dict, lane: dict) -> str:
         need = ((cfg.get("models") or {}).get("props") or {}).get("min_graded", 300)
         return f"Nothing. Testing only until {need} props are graded and the test is passed."
     parts = []
-    # decision 0027: the old research-agent path no longer sends picks; its news decisions are a $0 record on the card
+    # decision 0027: the old research-agent path no longer sends picks; its news decisions are a $0 record on the card.
+    # decision 0029: sourced news in adjustments.yaml moves the playbook number by the part Pinnacle has not priced.
+    from engine.picks import playbook as _pb
+    _st = _pb.settings(cfg, lane["sport"])
+    if _st.get("full_game") == "show" and _st.get("news_picks"):
+        parts.append("news picks (B, half a unit; real money): sourced news Pinnacle has not priced is what clears the bar")
     for name, m in (lane.get("models") or {}).items():
         if model_on(cfg, m) and m["status"] in ("passed", "passed_weak"):
             parts.append(f"{name.replace('_', ' ')} (an input to the playbook number; its own Conditionals are a $0 record, decision 0027)")
@@ -192,7 +197,8 @@ def lane_state(cfg: dict, lane: dict) -> str:
         if not st.get("props"):
             return "off"
         return "staked" if st.get("props_stake", True) else "paper"
-    return {"stake": "staked", "paper": "paper", "show": "shown"}.get(st.get("full_game"), "shown")
+    state = {"stake": "staked", "paper": "paper", "show": "shown"}.get(st.get("full_game"), "shown")
+    return state + (" (news picks staked)" if state == "shown" and st.get("news_picks") else "")
 
 
 def structure(cfg: dict) -> dict:

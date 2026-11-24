@@ -2,7 +2,15 @@
 
 **What counts here.** Timestamped quarterback news (and, in bowl season, opt-outs and transfer-portal departures) that Wagerhouse has not priced. College has no model of its own: about 60 public rating systems were tested and add nothing against the close (docs/research/14-deep-review.md, 2c). Never cite a rating system as a reason.
 
-**Availability.** There is no injury feed. For each flagged game, search for the starting quarterback's status and the conference availability report (SEC, Big Ten, Big 12, ACC publish them in the days before the game). In bowl season, search for opt-outs and portal entries among starters. A quarterback out is 3 to 7 points depending on the drop to the backup. Write `news_at` from the source. If you cannot confirm a status from a page you opened, do not enter it. Every entry needs a real source link; remove entries for games already played.
+**News is how college bets get made (decision 0029).** College has no model that beats the close, so its picks come from news the market has not
+priced. Every sourced entry you add to `adjustments.yaml` (with `news_at`) moves the playbook's number for that game, but only by the part
+Pinnacle has not moved for since `news_at`. When that unpriced part is what takes a side or total over the bar, the playbook issues a staked
+**news pick** and sends it to Telegram. So: every quarterback change, every starter opt-out or portal exit you can source, with the time it
+broke, goes in `adjustments.yaml` the same run you find it. Speed is the edge: an entry written after Pinnacle has moved counts for nothing.
+Look first at the games on the college playbook card and the busiest windows (Friday afternoon availability reports, Saturday mornings,
+bowl opt-out announcements).
+
+**Availability.** There is no injury feed. Search every game on this week's slate, not only flagged ones, for the starting quarterback's status and the conference availability report (SEC, Big Ten, Big 12, ACC publish them in the days before the game). In bowl season, search for opt-outs and portal entries among starters. A quarterback out is 3 to 7 points depending on the drop to the backup. Write `news_at` from the source. If you cannot confirm a status from a page you opened, do not enter it. Every entry needs a real source link; remove entries for games already played.
 
 **Context, not reasons.** Weather, travel, motivation and "letdown spots" are context. None has a tested effect here; none makes a Bet on its own.
 

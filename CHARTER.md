@@ -37,7 +37,7 @@ settings.
 
 Each lane is in one of three states, set in `config.yaml` and shown in `docs/lanes/STATUS.md`: **staked** (sent to Telegram), **paper**
 (issued and graded at $0, not sent), or **shown** (on the card only). Today: staked = NFL spreads and totals, NFL props, NBA props, NFL
-teasers; shown = college and NBA spreads and totals.
+teasers; shown = college and NBA spreads and totals (college stakes news picks, decision 0029).
 
 Each sport has its own research-agent guide (`ops/agent_prompt_<sport>.md`) and its own record by market (`docs/lanes/PLAYBOOK-RECORD.md`),
 so no sport hides behind another's progress. A lane is never allowed to hide inside another lane's "no bets" message.
@@ -46,7 +46,9 @@ so no sport hides behind another's progress. A lane is never allowed to hide ins
 
 `PLAYBOOK.md`, and only there. In one sentence: the engine builds its own number for each market from a game-script handicap, pulls it part
 of the way toward Pinnacle, and picks where that beats Wagerhouse's price; the research agent clears the picks whose number is far from the
-market. **There is one pick path.** The research agent does not send picks of its own; its news decisions are a $0 record on the card.
+market. Sourced news the agent finds moves that number by the part Pinnacle has not priced (decision 0029); that is how college, which has
+no model of its own, gets bets. **There is one pick path.** The research agent does not send picks of its own; its old Bet/Conditional
+decisions are a $0 record on the card.
 
 ## Money
 

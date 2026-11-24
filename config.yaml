@@ -132,13 +132,13 @@ lanes:
     kind: game
     inputs:
       price_vs_pinnacle: {enabled: true, text: "Wagerhouse's price against Pinnacle's vig-free line. A price gap alone is never a pick."}
-      news_adjustments: {enabled: true, text: "Injury and quarterback news the agent sources; counts only for the part Pinnacle's line has not moved for."}
+      news_adjustments: {enabled: true, text: "Quarterback, opt-out and portal news the agent sources into adjustments.yaml; moves the playbook number by the part Pinnacle has not moved for, and can make a staked news pick (decision 0029)."}
       small_markets: {enabled: true, text: "Period and team-total lines are logged; not yet measured."}
     models:
       ratings_sides: {status: failed, doc: docs/research/04-evaluation.md, note: "market ratings and public systems did not beat the close"}
       outside_ratings_openers: {status: failed, doc: docs/research/14-deep-review.md, note: "public rating systems against the close and the opener: no edge (research 14, 2c)"}
       playbook_script: {status: shown, switch: playbook.enabled, doc: docs/research/16-nba-college-scripts.md, note: "points scored and allowed; lost against the close (research 16)"}
-    not_evaluating: ["staked full-game picks from its own script (shown only, research 16)", "weather and wind (no tested college model)", "props (no college props model)", "betting splits and line movement (never a reason)"]
+    not_evaluating: ["staked full-game picks from its own script alone (shown only, research 16)", "weather and wind (college wind test running, research 20)", "props (no college props model)", "betting splits and line movement (never a reason)"]
   nba_sides_totals:
     title: NBA spreads and totals
     short: NBA sides/totals
@@ -227,7 +227,8 @@ playbook:
   sports:
     NFL: {full_game: stake, props: true, props_stake: true, period: week, max_per_period: 5, props_per_period: 10, props_per_game: 2}
     NBA: {full_game: show, props: true, props_stake: true, period: day, max_per_period: 2, props_per_period: 4, props_per_game: 2}
-    College: {full_game: show, props: false, period: week, max_per_period: 5}
+    # news_picks (decision 0029): in a shown-only lane, a pick is staked only when unpriced sourced news (adjustments.yaml) is what clears the bar.
+    College: {full_game: show, news_picks: true, props: false, period: week, max_per_period: 5}
 
 # Telegram is the source of truth (CHARTER, decisions 0026 and 0027): staked picks, the 9am recap, and system lines only.
 # Kinds: bet = a staked playbook pick or teaser ticket; recap = the tracker's 9am summary (with what was not sent and why);

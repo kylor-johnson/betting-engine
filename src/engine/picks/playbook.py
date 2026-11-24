@@ -136,24 +136,26 @@ def candidates(games: list[dict], st: dict, lands: tuple[Landing, Landing]) -> l
     for g in games:
         # side: lines are the HOME spread (negative = home favored); margins are home minus away
         if g.get("wh_spread") is not None and g.get("mkt_margin") is not None:
-            our_margin = g["mkt_margin"] + w["side"] * (g["own_margin"] - g["mkt_margin"])
+            our_margin = g["mkt_margin"] + w["side"] * (g["own_margin"] - g["mkt_margin"]) + g.get("adj_margin", 0.0)
             for side, price, team, show in (("home", g["wh_home_price"], g["home"], 1), ("away", g["wh_away_price"], g["away"], -1)):
                 if price is None:
                     continue
                 e, p = edge_of(ls, -our_margin, g["wh_spread"], side, price)
                 pe = edge_of(ls, -g["mkt_margin"], g["wh_spread"], side, price)[0]
+                ne = e - edge_of(ls, -(our_margin - g.get("adj_margin", 0.0)), g["wh_spread"], side, price)[0]
                 out.append({**_base(g), "market": "side", "side": side, "pick": f"{team} {show * g['wh_spread']:+g}", "line": g["wh_spread"],
-                            "price": price, "edge": e, "p": p, "price_edge": pe, "our_line": -our_margin, "market_line": -g["mkt_margin"], "own_line": -g["own_margin"],
+                            "price": price, "edge": e, "p": p, "price_edge": pe, "news_edge": ne, "our_line": -our_margin, "market_line": -g["mkt_margin"], "own_line": -g["own_margin"],
                             "check": abs(g["own_margin"] - g["mkt_margin"]) > st["check_points"]["side"], "land": ls})
         if g.get("wh_total") is not None and g.get("mkt_total") is not None and g.get("wh_over") is not None:
-            our_total = g["mkt_total"] + w["total"] * (g["own_total"] - g["mkt_total"])
+            our_total = g["mkt_total"] + w["total"] * (g["own_total"] - g["mkt_total"]) + g.get("adj_total", 0.0)
             for side, price in (("over", g["wh_over"]), ("under", g["wh_under"])):
                 if price is None:
                     continue
                 e, p = edge_of(lt, our_total, g["wh_total"], side, price)
                 pe = edge_of(lt, g["mkt_total"], g["wh_total"], side, price)[0]
+                ne = e - edge_of(lt, our_total - g.get("adj_total", 0.0), g["wh_total"], side, price)[0]
                 out.append({**_base(g), "market": "total", "side": side, "pick": f"{side.title()} {g['wh_total']:g}", "line": g["wh_total"],
-                            "price": price, "edge": e, "p": p, "price_edge": pe, "our_line": our_total, "market_line": g["mkt_total"], "own_line": g["own_total"],
+                            "price": price, "edge": e, "p": p, "price_edge": pe, "news_edge": ne, "our_line": our_total, "market_line": g["mkt_total"], "own_line": g["own_total"],
                             "check": abs(g["own_total"] - g["mkt_total"]) > st["check_points"]["total"], "land": lt})
         for who in ("home", "away"):
             tt = g.get(f"wh_tt_{who}")
@@ -162,22 +164,77 @@ def candidates(games: list[dict], st: dict, lands: tuple[Landing, Landing]) -> l
             mkt = g.get(f"mkt_tt_{who}") or tt["line"]
             if mkt is None:
                 continue
-            ours = mkt + w["team_total"] * (g[f"own_{who}"] - mkt)
+            sgn = 1 if who == "home" else -1
+            ours = mkt + w["team_total"] * (g[f"own_{who}"] - mkt) + sgn * g.get("adj_margin", 0.0) / 2 + g.get("adj_total", 0.0) / 2
             team = g[who]
             for side, price in (("over", tt["over"]), ("under", tt["under"])):
                 if price is None:
                     continue
                 e, p = edge_of(tl, ours, tt["line"], side, price)
                 pe = edge_of(tl, mkt, tt["line"], side, price)[0]
+                ne = e - edge_of(tl, ours - sgn * g.get("adj_margin", 0.0) / 2 - g.get("adj_total", 0.0) / 2, tt["line"], side, price)[0]
                 out.append({**_base(g), "market": "team_total", "side": f"{who}_{side}", "pick": f"{team} team total {side} {tt['line']:g}",
-                            "line": tt["line"], "price": price, "edge": e, "p": p, "price_edge": pe, "our_line": ours, "market_line": mkt, "own_line": g[f"own_{who}"],
+                            "line": tt["line"], "price": price, "edge": e, "p": p, "price_edge": pe, "news_edge": ne, "our_line": ours, "market_line": mkt, "own_line": g[f"own_{who}"],
                             "check": abs(g[f"own_{who}"] - mkt) > st["check_points"]["team_total"], "land": tl, "tt_side": side})
     return out
 
 
 def _base(g: dict) -> dict:
     return {"event_id": g["event_id"], "game": f"{g['away']} at {g['home']}", "kick": g["kick"], "home": g["home"], "away": g["away"],
-            "own_home": g.get("own_home"), "own_away": g.get("own_away"), "mkt_home": g.get("mkt_home"), "mkt_away": g.get("mkt_away")}
+            "own_home": g.get("own_home"), "own_away": g.get("own_away"), "mkt_home": g.get("mkt_home"), "mkt_away": g.get("mkt_away"),
+            "news": list(g.get("news") or [])}
+
+
+def is_news_pick(c: dict, st: dict) -> bool:
+    """True when unpriced sourced news is what takes this pick over the minimum edge: without the news it would not clear."""
+    ne = c.get("news_edge") or 0.0
+    return ne > 0 and c["edge"] >= st["min_edge"][c["market"]] and c["edge"] - ne < st["min_edge"][c["market"]]
+
+
+def apply_news(con, games: list[dict], sport: str, now: datetime) -> list[str]:
+    """Sourced news from `adjustments.yaml` moves our number, but only the part Pinnacle has not moved for since the news broke
+    (`slate.unpriced_part`; decision 0029). Each game gets `adj_margin` (home margin, points), `adj_total` and `news` lines. Pure apart from
+    reading the file and Pinnacle's stored lines. Returns problems to log; a bad file is reported, never half-applied."""
+    from engine.odds import espn
+    from engine.picks import slate
+    try:
+        adjs = slate.load_adjustments()
+    except Exception as e:
+        return [f"playbook {sport}: adjustments.yaml not used ({type(e).__name__}: {e})"]
+    if not adjs:
+        return []
+    by_game = {}
+    for a in adjs:
+        by_game.setdefault(espn.norm(str(a["game"])), []).append(a)
+    hist: dict[str, list] = {}
+    try:
+        for eid, ts, sp, tot in con.execute("SELECT event_id, ts_utc, home_spread, total FROM line_snapshots WHERE source = ? AND sport = ? "
+                                            "ORDER BY ts_utc", [snap.SHARP, sport]).fetchall():
+            hist.setdefault(eid, []).append((ts.replace(tzinfo=timezone.utc), sp, tot))
+    except Exception as e:
+        return [f"playbook {sport}: Pinnacle history unreadable, news not applied ({type(e).__name__})"]
+    for g in games:
+        mine = by_game.get(espn.norm(f"{g['away']} at {g['home']}"), [])
+        rows = hist.get(g["event_id"], [])
+        now_sp = rows[-1][1] if rows else None
+        now_tot = rows[-1][2] if rows else None
+        for a in mine:
+            if a["market"] == "spread":
+                t = espn.norm(str(a["team"]))
+                if t not in (espn.norm(g["home"]), espn.norm(g["away"])):
+                    continue
+                sign = 1 if t == espn.norm(g["home"]) else -1
+            else:
+                sign = 1
+            left, status = slate.unpriced_part(a, rows, now_sp, now_tot, sign)
+            who = a.get("team") if a["market"] == "spread" else "total"
+            g.setdefault("news", []).append(f"News, {who} {float(a['points']):+g} ({status}): {' '.join(str(a['reason']).split())} [{a['source']}]")
+            if left:
+                if a["market"] == "spread":
+                    g["adj_margin"] = g.get("adj_margin", 0.0) + sign * left
+                else:
+                    g["adj_total"] = g.get("adj_total", 0.0) + left
+    return []
 
 
 def key_of(c: dict) -> str:
@@ -358,8 +415,11 @@ def why(c: dict) -> str:
     h, a = c["home"], c["away"]
     ours = f"our handicap {a} {c['own_away']:.1f}, {h} {c['own_home']:.1f}" if c.get("own_home") is not None else "our handicap"
     mkt = f"market {a} {c['mkt_away']:.1f}, {h} {c['mkt_home']:.1f}" if c.get("mkt_home") is not None else ""
-    return (f"{ours} ({mkt}). Blended at the playbook weight, our {c['market'].replace('_', ' ')} number is {c['our_line']:.1f} "
-            f"against Wagerhouse's {c['line']:g}; win chance {100 * c['p']:.1f}% against {100 * chance_needed(c['price']):.1f}% needed.")
+    news = [n for n in (c.get("news") or []) if "not applied" not in n and "priced:" not in n]
+    return (f"{ours} ({mkt}). Blended at the playbook weight" + (", plus sourced news Pinnacle has not priced" if news else "") +
+            f", our {c['market'].replace('_', ' ')} number is {c['our_line']:.1f} "
+            f"against Wagerhouse's {c['line']:g}; win chance {100 * c['p']:.1f}% against {100 * chance_needed(c['price']):.1f}% needed." +
+            ("".join(" " + n for n in news) if news else ""))
 
 
 # ---------- live: gather inputs from the database ----------
@@ -569,10 +629,16 @@ def run(cfg: dict, env: dict, con, now: datetime, send: bool = True, props_ctx: 
         lands = stale.landings(sport, cfg)
         games, problems = live_games(con, now, sport)
         out += problems
+        out += apply_news(con, games, sport, now)
         checks = load_checks(now, cfg, sport)
         graded = grade_all(candidates(games, st, lands), st, checks=checks)
         if st["full_game"] == "show":
             for c in graded:
+                if c["grade"] in ("A", "B") and st.get("news_picks") and is_news_pick(c, st):
+                    c["news_pick"] = True
+                    c["note"] = (c.get("note", "") + " " if c.get("note") else "") + \
+                        "News pick: sourced news Pinnacle has not priced is what clears the bar (decision 0029)."
+                    continue
                 if c["grade"] in ("A", "B"):
                     c["grade"], c["note"] = "C", (c.get("note", "") + " " if c.get("note") else "") + \
                         f"Shown only: {sport} full-game picks are not staked (its walk-forward test lost; config playbook.sports.{sport}.full_game)."
@@ -765,7 +831,8 @@ def _paper_or_staked(con, st: dict, c: dict, units: float, dollars: float, note:
     """(units, dollars, note, nominal units). Paper when the lane is paper, the game already carries a unit, or the week's staked total would
     pass the weekly cap (decision 0027). A CHECK-cleared pick is staked like any other (decision 0027; it was paper under 0025)."""
     nominal = units if units else st["units"].get(c["grade"], 0.0)       # the grade's size, also when the stop-loss made it paper
-    staked_lane = (st["full_game"] == "stake") if full_game else bool(st.get("props_stake", True))
+    staked_lane = (st["full_game"] == "stake" or (bool(c.get("news_pick")) and bool(st.get("news_picks")))) if full_game \
+        else bool(st.get("props_stake", True))
     why_paper = None
     if not staked_lane:
         why_paper = f"paper: this lane is not staked (decision 0025; config playbook.sports.{st['sport']})"
@@ -860,7 +927,7 @@ def edge_split(c: dict) -> str:
         return f"Edge {100 * c['edge']:+.1f}%."
     ref = "Pinnacle's price" if c["market"] == "prop" else "the market's number"
     return (f"Edge {100 * c['edge']:+.1f}%: {100 * pe:+.1f}% from the price alone (Wagerhouse against {ref}), "
-            f"{100 * (c['edge'] - pe):+.1f}% from our handicap.")
+            f"{100 * (c['edge'] - pe):+.1f}% from our handicap" + (f" (of which {100 * c['news_edge']:+.1f}% is unpriced news)" if c.get("news_edge") else "") + ".")
 
 
 def _send_and_save(con, env: dict, msg: str, lane: str | None, key: str, now: datetime, send: bool) -> None:
@@ -940,7 +1007,8 @@ def card(con, cfg: dict, graded: list[dict], st: dict, now: datetime, props_grad
                          "ORDER BY kickoff_utc", [sport, now.replace(tzinfo=None)]).fetchall()
     w = st["weights"]
     staked = {"stake": "staked", "paper": "paper (issued and graded, not staked; decision 0025)"}.get(
-        st["full_game"], "shown only, not staked (its walk-forward test lost; Kylor can switch it on)")
+        st["full_game"], "shown only, not staked (its walk-forward test lost; Kylor can switch it on)" +
+        ("; except news picks, where sourced news Pinnacle has not priced is what clears the bar (staked, decision 0029)" if st.get("news_picks") else ""))
     props_mode = "off" if not (st["props"] and props_graded is not None) else ("staked" if st.get("props_stake", True) else "paper (issued and graded, not staked; decision 0025)")
     out = [f"# {sport} playbook picks", "",
            f"How these are made: PLAYBOOK.md. Our team points come from the {sport} game-script model; our number is pulled toward the market at the "

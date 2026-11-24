@@ -77,28 +77,38 @@ def _hourly(data: dict, suffix: str = "") -> dict[str, tuple[float, float, float
 
 def archive(stadium: str, start: date, end: date) -> dict[str, tuple]:
     """Hourly reanalysis at a stadium, keyed 'YYYY-MM-DDTHH:00' in Eastern time. Cached on disk."""
+    lat, lon = STADIUMS[stadium]
+    return archive_at(stadium, lat, lon, start, end)
+
+
+def archive_at(key: str, lat: float, lon: float, start: date, end: date) -> dict[str, tuple]:
+    """`archive` for any venue by coordinates (college venues come from CollegeFootballData). Cached on disk under `key`."""
     CACHE.mkdir(parents=True, exist_ok=True)
-    path = CACHE / f"archive_{stadium}_{start}_{end}.json"
+    path = CACHE / f"archive_{key}_{start}_{end}.json"
     if path.exists():
         return {k: tuple(v) for k, v in json.loads(path.read_text()).items()}
-    lat, lon = STADIUMS[stadium]
     data = _get("https://archive-api.open-meteo.com/v1/archive", {
         "latitude": lat, "longitude": lon, "start_date": str(start), "end_date": str(end), "hourly": VARS,
         "wind_speed_unit": "mph", "temperature_unit": "fahrenheit", "timezone": "America/New_York"})
     out = _hourly(data)
     if not out:
-        raise SourceError(f"Open-Meteo archive returned no hours for {stadium}")
+        raise SourceError(f"Open-Meteo archive returned no hours for {key}")
     path.write_text(json.dumps(out))
     return out
 
 
 def previous_day(stadium: str, start: date, end: date) -> dict[str, tuple]:
     """The forecast issued about 24 hours earlier for each hour. Open-Meteo keeps these from early 2024."""
+    lat, lon = STADIUMS[stadium]
+    return previous_day_at(stadium, lat, lon, start, end)
+
+
+def previous_day_at(key: str, lat: float, lon: float, start: date, end: date) -> dict[str, tuple]:
+    """`previous_day` for any venue by coordinates. Cached on disk under `key`."""
     CACHE.mkdir(parents=True, exist_ok=True)
-    path = CACHE / f"prevday_{stadium}_{start}_{end}.json"
+    path = CACHE / f"prevday_{key}_{start}_{end}.json"
     if path.exists():
         return {k: tuple(v) for k, v in json.loads(path.read_text()).items()}
-    lat, lon = STADIUMS[stadium]
     hourly = ",".join(f"{v}_previous_day1" for v in VARS.split(","))
     data = _get("https://previous-runs-api.open-meteo.com/v1/forecast", {
         "latitude": lat, "longitude": lon, "start_date": str(start), "end_date": str(end), "hourly": hourly,
@@ -111,6 +121,12 @@ def previous_day(stadium: str, start: date, end: date) -> dict[str, tuple]:
 def forecast_at(stadium: str, kickoff_utc: datetime) -> dict:
     """Live forecast averaged over the first three hours of the game. Not cached."""
     lat, lon = STADIUMS[stadium]
+    return forecast_ll(lat, lon, kickoff_utc, stadium)
+
+
+def forecast_ll(lat: float, lon: float, kickoff_utc: datetime, label: str = "venue") -> dict:
+    """`forecast_at` for any venue by coordinates."""
+    stadium = label
     data = _get("https://api.open-meteo.com/v1/forecast", {
         "latitude": lat, "longitude": lon, "hourly": VARS, "forecast_days": 16,
         "wind_speed_unit": "mph", "temperature_unit": "fahrenheit", "timezone": "America/New_York"})
