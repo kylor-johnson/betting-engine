@@ -1,26 +1,53 @@
 # The agent's decisions for this card. Status and reasons only: every number on the
 # card comes from the slate sheet. A Bet the numbers do not support is refused.
 slate_note: >
-  Monday morning run: tonight's Bengals at Commanders plus next week's Thanksgiving and Sunday
-  games. The only flagged side, Texans -6.5, comes entirely from the Lamar Jackson adjustment
-  added this morning, which the market has priced for weeks, so it is a Pass. Nothing is a Bet.
+  Stale-number run (17:14 MT, Falcons +7; Broncos -2.5 alerted at 15:02 MT). I found no timestamped
+  quarterback news behind either Pinnacle move: Penix, Cousins, Nix and Rodgers are all listed active.
+  The only new items were non-QB: Alex Highsmith doubtful for Pittsburgh and Michael Pittman Jr.
+  likely back (McCarthy via Brooke Pryor, ESPN feed 13:06 and 13:37 MT), and Jordan Addison still
+  out for Minnesota after thumb surgery (O'Connell via Ben Goessling, 13:30 MT). Both gaps were
+  already there before that news, so both are Passes. Justin Herbert entered the concussion protocol
+  (The Athletic, Nov 22 17:32 MT). Pinnacle has no line on Patriots at Chargers, so nothing is flagged there.
 decisions:
+  - game: "Atlanta Falcons at Minnesota Vikings"
+    market: spread
+    side: away
+    status: Pass
+    why_pass: >
+      The flag is a price gap at a key number: Wagerhouse has Minnesota by 7 while DraftKings opened at
+      and still shows 6.5, and Pinnacle has the 7 juiced toward Atlanta. I looked for news behind
+      Pinnacle's move and found none. Both quarterbacks are set: Penix is active, and Cousins has
+      started the last two games. Kyler Murray's Out entry has no new note. Jordan Addison not playing
+      in Week 12 (O'Connell, Monday 13:30 MT) continues an absence after thumb surgery, so it is not
+      new. Context: Minnesota's offense is #29 in EPA per play and points per drive, and Atlanta's is
+      #27 and #25, so a 7-point spread is a lot for an offense this weak. Minnesota's defense is #1
+      in points per drive allowed for the season but #14 over the last four games. It would change
+      with timestamped news: a Minnesota quarterback or key defender newly ruled out with Wagerhouse
+      still at 7.
+  - game: "Denver Broncos at Pittsburgh Steelers"
+    market: spread
+    side: away
+    status: Pass
+    why_pass: >
+      Wagerhouse has Denver -2.5 while DraftKings opened at 3 and still shows 3, so the gap was there
+      before Monday's news. Pinnacle kept 2.5 and only moved the price toward Denver. The news is
+      mixed and partly unresolved. Alex Highsmith is doubtful ("going to be tough for him to make
+      it", McCarthy via Brooke Pryor, ESPN, 13:06 MT), and Nick Herbig is listed Out with no note
+      or time, so I cannot tell if that is new. On the other side, Pittsburgh expects Michael
+      Pittman Jr. back (13:37 MT). I cannot tie Pinnacle's price change to any one item, and an
+      edge rusher listed doubtful is not news Wagerhouse has missed. Context: Pittsburgh's rush
+      defense is #2 in EPA per rush over the last four games, but its pass defense is #25 per
+      dropback over that span, where Denver's passing is #7. It would change if both Pittsburgh
+      edge rushers are ruled out on Friday's final report and Wagerhouse is still at 2.5.
   - game: "Baltimore Ravens at Houston Texans"
     market: spread
     side: home
     status: Pass
     why_pass: >
-      The whole edge is my own Lamar Jackson adjustment, and the sheet adds it on top of Pinnacle's
-      number too. Jackson has been out since the Nov 1 Buffalo game, so Pinnacle and DraftKings
-      already price Brissett. Before the adjustment the sheet had Houston at no edge and the model
-      on the Baltimore side. The handicap does favor Houston: Baltimore's offense over its last four
-      games is #30 in EPA per play and #31 per dropback, and Houston's defense is #2 in success rate
-      allowed. But that is the Brissett team the market has been pricing. Luck points the other way:
-      Baltimore has recovered 32% of fumbles, is -5 in turnovers and scores 2.04 points per drive
-      against 2.28 expected, while Houston is +4 in turnovers and scores 2.44 against 2.09 expected,
-      so Houston's results flatter it. I found no Sharp Football Analysis piece on this game yet.
-      This would change only with news the market has not priced, for example a Stroud or Brissett
-      injury report.
+      Unchanged from this morning. The Lamar Jackson absence dates from Nov 1 and the market has
+      priced Brissett for weeks. The adjustment entry has no news_at time, so the engine no longer
+      applies it and the side is not flagged. This would change only with news the market has not
+      priced, for example a Stroud or Brissett injury report.
   - game: "Cincinnati Bengals at Washington Commanders"
     market: total
     side: under

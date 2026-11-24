@@ -1,0 +1,21 @@
+checks:
+  - key: "401873089|side|home"
+    verdict: hold
+    why: "Malik Willis is on injured reserve with a groin/core injury (Hafley Monday, via Joe Schad, ESPN feed Nov 23 10:19 MT) and Kyle McCord starts; the model assumes the usual starter."
+    source: "https://www.espn.com/nfl/injuries"
+  - key: "401873079|side|home"
+    verdict: hold
+    why: "Rams are without Puka Nacua (MCL surgery, out 4 to 5 months, ESPN feed Nov 21 18:25 MT), Davante Adams (IR) and Steve Avila; Green Bay lists Micah Parsons and Josh Jacobs out. The market knows this and the play-by-play model does not."
+    source: "https://www.espn.com/nfl/injuries"
+  - key: "401873093|total|over"
+    verdict: hold
+    why: "Drake Maye is out and Tommy DeVito starts (Vrabel, ESPN feed Nov 21 08:06 MT), and Justin Herbert is in the concussion protocol (The Athletic, Nov 22 17:32 MT); Pinnacle has no line on the game."
+    source: "https://www.espn.com/nfl/injuries"
+  - key: "401873090|side|away"
+    verdict: clear
+    why: "Checked both teams' reports: Cam Ward and Trevor Lawrence are active; Tennessee's new absences (Tyjae Spears and Jaylen Harrell to IR) are not starters at quarterback and do not explain the gap; nothing else found."
+    source: "https://www.espn.com/nfl/injuries"
+  - key: "401873088|side|home"
+    verdict: hold
+    why: "Colts waived Daniel Jones and named Anthony Richardson the starter (Steichen, ESPN feed Nov 20 11:16 MT), and tackles Bernhard Raimann and Jalen Travis and corners Sauce Gardner and Charvarius Ward are listed out; the model's usual starter is wrong."
+    source: "https://www.espn.com/nfl/injuries"
