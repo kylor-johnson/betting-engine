@@ -70,6 +70,7 @@ class Rec:
     profit_units: float | None
     unit: float
     legs: list[dict] = field(default_factory=list)   # teaser: [{"team", "line", "game"}]
+    paper: bool = False       # issued at $0 (decision 0025): graded at the grade's size, never sent to Telegram
     matched: list[Wager] = field(default_factory=list)
 
     @property
@@ -80,15 +81,21 @@ class Rec:
 def recommendations(con, cfg: dict, since: datetime) -> list[Rec]:
     out = []
     try:
-        rows = con.execute("""SELECT p.pick_key, p.sport, p.first_seen_utc, p.game, p.market, p.side, p.pick, p.line, p.price, p.dollars,
-                                     p.dont_bet_past, p.kickoff_utc, g.result, g.profit_units
-                              FROM playbook_picks p LEFT JOIN playbook_grades g USING (pick_key)
-                              WHERE p.units > 0 AND p.first_seen_utc >= ? ORDER BY p.first_seen_utc""", [since.replace(tzinfo=None)]).fetchall()
+        cols = {r[0] for r in con.execute("DESCRIBE playbook_picks").fetchall()}
+        gcols = {r[0] for r in con.execute("DESCRIBE playbook_grades").fetchall()}
+        nom = "coalesce(p.nominal_units, p.units)" if "nominal_units" in cols else "p.units"
+        nprof = "coalesce(g.nominal_profit, g.profit_units)" if "nominal_profit" in gcols else "g.profit_units"
+        rows = con.execute(f"""SELECT p.pick_key, p.sport, p.first_seen_utc, p.game, p.market, p.side, p.pick, p.line, p.price, p.dollars,
+                                      p.dont_bet_past, p.kickoff_utc, g.result, {nprof}, p.units, {nom}
+                               FROM playbook_picks p LEFT JOIN playbook_grades g USING (pick_key)
+                               WHERE {nom} > 0 AND p.first_seen_utc >= ? ORDER BY p.first_seen_utc""", [since.replace(tzinfo=None)]).fetchall()
     except Exception:
         rows = []
-    for k, sport, sent, game, market, side, pick, line, price, dollars, lim, kick, res, pu in rows:
-        out.append(Rec(k, "pick", sport, sent.replace(tzinfo=timezone.utc), game, market, side, pick, line, price, dollars, lim,
-                       kick.replace(tzinfo=timezone.utc), res, pu, config.unit_for(cfg, sport)))
+    for k, sport, sent, game, market, side, pick, line, price, dollars, lim, kick, res, pu, units, nominal in rows:
+        unit = config.unit_for(cfg, sport)
+        paper = not units
+        out.append(Rec(k, "pick", sport, sent.replace(tzinfo=timezone.utc), game, market, side, pick, line, price,
+                       round(nominal * unit, 2) if paper else dollars, lim, kick.replace(tzinfo=timezone.utc), res, pu, unit, paper=paper))
     try:
         trows = con.execute("""SELECT t.ticket_key, t.sent_utc, t.leg_a, t.leg_b, t.units, t.dollars, t.price,
                                       a.team, a.line, a.game, a.kickoff_utc, b.team, b.line, b.game, b.kickoff_utc, ga.result, gb.result
@@ -274,10 +281,14 @@ def report(con, cfg: dict, now: datetime | None = None) -> str:
     recs = recommendations(con, cfg, since)
     ws = wagers(since)
     own = match(recs, ws)
+    paper = [r for r in recs if r.paper]
+    pg = [r for r in paper if r.result]
+    recs = [r for r in recs if not r.paper]
     graded = [r for r in recs if r.result]
     mw, ml, mp = (sum(r.result == x for r in graded) for x in "WLP")
     m_net = sum(r.model_dollars or 0 for r in graded)
     m_risk = sum(r.dollars for r in recs)
+    p_net = sum(r.model_dollars or 0 for r in pg)
     followed = [r for r in recs if r.matched]
     f_net = sum(w.net for r in followed for w in r.matched if w.status in ("W", "L", "X"))
     o_set = [w for w in own if w.status in ("W", "L", "X")]
@@ -292,6 +303,9 @@ def report(con, cfg: dict, now: datetime | None = None) -> str:
            "| | Bets | Record | Net | Notes |", "|---|---|---|---|---|",
            f"| **Model** (every staked pick, at the stake and number sent) | {len(recs)} sent, {len(graded)} graded | {mw}-{ml}-{mp} | "
            f"{'+' if m_net >= 0 else '−'}${abs(m_net):,.2f} | ${m_risk:,.2f} recommended in all |",
+           f"| **Model, paper picks** (not sent; graded at the stake they would carry) | {len(paper)} issued, {len(pg)} graded | "
+           f"{sum(r.result == 'W' for r in pg)}-{sum(r.result == 'L' for r in pg)}-{sum(r.result == 'P' for r in pg)} | "
+           f"{'+' if p_net >= 0 else '−'}${abs(p_net):,.2f} | the lanes on paper since decision 0025 |",
            f"| **You, on the model's picks** | {sum(len(r.matched) for r in followed)} | "
            f"{sum(w.status == 'W' for r in followed for w in r.matched)}-{sum(w.status == 'L' for r in followed for w in r.matched)} | "
            f"{'+' if f_net >= 0 else '−'}${abs(f_net):,.2f} | followed {len(followed)} of {len(recs)} picks |",

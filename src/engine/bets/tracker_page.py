@@ -67,7 +67,7 @@ def data(con, cfg: dict, now: datetime | None = None) -> dict:
         settled_mine = [m for m in mine if m["net"] is not None]
         kick_local = r.kick.astimezone(tz)
         picks.append({
-            "id": r.key, "kind": r.kind, "sport": r.sport, "market": {"side": "Spread", "total": "Total", "team_total": "Team total", "prop": "Prop",
+            "id": r.key, "kind": r.kind, "paper": r.paper, "sport": r.sport, "market": {"side": "Spread", "total": "Total", "team_total": "Team total", "prop": "Prop",
                                                                      "teaser": "Teaser"}.get(r.market, r.market),
             "pick": r.pick, "game": r.game, "sent": r.sent.astimezone(tz).isoformat(), "kick": kick_local.isoformat(),
             "day": kick_local.date().isoformat(), "week": _week_label(kick_local), "price": r.price, "limit": r.limit or "",
@@ -151,7 +151,9 @@ const cls=v=>v==null?'':v>0?'pos':v<0?'neg':'', price=p=>p==null?'':(p>0?'+':'')
 const tFmt=iso=>{const d=new Date(iso);return d.toLocaleString([], {weekday:'short',hour:'numeric',minute:'2-digit'})};
 const dayFmt=s=>{const d=new Date(s+'T12:00:00');return d.toLocaleDateString([], {weekday:'long',month:'short',day:'numeric'})};
 function inRange(x,dayKey){if(S.range==='all')return true;if(S.range==='today')return x[dayKey||'day']===D.today||x.status==='live';return x.week===D.week}
-function rows(){return D.picks.filter(p=>(S.sport==='all'||p.sport===S.sport)&&inRange(p))}
+function allRows(){return D.picks.filter(p=>(S.sport==='all'||p.sport===S.sport)&&inRange(p))}
+function rows(){return allRows().filter(p=>!p.paper)}
+function paperRows(){return allRows().filter(p=>p.paper)}
 function others(){return D.others.filter(o=>inRange(o)).filter(o=>S.sport==='all'||(o.desc||'').toLowerCase().includes(S.sport==='NBA'?'basketball':'football')||S.sport==='all')}
 function rec(list,key){const w=list.filter(x=>x[key]==='won').length,l=list.filter(x=>x[key]==='lost').length,p=list.filter(x=>x[key]==='push').length;return `${w}-${l}${p?'-'+p:''}`}
 function kpis(){const P=rows(),set=P.filter(p=>p.status==='settled'),mNet=set.reduce((a,p)=>a+(p.model_net||0),0),mRisk=set.reduce((a,p)=>a+p.stake,0);
@@ -165,7 +167,8 @@ function kpis(){const P=rows(),set=P.filter(p=>p.status==='settled'),mNet=set.re
  $('#kpis').innerHTML=`
  <div class="kpi"><div class="lab">Model</div>${big(set.length,mNet,mOut)}
   <div class="row"><span>${rec(set,'result')} · ${set.length} settled</span><span>${mRisk?((mNet/mRisk)*100).toFixed(1)+'% ROI':''}</span></div>
-  <div class="row"><span>${P.length} picks sent</span><span>${clv==null?'':'CLV '+(clv*100).toFixed(1)+'%'}</span></div></div>
+  <div class="row"><span>${P.length} picks sent</span><span>${clv==null?'':'CLV '+(clv*100).toFixed(1)+'%'}</span></div>
+  ${(()=>{const Q=paperRows(),qs=Q.filter(p=>p.status==='settled'),qn=qs.reduce((a,p)=>a+(p.model_net||0),0);return Q.length?`<div class="row"><span>Paper: ${rec(qs,'result')} · ${Q.length} issued</span><span class="${cls(qn)}">${qs.length?fmt$(qn):''}</span></div>`:''})()}</div>
  <div class="kpi"><div class="lab">You, on its picks</div>${big(bSet.length,yNet,yOut)}
   <div class="row"><span>${rec(youRec,'r')} · ${bSet.length} settled</span><span>${yRisk?((yNet/yRisk)*100).toFixed(1)+'% ROI':''}</span></div>
   <div class="row"><span>Followed ${bet.length} of ${P.length}</span><span>${P.filter(p=>p.flags.includes('past limit')).length} past limit</span></div></div>
@@ -180,7 +183,7 @@ function card(p){const w=p.wagers.map(x=>`${plain$(x.risk)} ${x.line!=null?'at '
  return `<div class="card"><div><div class="pick">${esc(p.pick)}${p.price!=null&&p.kind==='pick'?' <span class="game">('+price(p.price)+')</span>':''}</div>
   <div class="game">${esc(p.game)} · ${tFmt(p.kick)}</div><div class="meta"><span class="tag">${p.sport}</span><span class="tag">${p.market}</span>
   ${p.limit?`<span class="tag">don't bet past: ${esc(p.limit)}</span>`:''}<span class="tag">sent ${tFmt(p.sent)}</span></div></div>
-  <div class="right">${badge(p)}<div class="money">Model ${p.model_net==null?plain$(p.stake)+' stake':`<span class="${cls(p.model_net)}">${fmt$(p.model_net)}</span>`}</div></div>
+  <div class="right">${badge(p)}<div class="money">${p.paper?'<span class="tag">paper</span> ':''}Model ${p.model_net==null?plain$(p.stake)+(p.paper?' would-be':'')+' stake':`<span class="${cls(p.model_net)}">${fmt$(p.model_net)}</span>`}</div></div>
   <div class="you"><span>You: ${grade(p)}</span>${p.bet?`<span>${w}</span><span>${esc(p.follow)}</span>`:''}</div></div>`}
 function grouped(list,keyFn,labelFn){const g={};list.forEach(p=>{(g[keyFn(p)]=g[keyFn(p)]||[]).push(p)});return Object.keys(g).sort().map(k=>`<div class="group">${labelFn(k)} · ${g[k].length}</div>`+g[k].map(card).join('')).join('')}
 function summaryTable(key,label){const P=rows(),g={};P.forEach(p=>{(g[p[key]]=g[p[key]]||[]).push(p)});const ks=Object.keys(g).sort().reverse();
@@ -196,13 +199,14 @@ function marketTable(){const P=rows().filter(p=>p.status==='settled'),g={};P.for
  return `<tr><td>${k}</td><td class="n">${L.length}</td><td class="n">${rec(L,'result')}</td><td class="n ${cls(m)}">${fmt$(m)}</td><td class="n">${r?(m/r*100).toFixed(1)+'%':'—'}</td><td class="n">${c.length?(c.reduce((a,b)=>a+b,0)/c.length*100).toFixed(1)+'%':'—'}</td></tr>`}).join('')+'</table>'}
 function otherRows(list){if(!list.length)return '<div class="empty">None in this range.</div>';
  return `<table><tr><th>Placed</th><th>Bet</th><th>Type</th><th class="n">Risk</th><th class="n">Result</th></tr>`+list.map(o=>`<tr><td>${tFmt(o.placed)}</td><td>${esc(o.desc)}${o.note?'<div class="sub">'+esc(o.note)+'</div>':''}</td><td>${o.type}</td><td class="n">${plain$(o.risk)}</td><td class="n ${cls(o.net)}">${o.net==null?'<span class="badge open">open</span>':fmt$(o.net)}</td></tr>`).join('')+'</table>'}
-function render(){kpis();const P=rows(),open=P.filter(p=>p.status!=='settled'),done=P.filter(p=>p.status==='settled'),O=others();
- const T=[['open','Pending',open.length],['settled','Settled',done.length],['day','By day',null],['week','By week',null],['market','By market',null],['mine','Your other bets',O.length]];
+function render(){kpis();const P=rows(),open=P.filter(p=>p.status!=='settled'),done=P.filter(p=>p.status==='settled'),O=others(),Q=paperRows();
+ const T=[['open','Pending',open.length],['settled','Settled',done.length],['day','By day',null],['week','By week',null],['market','By market',null],['paper','Paper picks',Q.length],['mine','Your other bets',O.length]];
  $('#tabs').innerHTML=T.map(([k,l,n])=>`<button data-t="${k}" class="${S.tab===k?'on':''}">${l}${n!=null?`<span class="count">${n}</span>`:''}</button>`).join('');
  let h='';
  if(S.tab==='open')h=open.length?grouped(open.sort((a,b)=>a.kick.localeCompare(b.kick)),p=>p.status==='live'?'0':p.day,k=>k==='0'?'In play':dayFmt(k)):'<div class="empty">Nothing pending.</div>';
  if(S.tab==='settled')h=done.length?grouped(done.sort((a,b)=>b.kick.localeCompare(a.kick)),p=>p.day,dayFmt):'<div class="empty">Nothing settled yet. Results land the morning after each game.</div>';
  if(S.tab==='day')h=summaryTable('day','Day');if(S.tab==='week')h=summaryTable('week','Week');if(S.tab==='market')h=marketTable();
+ if(S.tab==='paper')h=Q.length?'<p class="sub">Issued and graded at $0 (decision 0025), not sent to Telegram. Graded at the stake they would carry, so you can see whether a lane earns its way back to real money.</p>'+grouped(Q.sort((a,b)=>b.kick.localeCompare(a.kick)),p=>p.day,dayFmt):'<div class="empty">No paper picks yet.</div>';
  if(S.tab==='mine')h=otherRows(O)+(D.ignored.length?'<div class="group">Left out of the model comparison</div>'+otherRows(D.ignored):'');
  $('#view').innerHTML=h;
  document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{S.tab=b.dataset.t;render()})}
