@@ -19,22 +19,6 @@ adjustments:
     reason: "Lamar Jackson on injured reserve after right thumb surgery (ESPN feed Nov 18: chance of a Week 16 return); Jacoby Brissett starts. Hurt on the first snap of the Nov 1 Buffalo game, so about four games are partly in the ratings; elite starter (6.5) less roughly half already absorbed."
     source: "https://www.espn.com/nfl/injuries"
     added: "2026-11-23 08:15 MT"
-  - game: "Utah Jazz at Los Angeles Lakers"
-    team: "Los Angeles Lakers"
-    market: spread
-    points: -2.0
-    reason: "Austin Reaves (heel) ruled out for Monday vs Utah (ESPN feed Nov 23 01:09 UTC, citing Jovan Buha). Starter; feed does not show how many games he has already missed, so counted at the starter level only."
-    source: "https://www.espn.com/nba/injuries"
-    added: "2026-11-23 08:20 MT"
-    news_at: "2026-11-22 18:09 MT"
-  - game: "Cleveland Cavaliers at Chicago Bulls"
-    team: "Chicago Bulls"
-    market: spread
-    points: -1.5
-    reason: "Norman Powell out with a mild right hamstring strain, re-evaluated later this week (ESPN feed Nov 22). Starter, new injury, not in the ratings."
-    source: "https://www.espn.com/nba/injuries"
-    added: "2026-11-23 08:20 MT"
-    news_at: "2026-11-22 08:25 MT"
   - game: "Detroit Pistons at Orlando Magic"
     team: "Detroit Pistons"
     market: spread
