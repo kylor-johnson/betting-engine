@@ -47,6 +47,8 @@ def college(now: datetime, hfa: float, env: dict) -> History:
     key = env.get("CFBD_API_KEY", "")
     year = now.year if now.month >= 8 else now.year - 1
     seasons = {y: sources.cfbd_lines(y, key, cache, current=(y == year)) for y in range(year - 5, year + 1)}
+    for y in range(year - 5, year + 1):     # the college game script reads these (decision 0034)
+        sources.cfbd_advanced(y, key, cache, current=(y == year))
     cur, landing_spread, landing_total = [], [], []
     for y, games in seasons.items():
         for g in games:

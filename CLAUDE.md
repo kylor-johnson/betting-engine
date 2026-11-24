@@ -48,7 +48,7 @@ Owner: Kylor (Denver, Mountain time). Research is in `docs/research/`, decisions
   the research agent's own messages, the weekly report and stale alerts.
 - **Telegram kinds:** `bet` (a staked pick), `recap`, `system`; everything else is `info` or `stale` and held back by
   `telegram.send_kinds`. Never send a $0 pick as `bet`.
-- **Generated, never typed:** `docs/lanes/STATUS.md`, `PLAYBOOK-RECORD.md`, `TRACKER.md`, `NEWS-PROPS.md`, cards, `board.html`,
+- **Generated, never typed:** `docs/lanes/STATUS.md`, `PLAYBOOK-RECORD.md`, `TRACKER.md`, `NEWS-PROPS.md`, `COLLEGE-OPENERS.md`, cards, `board.html`,
   `tracker.html`. Any sentence that describes how a number was built is generated from the config that built it.
 - **Tests never look ahead.** Anything tuned is checked walk-forward on seasons it never saw. Weather inputs in tests must be what was
   forecast at bet time, not what happened (research 18).

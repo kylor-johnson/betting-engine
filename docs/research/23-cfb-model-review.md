@@ -286,3 +286,23 @@ mismatches. Rule written now: FBS against FBS games, 2021-2026, closing spread 2
 minus spread / 2) against its actual points. Bet: the underdog's team total Over at the implied number. Pass: 55%+ on 200+ bets and 52.4%+
 in both 2021-23 and 2024-26. Reported alongside, no pass/fail: the favorite's team total Under on the same games, and the same counts at
 14+ points. Caveat: Wagerhouse prices team totals itself, so a pass means "check Wagerhouse's posted team totals in mismatches", not a bet.
+
+## Pre-registered for 2027 (item 7; written Nov 24, 2026, before any 2027 game)
+
+Two different models found that, in weeks 1 to 4 since the one-time transfer rule, numbers built on last season lose against the close:
+about 60 public systems (research 14, 2c: their side covered 188-251 in 2021-2025) and our own college script, with or without preseason
+priors (T3 above: 46 to 48%). Rule, fixed now, run untouched in 2027:
+
+- Model: the live college script as it stands after decision 0034 (per-play efficiency and tempo), refitted on every season through 2026
+  and not changed after Aug 1, 2027.
+- Games: FBS against FBS, CFBD weeks 1 to 4 of 2027, with a closing line.
+- Paper bet: **against** our number's side, at the close, where our own number differs from the close by 3+ points. Totals are not part of
+  this test.
+- Pass: 52.4%+ on 60+ bets. Research 14's second input (returning production and transfers) is graded alongside with its own rule (research
+  14, item 11). A pass makes a paper lane for weeks 1 to 4 of 2028, not a staked one. Below 52.4%: dropped.
+
+## What was built after Kylor's yes (Nov 24, decision 0034)
+
+Items 1, 2, 3, 4, 6 and 7 as listed, 5 and 8 not. One change from item 4 as written: training on FBS-against-FBS games only was checked
+first and was no better on those games (numbers in decision 0034), so the live college script is fitted on every lined game, exactly the
+model T1 tested.

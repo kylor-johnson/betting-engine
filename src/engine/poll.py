@@ -32,6 +32,22 @@ def scheduled_slot(cfg: dict, now: datetime) -> datetime | None:
     return None
 
 
+def extra_slots(cfg: dict, now: datetime) -> list[tuple[str, datetime]]:
+    """Extra research runs for one sport inside a date window (decision 0034: college bowl season), as (sport, UTC slot) for the slot that
+    fell in the last 30 minutes. Config: agent.extra_runs = [{sport, from, to, times}] with dates as YYYY-MM-DD, Mountain time."""
+    local = now.astimezone(config.display_tz(cfg))
+    out = []
+    for e in (cfg.get("agent") or {}).get("extra_runs") or []:
+        if not (str(e["from"]) <= local.date().isoformat() <= str(e["to"])):
+            continue
+        for hhmm in e.get("times") or []:
+            h, m = (int(x) for x in str(hhmm).split(":"))
+            slot = local.replace(hour=h, minute=m, second=0, microsecond=0)
+            if timedelta(0) <= local - slot < timedelta(minutes=30):
+                out.append((e["sport"], slot.astimezone(timezone.utc)))
+    return out
+
+
 def refresh_tracker(con, cfg: dict, now: datetime) -> list[str]:
     """Outside read hours (evenings, nights), grade finished picks and rebuild the tracker page at most once an hour, so tracker.html is
     current when games end at night. No Wagerhouse sign-in: grades come from final scores; your bets come from the last history sync."""
@@ -119,6 +135,13 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
                 if last_run is None or last_run.replace(tzinfo=timezone.utc) < slot:
                     agent.spawn(f"scheduled {slot.astimezone(config.display_tz(cfg)):%a %-I:%M %p} run", "all")
                     out.append("Started the scheduled research run for all sports.")
+            for x_sport, x_slot in extra_slots(cfg, now):       # decision 0034: bowl-season college runs
+                from engine.picks import agent
+                con.execute(agent.SCHEMA)
+                last_x = con.execute("SELECT max(ts_utc) FROM agent_runs WHERE reason LIKE ?", [f"{x_sport}:%"]).fetchone()[0]
+                if last_x is None or last_x.replace(tzinfo=timezone.utc) < x_slot:
+                    agent.spawn(f"extra {x_slot.astimezone(config.display_tz(cfg)):%a %-I:%M %p} {x_sport} run", x_sport)
+                    out.append(f"Started the extra {x_sport} research run.")
         if send_alerts and not force:
             try:
                 from engine.picks import agent
@@ -360,6 +383,9 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
                     (config.ROOT / "docs" / "cards" / f"{day}-{pb_sport.lower()}-playbook.md").write_text(pb_card)
             except Exception as e:
                 out.append(f"Playbook {pb_sport} failed: {type(e).__name__}: {e}")
+        if "College" in cfg.get("sports", []):           # college openers on paper (research 23 T4, decision 0034); never sent
+            from engine.picks import college_openers
+            out += college_openers.run(con, cfg, now)
         try:   # rebuild the tracker after this read's picks and teaser tickets are issued, so the page shows them now, not next hour
             from engine.bets import tracker as _tr_after
             _tr_after.write(con, cfg)

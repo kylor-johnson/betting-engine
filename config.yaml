@@ -65,6 +65,13 @@ models:
     min_points: 1.0            # smaller adjustments are shown, not used
     max_status: Conditional    # weaker since 2024 (74-62 on Unders, size already partly priced), so half a unit at most
 
+  college_openers:             # research 23 (test T4), decision 0034: our college number against Wagerhouse's first number, on paper ($0, never sent)
+    enabled: true
+    side_points: 3.0           # paper pick where our number differs from the first number by this much on the side
+    total_points: 4.0          # ... or this much on the total
+    max_age_hours: 72          # only games first seen this recently (so the first number is really the opener as we saw it)
+    kill_after: 150            # graded picks before the kill rule is checked (docs/lanes/COLLEGE-OPENERS.md)
+    min_move: 0.25             # off if the average move toward us is below this (points), or the record is below 52.4%
   props:                       # docs/research/06-props-model.md, decision 0006
     enabled: true              # price and grade Pinnacle's NFL props every read (testing only)
     nba_enabled: true          # same for NBA props (src/engine/models/nba_props.py), its own scorecard and gate
@@ -99,6 +106,11 @@ agent:
   schedule:
     sunday: ["08:15", "18:45"]
     other: ["08:15"]
+  # Extra runs for one sport inside a date window, started by the hourly read (decision 0034: bowl-season opt-outs and portal exits land
+  # after the lines open). Not in the launchd plist and not part of the missed-run check. Back to none if college news picks' closing-line
+  # value is below zero after 15 picks.
+  extra_runs:
+    - {sport: College, from: "2026-12-14", to: "2027-01-12", times: ["12:15", "16:15"]}
 
 
 # The lanes (CHARTER.md's five, plus NFL Wong teasers since 2026-11-24). `engine status` and every card and message header are generated from this
@@ -134,12 +146,15 @@ lanes:
       price_vs_pinnacle: {enabled: true, text: "Wagerhouse's price against Pinnacle's vig-free line. A price gap alone is never a pick."}
       news_adjustments: {enabled: true, text: "Quarterback, opt-out and portal news the agent sources into adjustments.yaml; moves the playbook number by the part Pinnacle has not moved for, and can make a staked news pick (decision 0029)."}
       small_markets: {enabled: true, text: "Period and team-total lines are logged; not yet measured."}
+      matchup_context: {enabled: true, text: "Per-play efficiency, success rate, tempo, schedule and luck from CollegeFootballData on the agent's sheet; context only, never a reason (decision 0034)."}
     models:
       ratings_sides: {status: failed, doc: docs/research/04-evaluation.md, note: "market ratings and public systems did not beat the close"}
       outside_ratings_openers: {status: failed, doc: docs/research/14-deep-review.md, note: "public rating systems against the close and the opener: no edge (research 14, 2c)"}
-      playbook_script: {status: shown, switch: playbook.enabled, doc: docs/research/16-nba-college-scripts.md, note: "points scored and allowed; lost against the close (research 16)"}
+      playbook_script: {status: shown, switch: playbook.enabled, doc: docs/research/23-cfb-model-review.md, note: "per-play efficiency and tempo (decision 0034); more accurate than points per game, still lost against the close (research 16, 23)"}
+      college_openers: {status: testing, switch: models.college_openers.enabled, doc: docs/research/23-cfb-model-review.md, note: "our number against Wagerhouse's first number, paper only; the line moved our way 0.3 to 0.4 points in 2023-2026 (research 23)"}
+      preseason_priors: {status: failed, doc: docs/research/23-cfb-model-review.md, note: "returning production, talent and last season's SP+ made weeks 1-4 worse; 2027 forward test written down (research 23)"}
       college_wind_totals: {status: failed, doc: docs/research/20-college-wind.md, note: "wind on day-before forecasts, 2024-2026: no better than the closing total (research 20)"}
-    not_evaluating: ["staked full-game picks from its own script alone (shown only, research 16)", "props (no college props model)", "betting splits and line movement (never a reason)"]
+    not_evaluating: ["staked full-game picks from its own script alone (shown only, research 16 and 23; Kylor said no on Nov 24)", "props (no college props model)", "betting splits and line movement (never a reason)"]
   nba_sides_totals:
     title: NBA spreads and totals
     short: NBA sides/totals
@@ -238,11 +253,11 @@ playbook:
 parity:
   game_script:
     NFL: {status: live, note: "game script; earned no weight in walk-forward, staked by choice (research 15, decision 0019)"}
-    College: {status: live, note: "points scored and allowed; lost walk-forward, totals weight a lead (research 16)"}
+    College: {status: live, note: "per-play efficiency and tempo; more accurate than points, lost walk-forward; openers on paper (research 23, decision 0034)"}
     NBA: {status: live, note: "pace and efficiency; lost walk-forward (research 16)"}
   player_value:
     NFL: {status: live, note: "starting QB news moves lines 2.5 to 2.7 points (research 14, 2b)"}
-    College: {status: live, note: "starter out about 3.5 points (P4 3.2, G5 4.2); only 0.9 moves after the opener (research 21)"}
+    College: {status: live, note: "starter ruled out before the game about 4 points, about 5 for a weak passer; about 1 moves after the opener (research 21, 22)"}
     NBA: {status: live, note: "absences are in the close (research 13); props move minutes to teammates (research 08)"}
   news_source:
     NFL: {status: live, note: "ESPN injuries hourly, QB status watcher, reporter relay, practice-report fast reads"}

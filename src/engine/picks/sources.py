@@ -150,6 +150,30 @@ def cfbd_lines(year: int, key: str, cache_dir: Path, current: bool) -> list[dict
     return out
 
 
+def cfbd_advanced(year: int, key: str, cache_dir: Path, current: bool) -> list[dict]:
+    """A season of per-game advanced team stats (plays, PPA per play, success rate), garbage time removed, regular season and bowls in one
+    call. Past seasons are fetched once; the current one at most every 12 hours (the free tier allows 1,000 calls a month)."""
+    if not key:
+        raise SourceError("CFBD_API_KEY is missing from .env")
+    cache = cache_dir / f"cfbd_adv_{year}.json"
+    if cache.exists() and (not current or (datetime.now().timestamp() - cache.stat().st_mtime) < 12 * 3600):
+        return json.loads(cache.read_text())
+    req = urllib.request.Request(f"{CFBD}/stats/game/advanced?year={year}&seasonType=both&excludeGarbageTime=true",
+                                 headers={"Authorization": "Bearer " + key, "Accept": "application/json", "User-Agent": "Mozilla/5.0"})
+    try:
+        with urllib.request.urlopen(req, timeout=90) as r:
+            data = json.load(r)
+    except urllib.error.HTTPError as e:
+        raise SourceError(f"CollegeFootballData advanced stats for {year} returned HTTP {e.code}") from None
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as e:
+        raise SourceError(f"CollegeFootballData advanced stats for {year} failed: {type(e).__name__}") from None
+    if not isinstance(data, list) or not data:
+        raise SourceError(f"CollegeFootballData has no advanced stats for {year}")
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache.write_text(json.dumps(data))
+    return data
+
+
 def cfbd_line(game: dict) -> dict | None:
     """The one line to use for a game: DraftKings if present, else the next provider in order."""
     lines = [l for l in game.get("lines") or [] if l.get("spread") is not None]

@@ -1,12 +1,18 @@
-"""College football game script and team points (PLAYBOOK.md, college section; decision 0022).
+"""College football game script and team points (PLAYBOOK.md, college section; decisions 0022 and 0034).
 
-Free data only: CollegeFootballData's cached seasons (scores, closing lines; `data.nosync/raw/cfbd`). Per team, from EARLIER games only:
-decayed points scored and allowed per game, each read next to the opponents' own form so the regression can weigh schedule; home and
-neutral site. Last season counts as `PRIOR_GAMES` games, and less from week 3 on as this season builds up (the transfer portal makes last
-season a weaker guide, research 14 2c). No play-by-play: the free tier has no play-level data, so there is no pace or pass-rate term.
+Free CollegeFootballData only, cached in `data.nosync/raw/cfbd`: games and closing lines (`cfbd_lines_<year>.json`) and per-game advanced
+stats with garbage time removed (`cfbd_adv_<year>.json`: plays, expected points added (PPA) per play, success rate). The free tier also
+has play-by-play, drives, returning production, talent and SP+ (research 23).
+
+Per team, from EARLIER games only, decayed: points scored and allowed, offensive and defensive PPA per play, success rate for and against,
+plays run and faced, each next to the opponent's same numbers so the regression can weigh schedule; one tempo term (offensive PPA per play
+times the expected plays); home and neutral site. Last season counts as `PRIOR_GAMES` games. This is research 23's T1 model: more accurate
+than points per game in every market, still not better than the close, so college full-game picks stay shown (research 23, decision 0034).
+It is fitted on every lined game: fitting on FBS-against-FBS games only (the only ones Wagerhouse posts) was no better on those games
+(decision 0034).
 
 Team points = ridge regression fitted on earlier seasons; the weight our number earns against the market is fitted one season back and
-reported by `walk_forward` (same method as research 15).
+reported by `walk_forward` (same method as research 15 and 16).
 """
 from __future__ import annotations
 
@@ -19,7 +25,11 @@ from engine.models.script import fit_weight, predict, ridge
 CACHE = config.DATA / "raw" / "cfbd"
 DECAY = 0.85
 PRIOR_GAMES = 2.0
-FEATURES = ("o_pts", "d_pts", "opp_o_pts", "opp_d_pts", "home", "neutral")
+STATS = ("pf", "pa", "oppa", "dppa", "osr", "dsr", "opl", "dpl")
+ADV = ("oppa", "dppa", "osr", "dsr", "opl", "dpl")
+FEATURES = ("o_pts", "d_pts", "opp_o_pts", "opp_d_pts", "home", "neutral",
+            "o_ppa", "d_ppa", "o_sr", "d_sr", "o_pl", "d_pl", "opp_o_ppa", "opp_d_ppa", "opp_o_sr", "opp_d_sr", "opp_o_pl", "opp_d_pl",
+            "ppa_x_plays")
 BOOKS = ("Bovada", "consensus", "DraftKings", "ESPN Bet", "William Hill (New Jersey)")
 
 
@@ -39,6 +49,25 @@ def _games() -> list[dict]:
     return sorted(out, key=lambda g: (g.get("startDate") or "", g["id"]))
 
 
+def adv_stats(rows: list[dict]) -> dict:
+    """CFBD /stats/game/advanced rows -> (game id, team name) -> per-game numbers. Rows without plays or PPA are skipped."""
+    out = {}
+    for r in rows:
+        o, d = r.get("offense") or {}, r.get("defense") or {}
+        if not o.get("plays") or not d.get("plays") or o.get("ppa") is None or d.get("ppa") is None:
+            continue
+        out[(str(r["gameId"]), r["team"])] = {"oppa": o["ppa"], "dppa": d["ppa"], "osr": o.get("successRate") or 0.0,
+                                              "dsr": d.get("successRate") or 0.0, "opl": float(o["plays"]), "dpl": float(d["plays"])}
+    return out
+
+
+def _adv() -> dict:
+    out = {}
+    for p in sorted(CACHE.glob("cfbd_adv_*.json")):
+        out.update(adv_stats(json.loads(p.read_text())))
+    return out
+
+
 def event_teams() -> dict[str, tuple[int, int, int]]:
     """ESPN event id -> (home team id, away team id, neutral) for every cached game, played or not (CollegeFootballData uses ESPN ids)."""
     return {str(g["id"]): (g["homeTeamId"], g["awayTeamId"], int(bool(g.get("neutralSite")))) for g in _games()}
@@ -46,30 +75,37 @@ def event_teams() -> dict[str, tuple[int, int, int]]:
 
 class _Run:
     def __init__(self):
-        self.w, self.o, self.d = 0.0, 0.0, 0.0
+        self.w = defaultdict(float)
+        self.v = defaultdict(float)
 
-    def add(self, o: float, d: float):
-        self.w = self.w * DECAY + 1
-        self.o = self.o * DECAY + o
-        self.d = self.d * DECAY + d
+    def add(self, k: str, x: float):
+        self.w[k] = self.w[k] * DECAY + 1
+        self.v[k] = self.v[k] * DECAY + x
+
+    def mean(self, k: str):
+        return self.v[k] / self.w[k] if self.w[k] else None
 
 
-def _pre(runs, finals, s, team) -> dict:
+def _form(runs, finals, s, team) -> dict:
     r, prev = runs.get((s, team)), finals.get((s - 1, team))
-    wc = r.w if r else 0.0
-    out = {"games": wc}
-    for k, cur in (("o", r.o / r.w if r and r.w else None), ("d", r.d / r.w if r and r.w else None)):
-        pv = prev[k] if prev else None
-        if cur is None:
-            out[k] = pv
-        elif pv is None:
-            out[k] = cur
-        else:
-            out[k] = (cur * wc + pv * PRIOR_GAMES) / (wc + PRIOR_GAMES)
+    out = {"games": r.w["pf"] if r else 0.0}
+    for k in STATS:
+        cur, wc = (r.mean(k), r.w[k]) if r else (None, 0.0)
+        pv = prev.get(k) if prev else None
+        out[k] = pv if cur is None else cur if pv is None else (cur * wc + pv * PRIOR_GAMES) / (wc + PRIOR_GAMES)
     return out
 
 
-def build(state: dict | None = None) -> list[dict]:
+def _features(ft: dict, fo: dict) -> dict:
+    row = {"o_pts": ft["pf"], "d_pts": ft["pa"], "opp_o_pts": fo["pf"], "opp_d_pts": fo["pa"],
+           "o_ppa": ft["oppa"], "d_ppa": ft["dppa"], "o_sr": ft["osr"], "d_sr": ft["dsr"], "o_pl": ft["opl"], "d_pl": ft["dpl"],
+           "opp_o_ppa": fo["oppa"], "opp_d_ppa": fo["dppa"], "opp_o_sr": fo["osr"], "opp_d_sr": fo["dsr"], "opp_o_pl": fo["opl"], "opp_d_pl": fo["dpl"]}
+    row["ppa_x_plays"] = None if None in (ft["oppa"], ft["opl"], fo["dpl"]) else ft["oppa"] * (ft["opl"] + fo["dpl"]) / 2
+    return row
+
+
+def build(state: dict | None = None, adv: dict | None = None) -> list[dict]:
+    adv = _adv() if adv is None else adv
     runs, finals = {}, {}
     out = []
     for g in _games():
@@ -79,20 +115,28 @@ def build(state: dict | None = None) -> list[dict]:
         hs_, as_ = g.get("homeScore"), g.get("awayScore")
         if hs_ is None or as_ is None:
             continue
+        gid, names = str(g["id"]), {h: g.get("homeTeam"), a: g.get("awayTeam")}
+        fbs = int(g.get("homeClassification") == "fbs" and g.get("awayClassification") == "fbs")
         ln = _line(g)
         if ln is not None:
             spread, tot = float(ln["spread"]), float(ln["overUnder"])        # CFBD spread: home spread (negative = home favored)
             imp = {h: tot / 2 - spread / 2, a: tot / 2 + spread / 2}
-            ph, pa = _pre(runs, finals, s, h), _pre(runs, finals, s, a)
+            f = {t: _form(runs, finals, s, t) for t in (h, a)}
             neutral = int(bool(g.get("neutralSite")))
-            for t, o, pt, po, pts in ((h, a, ph, pa, hs_), (a, h, pa, ph, as_)):
-                out.append({"event_id": str(g["id"]), "game_id": str(g["id"]), "season": s, "team": t, "opp": o, "home": int(t == h and not neutral),
-                            "neutral": neutral, "implied": imp[t], "points": float(pts), "spread": -spread, "total": tot, "games": pt["games"],
-                            "o_pts": pt["o"], "d_pts": pt["d"], "opp_o_pts": po["o"], "opp_d_pts": po["d"], "_is_home": int(t == h)})
-        for t, o, pf, pa_ in ((h, a, hs_, as_), (a, h, as_, hs_)):
-            runs.setdefault((s, t), _Run()).add(float(pf), float(pa_))
-            r = runs[(s, t)]
-            finals[(s, t)] = {"o": r.o / r.w, "d": r.d / r.w}
+            for t, o, pts in ((h, a, hs_), (a, h, as_)):
+                out.append({"event_id": gid, "game_id": gid, "season": s, "week": g.get("week"), "team": t, "opp": o, "fbs": fbs,
+                            "home": int(t == h and not neutral), "neutral": neutral, "implied": imp[t], "points": float(pts),
+                            "spread": -spread, "total": tot, "games": f[t]["games"], "opp_games": f[o]["games"], "_is_home": int(t == h),
+                            **_features(f[t], f[o])})
+        for t, pf, pa_ in ((h, hs_, as_), (a, as_, hs_)):
+            r = runs.setdefault((s, t), _Run())
+            r.add("pf", float(pf))
+            r.add("pa", float(pa_))
+            st = adv.get((gid, names[t]))
+            if st:
+                for k in ADV:
+                    r.add(k, st[k])
+            finals[(s, t)] = {k: r.mean(k) for k in STATS}
     if state is not None:
         state.update(runs=runs, finals=finals)
     return out
@@ -104,13 +148,17 @@ def vector(r: dict) -> list[float] | None:
 
 
 def live_row(state: dict, season: int, team: int, opp: int, is_home: int, neutral: int, implied: float) -> dict:
-    pt, po = _pre(state["runs"], state["finals"], season, team), _pre(state["runs"], state["finals"], season, opp)
+    ft, fo = (_form(state["runs"], state["finals"], season, x) for x in (team, opp))
     return {"season": season, "team": team, "opp": opp, "home": int(is_home and not neutral), "neutral": neutral, "implied": implied,
-            "games": pt["games"], "o_pts": pt["o"], "d_pts": pt["d"], "opp_o_pts": po["o"], "opp_d_pts": po["d"]}
+            "games": ft["games"], "opp_games": fo["games"], **_features(ft, fo)}
+
+
+def _usable(rows: list[dict], fbs_only: bool = False) -> list[dict]:
+    return [r for r in rows if min(r["games"], r["opp_games"]) >= 2 and (r["fbs"] or not fbs_only) and vector(r) is not None]
 
 
 def fit_live(rows: list[dict], lam: float = 50.0):
-    use = [r for r in rows if r["games"] >= 2 and vector(r) is not None]
+    use = _usable(rows)
     return ridge([vector(r) for r in use], [r["points"] for r in use], lam)
 
 
@@ -127,9 +175,9 @@ def _pairs(rows: list[dict], own: list[float]) -> list[dict]:
     return out
 
 
-def walk_forward(rows: list[dict] | None = None, lam: float = 50.0) -> dict:
+def walk_forward(rows: list[dict] | None = None, lam: float = 50.0, fbs_only: bool = False) -> dict:
     rows = rows if rows is not None else build()
-    use = [r for r in rows if r["games"] >= 2 and vector(r) is not None]
+    use = _usable(rows, fbs_only)
     seasons = sorted({r["season"] for r in use})
     out = {"seasons": [], "team": [], "game": []}
     for s in seasons[2:]:

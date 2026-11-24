@@ -162,7 +162,8 @@ board.html                 the picks page (generated, not in git)
 tracker.html               every Telegram pick against what I bet (generated, not in git)
 docs/
   lanes/                   generated: STATUS.md (lane table), PLAYBOOK-RECORD.md (record and weight re-fit by sport and market),
-                           TRACKER.md (picks against my bets, money rules, where the edge came from), NEWS-PROPS.md
+                           TRACKER.md (picks against my bets, money rules, where the edge came from), NEWS-PROPS.md,
+                           COLLEGE-OPENERS.md (college openers on paper)
   research/                numbered research and test write-ups
   decisions/               one short note per decision, numbered
   handoffs/                handoffs between sessions, dated

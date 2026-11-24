@@ -155,6 +155,13 @@ def build(sport: str = "NFL", now: datetime | None = None, days_ahead: int | Non
         except (SourceError, ValueError) as ex:
             problems.append(f"Matchup numbers unavailable: {ex}")
 
+    cc = None
+    if sport == "College":         # decision 0034: matchup and luck blocks, context only
+        try:
+            from engine.models import college_context
+            cc = college_context.current()
+        except (OSError, ValueError, KeyError) as ex:
+            problems.append(f"College matchup numbers unavailable: {type(ex).__name__}: {ex}")
     wind_cfg = (cfg.get("models") or {}).get("wind_totals") or {}
     first_seen = dk_first_seen(sport)
     pin_hist = pinnacle_history(sport)
@@ -296,6 +303,11 @@ def build(sport: str = "NFL", now: datetime | None = None, days_ahead: int | Non
             g["matchup"] = {"home": matchup.brief(mu.get(hn)), "away": matchup.brief(mu.get(an)),
                             "how_to_read": "rank 1 is best for that unit; 'recent' is the last 4 games, 'earlier' the games before; toughness rank 1 means the hardest opponents faced"}
         g["markets"].append(mt)
+        if cc is not None:
+            from engine.models import college_context
+            hb, ab = cc.get(str(e.home["id"])), cc.get(str(e.away["id"]))
+            g["matchup"] = {"home": hb and hb["matchup"], "away": ab and ab["matchup"], "how_to_read": college_context.HOW_TO_READ}
+            g["luck"] = {"home": hb and hb["luck"], "away": ab and ab["luck"]}
         games.append(g)
 
     # keep the research list workable: only the strongest flags stay flagged
