@@ -351,7 +351,8 @@ def money_lines(con, cfg: dict, now: datetime) -> list[str]:
     except Exception:
         return []
     cap = (cfg.get("playbook") or {}).get("weekly_cap_dollars", playbook.DEFAULTS["weekly_cap_dollars"])
-    out = ["## Money rules", "", f"- This week (Monday to Sunday MT): ${week:,.2f} recommended of the ${float(cap):,.0f} weekly cap."]
+    cap_txt = f" of the ${float(cap):,.0f} weekly cap" if cap else " (no weekly cap)"
+    out = ["## Money rules", "", f"- This week (Monday to Sunday MT): ${week:,.2f} recommended{cap_txt}."]
     for sport in ((cfg.get("playbook") or {}).get("sports") or playbook.SPORT_DEFAULTS):
         st = playbook.settings(cfg, sport)
         if st["full_game"] != "stake" and not (st.get("props") and st.get("props_stake", True)):

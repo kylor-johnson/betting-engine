@@ -71,7 +71,23 @@ def test_change_message_names_what_was_switched_off():
     c2 = copy.deepcopy(c)
     c2["models"]["props"]["nba_enabled"] = False
     msg = lanes.check_changed(con, c2, now)
-    assert "nba props" in msg and "ON" in msg and "off" in msg
+    assert "NBA player props: model nba props switched off." in msg
+
+
+def test_wording_changes_are_not_lane_changes_and_money_state_is():
+    from engine import lanes as L
+    c = cfg()
+    con = duckdb.connect(":memory:")
+    now = datetime(2026, 11, 23, tzinfo=timezone.utc)
+    L.check_changed(con, c, now)
+    c2 = copy.deepcopy(c)
+    for lane in c2["lanes"].values():
+        lane["title"] = lane["title"]          # same structure; text-only edits elsewhere never count
+    assert L.check_changed(con, c2, now) is None
+    c3 = copy.deepcopy(c)
+    c3.setdefault("playbook", {}).setdefault("sports", {})["NBA"] = {"props": True, "props_stake": False}
+    msg = L.check_changed(con, c3, now)
+    assert msg and "NBA player props: now PAPER (was staked)." in msg
 
 
 def test_card_lane_block_comes_from_config():

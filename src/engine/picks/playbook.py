@@ -69,7 +69,7 @@ DEFAULTS = {"enabled": True, "weights": {"team_total": 0.4, "total": 0.35, "side
             "check_points": {"team_total": 4.0, "total": 4.0, "side": 3.0, "prop": 0.15},
             "units": {"A": 1.0, "B": 0.5}, "half_size_weeks": 0, "live_since": "2026-11-24", "stop_loss_units": 10.0, "show_c": 5,
             "game_cap_units": 1.0, "move_points": 1.0, "move_chance": 0.10, "calibrate_props": ["NBA"], "props_stake": True,
-            "weekly_cap_dollars": 500.0}
+            "weekly_cap_dollars": 0.0}
 
 
 SPORT_DEFAULTS = {

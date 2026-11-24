@@ -14,14 +14,14 @@ one holding the good number.
 past" number, and I place them from there. Telegram carries only three things:
 - **staked picks**: playbook A and B picks and teaser tickets, each with stake, limit, and how much of the edge is price and how much is
   handicap (a CANCELLED message if a sent pick should no longer be bet);
-- **the 9am recap**: yesterday's results, what was not sent and why, and the money rules (this week's total against the cap, units left
+- **the 9am recap**: yesterday's results, what was not sent and why, and the money rules (this week's total, units left
   before each stop);
 - **system lines**: the engine is broken, or a lane changed (a model or lane switched, a stop tripped, a lane fell below its review line).
 
 Anything that is not on Telegram is not a bet, and nothing on Telegram is a $0 pick. Config: `telegram.send_kinds: [bet, system, recap]`.
 
 It is not a price checker. The tracker (`tracker.html`, `docs/lanes/TRACKER.md`) grades every Telegram pick against what I actually bet,
-and shows the picks that were not sent (paper lanes, caps, holds) on their own line. The price checks, logs and reports are plumbing.
+and shows the picks that were not sent (paper lanes, per-lane caps, holds) on their own line. The price checks, logs and reports are plumbing.
 
 This repository is the betting engine only. My DFS model has its own folder and its own repository, and the two never share code, data or
 settings.
@@ -51,11 +51,10 @@ market. **There is one pick path.** The research agent does not send picks of it
 ## Money
 
 - **Units:** NFL $50, NBA $25, college $25 (decision 0020).
-- **Bankroll:** not confirmed yet (I owe this number). A unit should be 1 to 2% of it.
 - **Stakes:** A = 1 unit, B = half a unit, C = nothing. A teaser ticket = 1 NFL unit. At most 1 unit on any one game across picks and teaser
   legs.
-- **Weekly cap:** at most $500 recommended on Telegram, Monday to Sunday Mountain, all sports and teasers (`playbook.weekly_cap_dollars`).
-  Picks past it are paper and named in the recap.
+- **No bankroll figure and no weekly dollar cap for now** (my call, Nov 23): everything is in units. The code keeps a weekly cap switch
+  (`playbook.weekly_cap_dollars`, 0 = off) for when I want one.
 - **Stops:** each sport pauses to paper when its staked picks are down 10 units since `live_since`; NFL counts teaser tickets. A stop is a
   pause for review, not a verdict: at this volume 10 units can go in two bad weeks by luck alone. I restart it.
 - **Review line:** a staked lane whose average closing-line value is below -1.5% win chance on 25 graded picks gets one Telegram line and a
@@ -77,7 +76,7 @@ These checks pass, at the end of every session and every morning:
 4. Every lane's last candidate (A, B or C) is less than 2 days old for the NBA and less than 8 days old for the NFL and college in season,
    or `STATUS.md` says why.
 5. `STATUS.md` was generated in the last 24 hours from the current config.
-6. This week's staked total is under the weekly cap, and the tracker shows how many units are left before each stop.
+6. The tracker shows this week's staked total and how many units are left before each stop.
 7. The hourly read ran in the last 2 hours during read hours, and the research runs ran at their fixed times.
 8. No session lock is older than 4 hours.
 

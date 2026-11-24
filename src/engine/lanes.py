@@ -178,35 +178,68 @@ def table_text(cfg: dict, con) -> str:
     return "\n\n".join(out)
 
 
+def lane_state(cfg: dict, lane: dict) -> str:
+    """staked / paper / shown / off for one lane, read from the switches that decide money (CHARTER, The lanes)."""
+    if lane["kind"] == "teaser":
+        from engine.picks import teasers
+        st = teasers.settings(cfg)
+        return "off" if not st["enabled"] else "staked" if st.get("real_money") else "paper"
+    from engine.picks import playbook
+    st = playbook.settings(cfg, lane["sport"])
+    if not st.get("enabled"):
+        return "off"
+    if lane["kind"] == "props":
+        if not st.get("props"):
+            return "off"
+        return "staked" if st.get("props_stake", True) else "paper"
+    return {"stake": "staked", "paper": "paper", "show": "shown"}.get(st.get("full_game"), "shown")
+
+
 def structure(cfg: dict) -> dict:
-    """What the table says apart from records: per lane, inputs on, each model's switch and result, what can produce a pick."""
-    return {r["key"]: {"inputs_on": [k for k, _ in r["inputs_on"]],
-                       "models": {m["name"]: f"{'ON' if m['on'] else 'off'}, {m['words']}" for m in r["models"]},
-                       "can_produce": r["can_produce"]} for r in rows(cfg, None)}
+    """What decides a lane's behaviour, apart from records and wording: its money state, its inputs, each model's switch and test result.
+    Wording changes in the table never count as a lane change (decision 0027 follow-up: the first lane message was mostly rewording)."""
+    out = {"_v": 2}
+    for key, lane in lanes(cfg).items():
+        out[key] = {"title": lane["title"], "state": lane_state(cfg, lane),
+                    "inputs_on": sorted(k for k, v in (lane.get("inputs") or {}).items() if v.get("enabled")),
+                    "models": {n: [model_on(cfg, m), m["status"]] for n, m in (lane.get("models") or {}).items()}}
+    return out
 
 
 def structure_hash(cfg: dict) -> str:
-    """Changes when what a lane looks at, which models are on or their results, or what can produce a pick changes.
-    Records are left out on purpose: the table is re-sent when its structure changes, not after every graded pick."""
+    """Changes when a lane's money state, inputs, or a model's switch or test result changes. Records and wording are left out."""
     import json
     return hashlib.sha256(json.dumps(structure(cfg), sort_keys=True).encode()).hexdigest()[:16]
 
 
+SHORT_STATUS = {"passed": "passed its test", "passed_weak": "passed, weaker lately", "testing": "being tested", "failed": "failed its test",
+                "overridden": "staked by choice", "shown": "shown only", "paper": "paper"}
+
+
 def diff_text(old: dict, new: dict) -> list[str]:
-    """Plain sentences on what changed between two structures."""
+    """One short plain sentence per real change, named by lane title."""
     out = []
-    for key in sorted(set(old) | set(new)):
+    for key in sorted(k for k in set(old) | set(new) if not k.startswith("_")):
         a, b = old.get(key), new.get(key)
         if a is None or b is None:
-            out.append(f"{key}: lane {'added' if a is None else 'removed'}")
+            out.append(f"{(b or a)['title']}: lane {'added' if a is None else 'removed'}.")
             continue
+        t = b["title"]
+        if a["state"] != b["state"]:
+            out.append(f"{t}: now {b['state'].upper()} (was {a['state']}).")
         for k in sorted(set(a["inputs_on"]) ^ set(b["inputs_on"])):
-            out.append(f"{key}: input {k.replace('_', ' ')} switched {'on' if k in b['inputs_on'] else 'off'}")
+            out.append(f"{t}: input {k.replace('_', ' ')} switched {'on' if k in b['inputs_on'] else 'off'}.")
         for m in sorted(set(a["models"]) | set(b["models"])):
-            if a["models"].get(m) != b["models"].get(m):
-                out.append(f"{key}: model {m.replace('_', ' ')}: {a['models'].get(m, 'not listed')} -> {b['models'].get(m, 'removed')}")
-        if a["can_produce"] != b["can_produce"]:
-            out.append(f"{key}: what can produce a pick changed to: {b['can_produce']}")
+            x, y = a["models"].get(m), b["models"].get(m)
+            if x == y:
+                continue
+            name = m.replace("_", " ")
+            if x is None or y is None:
+                out.append(f"{t}: model {name} {'added' if x is None else 'removed'}.")
+            elif x[0] != y[0]:
+                out.append(f"{t}: model {name} switched {'on' if y[0] else 'off'}.")
+            if x and y and x[1] != y[1]:
+                out.append(f"{t}: model {name} is now {SHORT_STATUS.get(y[1], y[1])} (was {SHORT_STATUS.get(x[1], x[1])}).")
     return out
 
 
@@ -225,8 +258,13 @@ def check_changed(con, cfg: dict, now) -> str | None:
     con.execute("INSERT INTO status_snapshots VALUES (?,?,?)", [now.replace(tzinfo=None), h, json.dumps(st, sort_keys=True)])
     if last is None:
         return None
-    changes = diff_text(json.loads(last[1]), st)
-    return "LANE CHANGED (not a bet)\n" + "\n".join(f"- {c}" for c in changes) + "\nFull table: docs/lanes/STATUS.md and the board."
+    old = json.loads(last[1])
+    if old.get("_v") != st["_v"]:
+        return None          # the stored snapshot is in an older format: store a new baseline quietly
+    changes = diff_text(old, st)
+    if not changes:
+        return None
+    return "LANE CHANGED (not a bet)\n" + "\n".join(f"- {c}" for c in changes) + "\nTable: docs/lanes/STATUS.md and the board."
 
 
 def lane_for(cfg: dict, sport: str, kind: str = "game") -> dict | None:

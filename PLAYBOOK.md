@@ -66,7 +66,7 @@ For each market, **edge = our chance of winning − the chance Wagerhouse's pric
 
 ### Step 5: always produce picks
 
-**Every slate gets a pick list.** For each lane, it shows the top picks by edge with a grade. Caps: full-game, 5 a week for NFL and college and 2 a day for the NBA; props, 10 a week and 2 a game for the NFL, 4 a day and 2 a game for the NBA; one unit a game across everything; the charter's weekly cap. A pick past a cap is paper.
+**Every slate gets a pick list.** For each lane, it shows the top picks by edge with a grade. Caps: full-game, 5 a week for NFL and college and 2 a day for the NBA; props, 10 a week and 2 a game for the NFL, 4 a day and 2 a game for the NBA; one unit a game across everything. A pick past a cap is paper.
 
 - **A**: clears the minimum edge, no CHECK flag, and the principle behind it has passed a test.
 - **B**: clears the minimum edge; the principle is untested or the pick is CHECK-cleared.
@@ -77,7 +77,7 @@ For each market, **edge = our chance of winning − the chance Wagerhouse's pric
 ## 4. Staking and grading
 
 - Every pick is frozen at the Wagerhouse number when issued, with a "don't bet past" number, and graded on the result and against the closing number.
-- **Stakes:** A = 1 unit, B = half a unit, C = nothing; units, the weekly cap and the stops are in the charter's Money section. Staked lanes (decision 0026): NFL full-game, NFL props, NBA props and NFL Wong teasers. NBA and college full-game picks are shown only (research 16). Research 18's restart numbers are the yardstick for keeping a lane staked.
+- **Stakes:** A = 1 unit, B = half a unit, C = nothing; units and the stops are in the charter's Money section. Staked lanes (decision 0026): NFL full-game, NFL props, NBA props and NFL Wong teasers. NBA and college full-game picks are shown only (research 16). Research 18's restart numbers are the yardstick for keeping a lane staked.
 - **Every pick shows where its edge came from:** the part it would have if our number were the market's (that is only Wagerhouse's price against Pinnacle) and the rest, which is our handicap (decision 0027). The charter's rule stands: a price gap alone is never a reason.
 - **Every principle keeps its own record.** After 4 weeks and 40 picks, a principle whose picks lose against the closing number is cut to zero weight, with a decision note and a one-line Telegram lane message (charter drift guard). A principle that wins gets more weight.
 - Results alone take thousands of bets to prove anything, so the closing number is the scorecard week to week, and results are shown next to it.
@@ -145,7 +145,7 @@ We copy methods, never picks. Warren Sharp's write-ups are one example; Walters,
 | Blitz and stacked-box matchup splits for props | Built, tested, off (no held-out gain, research 17) | `props_matchup.py` |
 | Coverage-type (man/zone) splits | Not buildable: free data has 2023 only | |
 | Never into a move, one unit a game, CHECK clears with a reason, closing grades for props and team totals | Live (decision 0025, kept by 0026) | `picks/playbook.py` |
-| Weekly cap, NFL stop with teasers, review line, edge split (price against handicap) | Live (decision 0027) | `picks/playbook.py`, `bets/tracker.py` |
+| NFL stop with teasers, review line, edge split (price against handicap); weekly dollar cap built but off | Live (decisions 0027, 0028) | `picks/playbook.py`, `bets/tracker.py` |
 | NBA news-timed props | Paper test (decision 0025) | `picks/news_props.py`, `docs/lanes/NEWS-PROPS.md` |
 
 Commands: `engine playbook --dry-run [--sport NFL|NBA|College]` shows the current lists without sending or writing; `engine playbook-record`.

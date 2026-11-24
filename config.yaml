@@ -4,7 +4,7 @@ units_by_sport:     # Kylor 2026-11-23 (decision 0020): NFL $50, NBA $25; colleg
   NFL: 50
   NBA: 25
 max_units: 2        # cap per bet, in units
-bankroll: 2500      # NOT CONFIRMED: set for the old $25 unit. Kylor to give the real number (decision 0027, CHARTER Money). Nothing reads it yet.
+bankroll: 2500      # not used. Kylor, Nov 23: stick to units for now, no bankroll figure. Nothing reads it.
 
 # Scope
 sports: [NFL, College, NBA]
@@ -219,9 +219,8 @@ playbook:
   move_chance: 0.10
   calibrate_props: [NBA]
   news_props: {enabled: true, window_min: 90, min_edge: 0.04, pass_clv: 0.04, pass_n: 100}   # NBA news-timed props, paper test
-  # Decision 0027 (research 19): at most this many dollars recommended on Telegram a week (Monday to Sunday MT), all sports and teasers.
-  # A pick past it is issued as paper and named in the 9am recap. CHECK-cleared picks are staked like any other B pick.
-  weekly_cap_dollars: 500
+  # No weekly dollar cap (Kylor, Nov 23 night: "just stick to units. no cap on $ either for now"); 0 = off. CHECK-cleared picks are staked.
+  weekly_cap_dollars: 0
   # Per sport (decision 0022). full_game: stake = real money, paper = issued and graded at $0, show = C on the card only.
   # props_stake: false = props issued and graded at $0. Current state (decision 0026, kept by 0027): NFL full-game, NFL props and NBA props
   # staked; NBA and college full-game shown only. Research 18's restart numbers are the yardstick for keeping a lane staked.
