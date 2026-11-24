@@ -37,8 +37,9 @@ def test_parity_money_cells_come_from_switches():
     from engine import lanes
     rows = dict(lanes.parity_rows(_cfg()))
     assert rows["Full-game picks (money)"]["NFL"] == "staked"
-    assert rows["Full-game picks (money)"]["College"].startswith("shown")
-    assert rows["News into our number (decision 0029)"]["College"].startswith("on")
+    assert rows["Full-game picks (money)"]["College"] == "staked"     # decision 0035
+    assert rows["Full-game picks (money)"]["NBA"] == "staked"
+    assert rows["News into our number (decision 0029)"]["College"].startswith("staked lane")
 
 
 def test_undelivered_staked_pick_and_zero_dollar_bet_fail():

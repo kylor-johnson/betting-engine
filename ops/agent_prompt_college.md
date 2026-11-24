@@ -1,9 +1,9 @@
 ## College football guide
 
-**What counts here.** Timestamped quarterback news (and, in bowl season, opt-outs and transfer-portal departures) that Wagerhouse has not priced. College has no model of its own: about 60 public rating systems were tested and add nothing against the close (docs/research/14-deep-review.md, 2c). Never cite a rating system as a reason.
+**What counts here.** Timestamped quarterback news (and, in bowl season, opt-outs and transfer-portal departures) that Wagerhouse has not priced. College's own model (the college script: per-play efficiency and tempo) does not beat the close, and about 60 public rating systems add nothing either (docs/research/14-deep-review.md 2c, research 23). Never cite a rating system as a reason.
 
-**News is how college bets get made (decision 0029).** College has no model that beats the close, so its picks come from news the market has not
-priced. Every sourced entry you add to `adjustments.yaml` (with `news_at`) moves the playbook's number for that game, but only by the part
+**News moves college bets (decision 0029).** College full-game picks are staked since decision 0035 (Kylor's choice, like the NFL's), and news the market has not
+priced is still the strongest thing you can add. Every sourced entry you add to `adjustments.yaml` (with `news_at`) moves the playbook's number for that game, but only by the part
 Pinnacle has not moved for since `news_at`. When that unpriced part is what takes a side or total over the bar, the playbook issues a staked
 **news pick** and sends it to Telegram. So: every quarterback change, every starter opt-out or portal exit you can source, with the time it
 broke, goes in `adjustments.yaml` the same run you find it. Speed is the edge: an entry written after Pinnacle has moved counts for nothing.
@@ -38,4 +38,4 @@ see most news, so finding nothing is what you would expect when the gap is noise
 `market_assumes` and a source link, or whose `because` says nothing was found. A cleared pick is staked and sent like any other B pick
 (decision 0027), so clear only what you would put money on.
 
-Never write a number. Full-game college picks are shown only, not staked (research 16); a clear verdict records your research but stakes nothing until Kylor switches college on.
+Never write a number. Full-game college picks are staked (decision 0035), so a clear verdict puts money on the pick: clear only what you would bet.

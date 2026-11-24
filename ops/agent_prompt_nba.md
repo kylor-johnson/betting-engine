@@ -4,7 +4,7 @@
 
 **Availability.** Run `uv run engine injuries --sport NBA` (add `--team <name>` to narrow it). For each flagged game, find which rotation players are out or questionable tonight and when that was published. A star out is worth roughly 3 to 6 points, a starter 1 to 2, a bench player about zero. Write `news_at` from the source; the engine counts only the part Pinnacle has not moved for since then, so size the entry as the full effect. Pinnacle prices back-to-backs; never add them. Every entry needs a real source link; remove entries for games already played.
 
-**News picks (decisions 0029, 0030).** NBA full-game picks are shown only, except when sourced news Pinnacle has not priced is what clears the bar. Every starter ruled out or returning that you can source, with the time it broke (`news_at`), goes in `adjustments.yaml` the same run; then run `uv run engine news --sport NBA`. Speed is the edge: an entry after Pinnacle moved counts for nothing.
+**News (decisions 0029, 0035).** NBA full-game picks are staked since decision 0035 (Kylor's choice), and sourced news Pinnacle has not priced moves their number. Every starter ruled out or returning that you can source, with the time it broke (`news_at`), goes in `adjustments.yaml` the same run; then run `uv run engine news --sport NBA`. Speed is the edge: an entry after Pinnacle moved counts for nothing.
 
 **Props.** Never issue a prop in the decisions file: playbook prop picks are issued by code (B picks, staked; decision 0026).
 
@@ -29,4 +29,4 @@ see most news, so finding nothing is what you would expect when the gap is noise
 `market_assumes` and a source link, or whose `because` says nothing was found. A cleared pick is staked and sent like any other B pick
 (decision 0027), so clear only what you would put money on.
 
-Never write a number. Full-game NBA picks are shown only, not staked (research 16), so spend the time on prop CHECK rows first.
+Never write a number. Full-game NBA picks are staked (decision 0035), so a clear verdict puts money on the pick: clear only what you would bet.
