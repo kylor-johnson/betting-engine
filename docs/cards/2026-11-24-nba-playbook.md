@@ -16,7 +16,7 @@ CHECK rows clear the edge but our number is far from the market. The research ag
 
 | Pick | Game | Edge | Our number / market / our handicap alone | Note | Key |
 |---|---|---|---|---|---|
-| Over 212 (-110) | Detroit Pistons at Orlando Magic | +4.0% | 214.7 / 212.5 / 218.8 | CHECK: our number is far from the market; held until the research agent finds what the market knows | `401909314|total|over` |
+| Orlando Magic team total over 105 (-115) | Detroit Pistons at Orlando Magic | +3.7% | 106.7 / 105.5 / 108.6 | Shown only: NBA full-game picks are not staked (its walk-forward test lost; config playbook.sports.NBA.full_game). | `401909314|team_total|home_over` |
 | Over 233.5 (-110) | Dallas Mavericks at Denver Nuggets | +1.0% | 235.1 / 233.5 / 238.0 | under the minimum edge | `401909316|total|over` |
 | Over 217.5 (-110) | Boston Celtics at Washington Wizards | +0.8% | 219.0 / 217.5 / 221.7 | under the minimum edge | `401909315|total|over` |
 
@@ -24,16 +24,16 @@ CHECK rows clear the edge but our number is far from the market. The research ag
 
 | Prop | Game | Edge | Why | Note | Key |
 |---|---|---|---|---|---|
-| Ausar Thompson over 4.5 Assists (Pinnacle +112) | Detroit Pistons at Orlando Magic | +6.4% | typical outcome 5 against a line of 4.5; chance over: ours 54%, Pinnacle 44% | CHECK: the model and Pinnacle disagree by 15+ points of chance; held until researched | `prop|4684742|ast|over|4.5|401909314` |
+| Ausar Thompson over 4.5 Assists (Pinnacle +111) | Detroit Pistons at Orlando Magic | +6.3% | typical outcome 5 against a line of 4.5; chance over: ours 54%, Pinnacle 44% | CHECK: the model and Pinnacle disagree by 15+ points of chance; held until researched | `prop|4684742|ast|over|4.5|401909314` |
 | Anthony Black over 1.5 Threes Made (Pinnacle -104) | Detroit Pistons at Orlando Magic | +5.3% | typical outcome 2 against a line of 1.5; chance over: ours 56%, Pinnacle 48% | CHECK: the model and Pinnacle disagree by 15+ points of chance; held until researched | `prop|4712849|fg3m|over|1.5|401909314` |
+| Jamal Murray over 33.5 Pts & Rebs & Asts (Pinnacle -122) | Dallas Mavericks at Denver Nuggets | +4.3% | typical outcome 36.9 against a line of 33.5; chance over: ours 59%, Pinnacle 51% | CHECK: the model and Pinnacle disagree by 15+ points of chance; held until researched | `prop|3936299|pra|over|33.5|401909316` |
+| Ausar Thompson over 23.5 Pts & Rebs & Asts (Pinnacle -114) | Detroit Pistons at Orlando Magic | +3.8% | typical outcome 26 against a line of 23.5; chance over: ours 57%, Pinnacle 50% | under the minimum edge | `prop|4684742|pra|over|23.5|401909314` |
+| Jamal Murray over 2.5 Threes Made (Pinnacle -110) | Dallas Mavericks at Denver Nuggets | +3.8% | typical outcome 3 against a line of 2.5; chance over: ours 56%, Pinnacle 49% | under the minimum edge | `prop|3936299|fg3m|over|2.5|401909316` |
+| Zaccharie Risacher over 3.5 Rebounds (Pinnacle -130) | Dallas Mavericks at Denver Nuggets | +3.7% | typical outcome 5 against a line of 3.5; chance over: ours 60%, Pinnacle 53% | under the minimum edge | `prop|5211175|reb|over|3.5|401909316` |
+| Jamal Murray over 22.5 Points (Pinnacle -125) | Dallas Mavericks at Denver Nuggets | +3.6% | typical outcome 25 against a line of 22.5; chance over: ours 59%, Pinnacle 52% | under the minimum edge | `prop|3936299|pts|over|22.5|401909316` |
+| Daniel Gafford under 7.5 Rebounds (Pinnacle -162) | Dallas Mavericks at Denver Nuggets | +3.4% | typical outcome 6 against a line of 7.5; chance over: ours 35%, Pinnacle 42% | under the minimum edge | `prop|4278049|reb|under|7.5|401909316` |
 | Tristan Da Silva over 10.5 Points (Pinnacle -112) | Detroit Pistons at Orlando Magic | +2.9% | typical outcome 12 against a line of 10.5; chance over: ours 56%, Pinnacle 49% | under the minimum edge | `prop|4702382|pts|over|10.5|401909314` |
-| Tristan Da Silva over 2.5 Threes Made (Pinnacle +111) | Detroit Pistons at Orlando Magic | +2.3% | typical outcome 2 against a line of 2.5; chance over: ours 50%, Pinnacle 44% | under the minimum edge | `prop|4702382|fg3m|over|2.5|401909314` |
-| Desmond Bane over 3.5 Threes Made (Pinnacle +114) | Detroit Pistons at Orlando Magic | +2.3% | typical outcome 3 against a line of 3.5; chance over: ours 49%, Pinnacle 44% | under the minimum edge | `prop|4066320|fg3m|over|3.5|401909314` |
-| Jalen Suggs under 11.5 Points (Pinnacle -132) | Detroit Pistons at Orlando Magic | +2.1% | typical outcome 9 against a line of 11.5; chance over: ours 41%, Pinnacle 47% | under the minimum edge | `prop|4432165|pts|under|11.5|401909314` |
-| Paul George over 2.5 Threes Made (Pinnacle -132) | Boston Celtics at Washington Wizards | +1.1% | typical outcome 3 against a line of 2.5; chance over: ours 58%, Pinnacle 53%; blowout risk (spread 10.5) (-3% on the projection) | under the minimum edge | `prop|4251|fg3m|over|2.5|401909315` |
-| Paul Reed over 9.5 Points (Pinnacle -122) | Detroit Pistons at Orlando Magic | +1.1% | typical outcome 11 against a line of 9.5; chance over: ours 56%, Pinnacle 51% | under the minimum edge | `prop|4278562|pts|over|9.5|401909314` |
-| Daniss Jenkins over 4.5 Assists (Pinnacle -107) | Detroit Pistons at Orlando Magic | +0.9% | typical outcome 4 against a line of 4.5; chance over: ours 53%, Pinnacle 48% | under the minimum edge | `prop|5107199|ast|over|4.5|401909314` |
-| Wendell Carter Jr. under 8.5 Rebounds (Pinnacle -133) | Detroit Pistons at Orlando Magic | +0.7% | typical outcome 7 against a line of 8.5; chance over: ours 42%, Pinnacle 47% | under the minimum edge | `prop|4277847|reb|under|8.5|401909314` |
+| Kyshawn George over 14.5 Points (Pinnacle -128) | Boston Celtics at Washington Wizards | +2.9% | typical outcome 17 against a line of 14.5; chance over: ours 59%, Pinnacle 52%; blowout risk (spread 10.5) (-3% on the projection) | under the minimum edge | `prop|5174563|pts|over|14.5|401909315` |
 
 ## News on this card (adjustments.yaml)
 

@@ -1,12 +1,12 @@
 # Tracker: the model's picks against your bets (generated; do not edit)
 
-From 2026-11-23 (Mountain). Updated Tue Nov 24, 7:32 AM MT. Your wagers come from the account history, which shows a bet once it is graded; open bets are entered from your open-bets screen (data.nosync/tracker/open_bets.yaml) until they settle. Picks come from what Telegram sent.
+From 2026-11-23 (Mountain). Updated Tue Nov 24, 8:03 AM MT. Your wagers come from the account history, which shows a bet once it is graded; open bets are entered from your open-bets screen (data.nosync/tracker/open_bets.yaml) until they settle. Picks come from what Telegram sent.
 
 ## Scoreboard
 
 | | Bets | Record | Net | Notes |
 |---|---|---|---|---|
-| **Model** (every staked pick, at the stake and number sent) | 13 sent, 4 graded | 2-2-0 | +$10.38 | $300.00 recommended in all |
+| **Model** (every staked pick, at the stake and number sent) | 13 sent, 6 graded | 4-2-0 | +$68.38 | $300.00 recommended in all |
 | **Model, paper picks** (not sent; graded at the stake they would carry) | 1 issued, 0 graded | 0-0-0 | +$0.00 | not sent: paper lanes, the one-unit-a-game cap, the weekly cap, a stop |
 | **You, on the model's picks** | 11 | 3-0 | +$61.25 | followed 8 of 13 picks |
 | **You, your own bets** | 5 | 3-2 | +$66.34 | not on the model's list |
@@ -15,8 +15,8 @@ From 2026-11-23 (Mountain). Updated Tue Nov 24, 7:32 AM MT. Your wagers come fro
 ## Money rules
 
 - This week (Monday to Sunday MT): $300.00 recommended (no weekly cap).
-- NFL (with teasers): +0.48 units staked result; the stop is at -10 (10.0 units left).
-- NBA: -0.54 units staked result; the stop is at -10 (9.5 units left).
+- NFL (with teasers): +0.00 units staked result; the stop is at -10 (10.0 units left).
+- NBA: +0.00 units staked result; the stop is at -10 (10.0 units left).
 
 ## Where the edge came from (staked picks)
 
@@ -32,15 +32,15 @@ The charter says a price gap alone is never a reason. This shows how much of eac
 | Sent (MT) | Sport | Pick | Price sent | Don't bet past | Stake sent | Model result | You | Your result |
 |---|---|---|---|---|---|---|---|---|
 | Mon 3:51 PM | NFL | Washington Commanders team total under 24 | -105 | Washington Commanders team total under 23.5 | $25 | W (+$23.81) | bet: same number, stake $20.5 vs $25 sent, 2 wagers on it | open, $10 at risk; W +$10.00 |
-| Mon 3:59 PM | NFL | Ja'Marr Chase under 0.5 Touchdowns | +123 | under 0.5 at +111 or better (a higher line is fine) | $25 | open | not bet | — |
+| Mon 3:59 PM | NFL | Ja'Marr Chase under 0.5 Touchdowns | +123 | under 0.5 at +111 or better (a higher line is fine) | $25 | W (+$30.75) | not bet | — |
 | Mon 3:59 PM | NFL | DeVonta Smith under 64.5 Receiving Yards | -114 | under 64.5 at -124 or better (a higher line is fine) | $25 | open | bet: line 2 better, price -111 vs -114 sent | open, $25 at risk |
 | Mon 4:16 PM | NBA | Donovan Mitchell under 36.5 Pts & Rebs & Asts | -108 | under 36.5 at -117 or better (a higher line is fine) | $12.5 | W (+$11.57) | bet: same number, price -110 vs -108 sent, stake $54.5 vs $12.5 sent, 2 wagers on it | W +$25.00; open, $27 at risk |
 | Mon 4:16 PM | NBA | Coby White under 1.5 Threes Made | +146 | under 1.5 at +134 or better (a higher line is fine) | $12.5 | L (−$12.50) | not bet | — |
+| Mon 5:02 PM | NBA | Brook Lopez over 12.5 Points | +118 | over 12.5 at +101 or better (a lower line is fine) | $12.5 | L (−$12.50) | not bet | — |
 | Mon 5:02 PM | NFL | Under 42.5 | -110 | Under 41.5 | $25 | open | bet: same number | open, $25 at risk |
 | Mon 5:02 PM | NFL | Josh Allen over 244.5 Passing Yards | +148 | over 244.5 at +136 or better (a lower line is fine) | $25 | open | bet: line 5 better, price +116 vs +148 sent | open, $25 at risk |
-| Mon 5:02 PM | NBA | Brook Lopez over 12.5 Points | +118 | over 12.5 at +101 or better (a lower line is fine) | $12.5 | L (−$12.50) | not bet | — |
+| Mon 5:33 PM | NFL | Stefon Diggs under 4.5 Receptions | +109 | under 4.5 at -104 or better (a higher line is fine) | $25 | W (+$27.25) | bet: same number, price +105 vs +109 sent | W +$26.25 |
 | Mon 5:33 PM | NFL | Tennessee Titans +15 | -110 | Tennessee Titans +14.5 | $25 | open | bet: same number | open, $25 at risk |
-| Mon 5:33 PM | NFL | Stefon Diggs under 4.5 Receptions | +109 | under 4.5 at -104 or better (a higher line is fine) | $25 | open | bet: same number, price +105 vs +109 sent | W +$26.25 |
 | Tue 7:02 AM | NFL | Under 48 | -110 | Under 47.5 | $25 | open | not bet | — |
 | Tue 7:02 AM | NBA | John Collins over 1.5 Threes Made | +182 | over 1.5 at +163 or better (a lower line is fine) | $12.5 | open | not bet | — |
 | Mon 3:51 PM | NFL | Teaser Green Bay Packers +8 / Pittsburgh Steelers +8.5 | -110 |  | $50 | open | bet: 2 wagers on it | open, $25 at risk; open, $25 at risk |

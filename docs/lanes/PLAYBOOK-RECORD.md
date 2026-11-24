@@ -7,6 +7,7 @@ Units are at the grade's size, paper picks included (decision 0025). Closing-lin
 | Sport | Market | Graded picks | W-L | Units | Closing-line value (win chance) |
 |---|---|---|---|---|---|
 | NBA | prop | 3 | 1-2 | -0.54 | -3.0% on 3 |
+| NFL | prop | 2 | 2-0 | +1.16 | -2.1% on 2 |
 | NFL | team_total | 1 | 1-0 | +0.48 | +1.1% on 1 |
 
 ## Weight re-fit from graded candidates
@@ -17,4 +18,5 @@ Units are at the grade's size, paper picks included (decision 0025). Closing-lin
 | NBA | side | 2 | 1.0 | 0.25 | no |
 | NBA | team_total | 5 | 0.77 | 0.4 | no |
 | NBA | total | 5 | 0.234 | 0.35 | no |
+| NFL | prop | 51 | 0.0 | 0.5 | yes |
 | NFL | team_total | 2 | 1.0 | 0.4 | no |

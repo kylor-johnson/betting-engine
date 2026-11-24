@@ -3,6 +3,14 @@ checks:
     verdict: hold
     why: "Arizona's quarterback is unsettled: Josh Johnson started Sunday's 34-7 loss to Kansas City, and Carson Beck moved from Out to Questionable this morning (ESPN feed Nov 24 05:39 MT, no note). The model assumes the usual starter; the market has Washington a 7.5-point road favourite, so it is pricing a backup. Pinnacle has no line on the game, so there is no fair number to clear against."
     source: "https://www.espn.com/nfl/injuries"
+  - key: "401873092|side|home"
+    verdict: hold
+    why: "Same game as the total row: Arizona's quarterback is unsettled. Josh Johnson started Sunday's 34-7 loss, Gardner Minshew II is on injured reserve after UCL surgery (ESPN, Nov 17), and Carson Beck is Questionable with no note (ESPN feed Nov 24 05:39 MT). The model assumes the usual starter; Washington at 7.5 on the road already prices a backup, and Pinnacle has no line to clear against."
+    source: "https://www.espn.com/nfl/injuries"
+  - key: "prop|00-0036997|rushing_yards|under|78.5|401873080"
+    verdict: hold
+    why: "Checked Dallas's report: Javonte Williams has no entry; the running backs listed are Tyler Goodson (IR, knee, Nov 14) and Malik Davis (IR, Sep 12), both long known. Nothing found that the market is missing."
+    source: "https://www.espn.com/nfl/injuries"
   - key: "401873089|side|home"
     verdict: hold
     why: "Malik Willis is on injured reserve with a groin/core injury (Hafley Monday, via Joe Schad, ESPN feed Nov 23 10:19 MT) and Kyle McCord starts; the model assumes the usual starter."

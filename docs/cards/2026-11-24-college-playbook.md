@@ -14,11 +14,11 @@ CHECK rows clear the edge but our number is far from the market. The research ag
 
 | Pick | Game | Edge | Our number / market / our handicap alone | Note | Key |
 |---|---|---|---|---|---|
+| Clemson +5.5 (-110) | South Carolina at Clemson | +9.1% | 2.2 / 5.5 / -7.6 | CHECK: our number is far from the market; held until the research agent finds what the market knows | `401856764|side|home` |
+| Rutgers +3.5 (-110) | Michigan St at Rutgers | +8.0% | 1.7 / 3.5 / -3.9 | CHECK: our number is far from the market; held until the research agent finds what the market knows | `401858542|side|home` |
+| Georgia Tech +36 (-110) | Georgia Tech at Georgia | +6.5% | -32.8 / -35.5 / -24.6 | CHECK: our number is far from the market; held until the research agent finds what the market knows | `401856760|side|away` |
+| Over 43 (-110) | Tulane at South Florida | +5.5% | 46.1 / 43.0 / 51.9 | CHECK: our number is far from the market; held until the research agent finds what the market knows | `401862839|total|over` |
 | Over 37 (-110) | Minnesota at Wisconsin | +4.7% | 39.0 / 37.5 / 41.6 | Shown only: College full-game picks are not staked (its walk-forward test lost; config playbook.sports.College.full_game). | `401858544|total|over` |
-| Western Kentucky +3.5 (-110) | Kennesaw St at Western Kentucky | +4.6% | 2.6 / 3.0 / 1.2 | Shown only: College full-game picks are not staked (its walk-forward test lost; config playbook.sports.College.full_game). | `401870804|side|home` |
-| Over 40 (-110) | North Dakota St at San Jose St | +4.3% | 42.1 / 41.0 / 44.1 | Shown only: College full-game picks are not staked (its walk-forward test lost; config playbook.sports.College.full_game). | `401864549|total|over` |
-| Under 66.5 (-110) | Temple at Memphis | +4.2% | 63.4 / 65.5 / 59.4 | Shown only: College full-game picks are not staked (its walk-forward test lost; config playbook.sports.College.full_game). | `401862838|total|under` |
-| South Florida -6.5 (-110) | Tulane at South Florida | +4.2% | -7.5 / -6.5 / -10.5 | Shown only: College full-game picks are not staked (its walk-forward test lost; config playbook.sports.College.full_game). | `401862839|side|home` |
 
 ## News on this card (adjustments.yaml)
 
