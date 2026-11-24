@@ -1,4 +1,8 @@
 checks:
+  - key: "401909314|total|over"
+    verdict: hold
+    why: "The market knows something the model does not: Cade Cunningham was reported downgraded to out at Orlando (HotTakes citing Underdog NBA, Nov 24 6:31 PM ET), and DraftKings' total fell from its 213.5 opener with Wagerhouse at 210; our script still counts on a Detroit offense run by Cunningham, so the gap is the news, not an edge."
+    source: "https://hottakes.com/articles/cade-cunningham-ruled-out-against-magic-after-brutal-weekend-performance-cf480d4f-22ac-4ad6-bba0-960aef2bc377"
   - key: "prop|4684742|ast|over|4.5|401909314"
     verdict: hold
     why: "Checked the ESPN feed for Detroit and Orlando: Jalen Duren ruled out (Nov 23 15:08 MT), Ebuka Okorie out (Nov 23 15:10 MT), Cade Cunningham probable with a knee issue (Nov 23 15:07 MT); the market has all of it, and I found nothing on Thompson's role or minutes that says Pinnacle's assist line is wrong."

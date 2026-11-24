@@ -4,19 +4,21 @@ Each principle is a sport and market. Results are staked picks; the weight re-fi
 
 Units are at the grade's size, paper picks included (decision 0025). Closing-line value: sides and totals, win chance gained on the line; props and team totals, Pinnacle's no-vig closing chance of the bet minus the chance its price needed (above 0 = beat the close after the margin).
 
-| Sport | Market | Graded picks | W-L | Units | Closing-line value (win chance) |
-|---|---|---|---|---|---|
-| NBA | prop | 3 | 1-2 | -0.54 | -3.0% on 3 |
-| NFL | prop | 2 | 2-0 | +1.16 | -2.1% on 2 |
-| NFL | team_total | 1 | 1-0 | +0.48 | +1.1% on 1 |
+Luck range: how far the units could land from zero by chance alone for a bettor with no edge (two standard deviations).
+
+| Sport | Market | Graded picks | W-L | Units | Luck range | Closing-line value (win chance) |
+|---|---|---|---|---|---|---|
+| NBA | prop | 3 | 1-2 | -0.54 | ±1.89 | -3.0% on 3 |
+| NFL | prop | 2 | 2-0 | +1.16 | ±1.52 | -2.1% on 2 |
+| NFL | team_total | 1 | 1-0 | +0.48 | ±0.98 | +1.1% on 1 |
 
 ## Weight re-fit from graded candidates
 
 | Sport | Market | Graded candidates | Fitted weight | Current weight | Enough to apply (40+) |
 |---|---|---|---|---|---|
-| NBA | prop | 388 | 0.0 | 0.5 | yes |
+| NBA | prop | 388 | 0.0 | 0.25 | yes |
 | NBA | side | 2 | 1.0 | 0.25 | no |
 | NBA | team_total | 5 | 0.77 | 0.4 | no |
 | NBA | total | 5 | 0.234 | 0.35 | no |
-| NFL | prop | 51 | 0.0 | 0.5 | yes |
+| NFL | prop | 51 | 0.0 | 0.15 | yes |
 | NFL | team_total | 2 | 1.0 | 0.4 | no |

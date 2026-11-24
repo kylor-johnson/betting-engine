@@ -22,8 +22,8 @@ adjustments:
   - game: "Detroit Pistons at Orlando Magic"
     team: "Detroit Pistons"
     market: spread
-    points: -2.0
-    reason: "Jalen Duren (hamstring) ruled out for Tuesday at Orlando (ESPN feed Nov 23 22:08 UTC). Starting center, new absence. Duncan Robinson (quad, out since Nov 17) is already priced and not counted."
-    source: "https://www.espn.com/nba/injuries"
-    added: "2026-11-23 17:00 MT"
-    news_at: "2026-11-23 15:08 MT"
+    points: -4.0
+    reason: "Cade Cunningham (right knee soreness) downgraded from probable to out for Tuesday at Orlando (HotTakes, citing Underdog NBA, Nov 24 6:31 PM ET). Star guard; NBA size not measured, 3 to 4 points. Single source; the official report seen still said probable. Jalen Duren (out since Nov 23 15:08 MT), Robinson, Okorie and Prince are already priced and not counted here."
+    source: "https://hottakes.com/articles/cade-cunningham-ruled-out-against-magic-after-brutal-weekend-performance-cf480d4f-22ac-4ad6-bba0-960aef2bc377"
+    added: "2026-11-24 16:37 MT"
+    news_at: "2026-11-24 16:31 MT"

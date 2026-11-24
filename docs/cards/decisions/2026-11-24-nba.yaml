@@ -1,2 +1,12 @@
-slate_note: "Three games tonight and no side or total is flagged: Wagerhouse is within half a point of Pinnacle on every spread and total. The news that started this run (Norman Powell and Caleb Wilson of Chicago, OG Anunoby of New York, Evan Mobley of Cleveland no longer listed Out on the official report) is for Wednesday games that Wagerhouse has not posted, so it touches nothing tonight; the ESPN feed still shows all four Out (Anunoby did not practice Tuesday, New York Post, Nov 24 14:52 MT), so I added no entry until a status is confirmed. Tonight's news is unchanged: Duren stays out for Detroit (G League practice set for Wednesday, ClutchPoints, Nov 24 11:27 MT), and the four prop CHECK rows stay held."
-decisions: []
+slate_note: "The stale-number alert is Detroit at Orlando: Pinnacle still has Detroit favored while Wagerhouse and DraftKings now have Orlando favored. The likely reason is a report that Cade Cunningham was downgraded from probable to out (HotTakes citing Underdog NBA, Nov 24 6:31 PM ET; the morning official report and ClutchPoints at 11:56 AM ET still said probable). That means Pinnacle, not Wagerhouse, looks stale, so both flagged Detroit-game sides are Passes, and I added Cunningham to adjustments.yaml (Duren folded in as already priced). Boston at Washington and Dallas at Denver are not flagged."
+decisions:
+  - game: "Detroit Pistons at Orlando Magic"
+    market: spread
+    side: away
+    status: Pass
+    why_pass: "The flag comes from a Pinnacle line that has not moved for the reported Cunningham downgrade to out (Nov 24 6:31 PM ET); Wagerhouse and DraftKings already moved toward Orlando. Taking Detroit here bets against the news, not on it."
+  - game: "Detroit Pistons at Orlando Magic"
+    market: total
+    side: over
+    status: Pass
+    why_pass: "DraftKings dropped this total from its 213.5 opener and Wagerhouse is at 210, which fits Detroit losing Cunningham. The higher Pinnacle total looks stale rather than right, and I found no news that favors the over."
