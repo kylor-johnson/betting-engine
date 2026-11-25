@@ -39,6 +39,7 @@ alerts:
 read_hours:
   sunday: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]   # news all day, openers in the evening
   other: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]   # to 9pm every day since decision 0036: evening NBA and college games get resends, CANCELLED and a closing read
+read_pregame_hours: {NBA: 3}   # a full read every half hour (both wake-ups) when a game of this sport starts within this many hours (decision 0037)
 missed_read_alert_hours: 8   # poll.py adds 12 for the overnight gap, so the alert fires after 20 hours without a good read
 opener_messages: [NFL]     # sports that get a "your book posted new games" message on the log and board (kind info, held back from Telegram)
 

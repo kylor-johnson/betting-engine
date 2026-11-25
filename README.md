@@ -56,7 +56,7 @@ Research runs happen at 8:15am every day and 6:45pm Sunday, Mountain (`config.ya
 
 ## Running on a schedule (launchd)
 
-Five jobs (the fifth, `burst`, runs fast reads every 10 minutes and can start research on a new stale number): line and news reads every 30 minutes (the command itself only reads in scheduled hours), research runs on the schedule above, the weekly report Tuesday 9:00, and the NBA injury watcher four times a day (10am, 3pm, 5pm and 6:30pm Mountain, set in `config.yaml` under `nba_watch.run_times`; decision 0036). Line reads run 7am to 9pm Mountain every day (decision 0036).
+Five jobs (the fifth, `burst`, runs fast reads every 10 minutes and can start research on a new stale number): line and news reads every 30 minutes (the command itself only reads in scheduled hours), research runs on the schedule above, the weekly report Tuesday 9:00, and the NBA injury watcher four times a day (10am, 3pm, 5pm and 6:30pm Mountain, set in `config.yaml` under `nba_watch.run_times`; decision 0036). Line reads run 7am to 9pm Mountain every day (decision 0036), hourly, and on both wake-ups (every 30 minutes) in the 3 hours before an NBA tip (`read_pregame_hours`, decision 0037).
 
 ```sh
 cp ops/launchd/*.plist ~/Library/LaunchAgents/

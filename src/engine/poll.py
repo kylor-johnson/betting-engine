@@ -11,13 +11,27 @@ from engine.odds.espn import SourceError
 from engine.odds.wagerhouse import Wagerhouse
 
 
-def due(cfg: dict, now: datetime, last_ok: datetime | None) -> bool:
-    """True when this half-hourly wake-up should actually read lines."""
+def due(cfg: dict, now: datetime, last_ok: datetime | None, pregame: bool = False) -> bool:
+    """True when this half-hourly wake-up should actually read lines: hourly, or every wake-up (both :02 and :32) when `pregame`, a game
+    of a sport in `read_pregame_hours` starts within that many hours (decision 0037)."""
     local = now.astimezone(config.display_tz(cfg))
     hours = cfg["read_hours"]["sunday" if local.weekday() == 6 else "other"]
     if local.hour not in hours:
         return False
-    return last_ok is None or (now - last_ok) > timedelta(minutes=45)
+    return last_ok is None or (now - last_ok) > timedelta(minutes=20 if pregame else 45)
+
+
+def pregame(con, cfg: dict, now: datetime) -> bool:
+    """True when a game of a sport in config `read_pregame_hours` ({sport: hours}) starts after now and within that many hours."""
+    for sport, h in ((cfg.get("read_pregame_hours") or {}).items()):
+        try:
+            n = con.execute("SELECT count(*) FROM line_snapshots WHERE sport = ? AND start_utc > ? AND start_utc <= ?",
+                            [sport, now.replace(tzinfo=None), (now + timedelta(hours=float(h))).replace(tzinfo=None)]).fetchone()[0]
+        except Exception:
+            continue
+        if n:
+            return True
+    return False
 
 
 def scheduled_slot(cfg: dict, now: datetime) -> datetime | None:
@@ -195,7 +209,7 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
                     _deliver(con, env, extra, now, out)
             except Exception as e:
                 out.append(f"Lane status check failed: {type(e).__name__}: {e}")
-        if not force and not due(cfg, now, last_ok):
+        if not force and not due(cfg, now, last_ok, pregame(con, cfg, now)):
             out += refresh_tracker(con, cfg, now)
             return 0, out + ["Nothing read: outside the scheduled hours, or a read already ran in the last 45 minutes."]
         gap = rules.missed_reads(last_ok, now, cfg["missed_read_alert_hours"] + 12)

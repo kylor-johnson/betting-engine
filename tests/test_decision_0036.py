@@ -235,3 +235,19 @@ def test_prop_cancel_says_when_pinnacle_has_not_moved():
     assert msg and "has not moved" in msg and "moved from" not in msg
     moved = _prop_cancel(0.36, 0.33)
     assert moved and "moved from 36% to 33%" in moved
+
+
+def test_pregame_reads_every_half_hour_before_an_nba_tip():
+    import duckdb
+    from engine import poll
+    cfg = {"timezone_display": "America/Denver", "read_hours": {"sunday": list(range(7, 22)), "other": list(range(7, 22))},
+           "read_pregame_hours": {"NBA": 3}}
+    now = datetime(2026, 11, 25, 2, 2, tzinfo=timezone.utc)            # Tue 7:02pm MT
+    last = now - timedelta(minutes=30)
+    con = duckdb.connect()
+    con.execute("CREATE TABLE line_snapshots (sport VARCHAR, start_utc TIMESTAMP)")
+    assert not poll.pregame(con, cfg, now) and not poll.due(cfg, now, last, poll.pregame(con, cfg, now))   # no game: hourly
+    con.execute("INSERT INTO line_snapshots VALUES ('NBA', ?)", [datetime(2026, 11, 25, 3, 0)])           # 8pm MT tip
+    assert poll.pregame(con, cfg, now) and poll.due(cfg, now, last, True)
+    assert not poll.due(cfg, now, now - timedelta(minutes=10), True)                                       # never twice in one slot
+    assert not poll.pregame(con, cfg, datetime(2026, 11, 24, 23, 0, tzinfo=timezone.utc))                 # 4pm MT: 4 hours out
