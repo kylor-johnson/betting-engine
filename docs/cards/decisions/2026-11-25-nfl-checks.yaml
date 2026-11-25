@@ -1,7 +1,7 @@
 checks:
   - key: "401873083|side|home"
     verdict: hold
-    why: "Mason Rudolph will start Friday against Denver (Tom Pelissero, ESPN feed Nov 24 21:25 MT), and Aaron Rodgers was not at the facility Wednesday morning (Jordan Schultz, ESPN feed Nov 25 07:20 MT). The model assumes Rodgers. Pinnacle moved Pittsburgh from +2.5 to +3.5 after the report, so the market knows and the model does not."
+    why: "Mason Rudolph will start Friday against Denver (Tom Pelissero, ESPN feed Nov 24 21:25 MT), and Aaron Rodgers was not at the facility Wednesday morning (Jordan Schultz, ESPN feed Nov 25 07:20 MT). The model assumes Rodgers. Pinnacle moved Pittsburgh from +2.5 to +3.5 after the report, so the market knows and the model does not. Rechecked 08:15 MT: no newer report."
     source: "https://www.espn.com/nfl/injuries"
   - key: "401873089|side|home"
     verdict: hold
