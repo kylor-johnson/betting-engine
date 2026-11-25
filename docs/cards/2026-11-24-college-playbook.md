@@ -1,6 +1,6 @@
 # College playbook picks
 
-How these are made: PLAYBOOK.md. Our team points come from the College game-script model; our number is pulled toward the market at the playbook's starting weights (side 0.25, game total 0.35, team total 0.4, props 0.5). Full-game picks: staked. Props: off. Units: $25; A = 1 unit, B = half a unit; a $0 stake is a paper pick: do not bet it. At most one unit a game across picks and teaser legs; a pick Pinnacle has moved against since we first priced it is not issued.
+How these are made: PLAYBOOK.md. Our team points come from the College game-script model; our number is pulled toward the market at the playbook's starting weights (side 0.25, game total 0.35, team total 0.4). Full-game picks: staked. Props: off. Units: $25; A = 1 unit, B = half a unit; a $0 stake is a paper pick: do not bet it. At most one unit a game across picks and teaser legs; a pick Pinnacle has moved against since we first priced it is not issued.
 
 **Record:** no graded picks yet; 15 open.
 
@@ -34,7 +34,7 @@ CHECK rows clear the edge but our number is far from the market. The research ag
 | Over 46 (-110) | UAB at North Texas | +7.6% | 50.6 / 46.0 / 59.1 | CHECK: our number is far from the market; held until the research agent finds what the market knows | `401862843|total|over` |
 | Over 45 (-110) | Connecticut at Wyoming | +5.6% | 48.2 / 45.5 / 53.2 | CHECK: our number is far from the market; held until the research agent finds what the market knows | `401861969|total|over` |
 | Over 43 (-110) | Tennessee at Vanderbilt | +5.0% | 45.9 / 43.4 / 50.6 | CHECK: our number is far from the market; held until the research agent finds what the market knows | `401856765|total|over` |
-| Auburn +15 (-110) | Auburn at Alabama | +4.5% | -12.6 / -14.3 / -7.5 | CHECK: our number is far from the market; held until the research agent finds what the market knows | `401856757|side|away` |
+| Auburn +15 (-110) | Auburn at Alabama | +4.4% | -12.6 / -14.3 / -7.5 | CHECK: our number is far from the market; held until the research agent finds what the market knows | `401856757|side|away` |
 
 ## News on this card (adjustments.yaml)
 
@@ -46,6 +46,7 @@ No sourced news entries match games on this card. News is how a shown-only lane 
 |---|---|---|---|
 | Wagerhouse trailing Pinnacle | Under 66.5 (Temple at Memphis) | -110 | Wagerhouse 66.5, Pinnacle 65.5 |
 | Wagerhouse trailing Pinnacle | Texas -11 (Texas at Texas A&M) | -110 | Wagerhouse +11, Pinnacle +12 (home spread) |
+| Wagerhouse trailing Pinnacle | Over 67.5 (West Virginia at Utah) | -110 | Wagerhouse 67.5, Pinnacle 68.5 |
 | Wagerhouse trailing Pinnacle | Under 54.5 (Louisiana Tech at Georgia Southern) | -110 | Wagerhouse 54.5, Pinnacle 53.5 |
 | Wagerhouse trailing Pinnacle | Under 50 (LSU at Arkansas) | -110 | Wagerhouse 50, Pinnacle 49 |
 | Wagerhouse trailing Pinnacle | Under 54 (Kennesaw St at Western Kentucky) | -110 | Wagerhouse 54, Pinnacle 53 |

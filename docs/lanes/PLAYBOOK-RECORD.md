@@ -8,7 +8,8 @@ Luck range: how far the units could land from zero by chance alone for a bettor 
 
 | Sport | Market | Graded picks | W-L | Units | Luck range | Closing-line value (win chance) |
 |---|---|---|---|---|---|---|
-| NBA | prop | 3 | 1-2 | -0.57 | ±1.89 | -3.0% on 3 |
+| NBA | prop | 5 | 3-2 | +0.67 | ±2.51 | -3.0% on 5 |
+| NBA | team_total | 1 | 0-1 | -0.50 | ±0.93 | -3.2% on 1 |
 | NFL | prop | 2 | 2-0 | +1.04 | ±1.52 | -2.1% on 2 |
 | NFL | team_total | 1 | 1-0 | +0.48 | ±0.98 | +1.1% on 1 |
 
@@ -16,9 +17,12 @@ Luck range: how far the units could land from zero by chance alone for a bettor 
 
 | Sport | Market | Graded candidates | Fitted weight | Current weight | Enough to apply (40+) |
 |---|---|---|---|---|---|
-| NBA | prop | 388 | 0.0 | 0.25 | yes |
-| NBA | side | 2 | 1.0 | 0.25 | no |
-| NBA | team_total | 5 | 0.77 | 0.4 | no |
-| NBA | total | 5 | 0.234 | 0.35 | no |
+| College | side | 2 | 0.0 | 0.25 | no |
+| College | team_total | 3 | 0.0 | 0.4 | no |
+| College | total | 2 | 1.0 | 0.35 | no |
+| NBA | prop | 544 | 0.11 | 0.25 | yes |
+| NBA | side | 3 | 1.0 | 0.25 | no |
+| NBA | team_total | 7 | 0.167 | 0.4 | no |
+| NBA | total | 8 | 0.0 | 0.35 | no |
 | NFL | prop | 51 | 0.0 | 0.15 | yes |
 | NFL | team_total | 2 | 1.0 | 0.4 | no |

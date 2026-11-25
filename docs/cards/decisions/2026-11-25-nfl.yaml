@@ -1,0 +1,66 @@
+# The agent's decisions for this card. Status and reasons only: every number on the
+# card comes from the slate sheet. A Bet the numbers do not support is refused.
+slate_note: >
+  Stale-number run (08:04 MT). The news behind Pinnacle's move is Pittsburgh's quarterback: Tom Pelissero
+  reported Mason Rudolph will start Friday against Denver (ESPN feed, Nov 24 21:25 MT), and Aaron Rodgers was
+  not at the facility this morning (Jordan Schultz, Nov 25 07:20 MT). Pinnacle went from Pittsburgh +2.5 to +3.5
+  and Wagerhouse has followed to +3.5, so the number is no longer stale; I added a sourced entry for it, and
+  removed the long-priced Maye and Jackson entries and a played NBA entry. The Buffalo wind Under stays a
+  Conditional at a stronger forecast. The playbook's paper Pittsburgh +3, frozen before this news, was priced
+  with Rodgers.
+decisions:
+  - game: "Kansas City Chiefs at Buffalo Bills"
+    market: total
+    side: under
+    status: Conditional
+    summary: >
+      The wind model's pick: Thursday night's forecast in Buffalo is now stronger wind with cold and light rain,
+      and the model takes points off a total Wagerhouse still has a half point above Pinnacle.
+    condition: "Forecast still at or above 18 mph two hours before kickoff."
+    reasons:
+      price: >
+        Wagerhouse is a half point above Pinnacle's total, and the wind model takes points off Pinnacle's
+        no-vig number on top of that; the sheet holds the figures.
+      matchup: >
+        Context only. Buffalo's defense is #1 in EPA per play and points per drive over the last four games,
+        against offenses ranked #28 in toughness, after #30 in the six games before. Kansas City is +8 in
+        turnover margin with 67% of fumbles recovered, which flatters its points. The efficiency total is
+        above the market and is not a reason.
+      situation: >
+        Thanksgiving night in Buffalo, open air; the Open-Meteo forecast about 34 hours out is stronger than
+        yesterday's. The tested wind model is the reason: Unders went 321-221 on held-out seasons since 2019
+        but only 75-63 since 2024 (research 14).
+      priced_in: >
+        DraftKings opened this total at 50.5 and it is 46.5 now, matching Pinnacle, so the market has already
+        taken four points off, much of which is likely the same wind forecast. The model's points are added to
+        Pinnacle's current number, so part of the edge may be priced; that is why it stays a Conditional.
+      kills_it: >
+        The forecast drops below the condition, the game is moved or delayed, or Wagerhouse moves to
+        Pinnacle's number before the condition can be checked.
+  - game: "Denver Broncos at Pittsburgh Steelers"
+    market: spread
+    side: away
+    status: Pass
+    why_pass: >
+      The flag comes only from the part of my Rudolph entry that Pinnacle has not moved for. The news (Pelissero,
+      Nov 24 21:25 MT) is eleven hours old and public, Pinnacle moved a full point for it, and Wagerhouse has
+      already followed to the same number, so this is no longer a stale line. The size of a Rodgers-to-Rudolph
+      drop late in Rodgers' career is not measured; the generic 2.5 may overstate it, and Rodgers' status is
+      reported as unclear, not ruled out. An edge from my own estimate is not a reason. It would change if
+      Pittsburgh announces Rodgers out and Pinnacle moves past Wagerhouse.
+  - game: "Atlanta Falcons at Minnesota Vikings"
+    market: spread
+    side: away
+    status: Pass
+    why_pass: >
+      Kept from Nov 24; not flagged this morning. Kyler Murray is Questionable (ESPN feed Nov 24 05:39 MT, no
+      note) and Kirk Cousins started the last two games; nothing says Murray will start. Pinnacle and Wagerhouse
+      are both at Minnesota by 7.
+  - game: "Baltimore Ravens at Houston Texans"
+    market: spread
+    side: home
+    status: Pass
+    why_pass: >
+      Not flagged. The Lamar Jackson absence dates from Nov 1 and the market has priced Brissett for weeks; I
+      removed the old entry because it had no publication time and was long priced. It would change only with
+      news the market has not priced, such as a Stroud or Brissett injury.

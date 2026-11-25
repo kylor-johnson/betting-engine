@@ -5,25 +5,11 @@
 # `game` and `team` must be written exactly as Wagerhouse names them ("Away at Home"); `uv run engine news` lists any entry that matches
 # no game. Sizes per sport: ops/agent_prompt_<sport>.md. Remove an entry once the game is played.
 adjustments:
-  - game: "New England Patriots at Los Angeles Chargers"
-    team: "New England Patriots"
+  - game: "Denver Broncos at Pittsburgh Steelers"
+    team: "Pittsburgh Steelers"
     market: spread
-    points: -5.0
-    reason: "Drake Maye out with a fractured right fibula (reported Nov 20); Tommy DeVito named the starter for Nov 29. None of this is in the ratings."
+    points: -2.5
+    reason: "Mason Rudolph will start Friday against Denver in place of Aaron Rodgers (Tom Pelissero, Rotoworld relay via ESPN feed, Nov 24 21:25 MT); Rodgers was not at the facility Wednesday morning (Jordan Schultz, Nov 25 07:20 MT). Usual starter out, sized at the measured 2.5."
     source: "https://www.espn.com/nfl/injuries"
-    added: "2026-11-21 17:15 MT"
-  - game: "Baltimore Ravens at Houston Texans"
-    team: "Baltimore Ravens"
-    market: spread
-    points: -3.0
-    reason: "Lamar Jackson on injured reserve after right thumb surgery (ESPN feed Nov 18: chance of a Week 16 return); Jacoby Brissett starts. Hurt on the first snap of the Nov 1 Buffalo game, so about four games are partly in the ratings; elite starter (6.5) less roughly half already absorbed."
-    source: "https://www.espn.com/nfl/injuries"
-    added: "2026-11-23 08:15 MT"
-  - game: "Detroit Pistons at Orlando Magic"
-    team: "Detroit Pistons"
-    market: spread
-    points: -4.0
-    reason: "Cade Cunningham (right knee soreness) downgraded from probable to out for Tuesday at Orlando (HotTakes, citing Underdog NBA, Nov 24 6:31 PM ET). Star guard; NBA size not measured, 3 to 4 points. Single source; the official report seen still said probable. Jalen Duren (out since Nov 23 15:08 MT), Robinson, Okorie and Prince are already priced and not counted here."
-    source: "https://hottakes.com/articles/cade-cunningham-ruled-out-against-magic-after-brutal-weekend-performance-cf480d4f-22ac-4ad6-bba0-960aef2bc377"
-    added: "2026-11-24 16:37 MT"
-    news_at: "2026-11-24 16:31 MT"
+    added: "2026-11-25 08:04 MT"
+    news_at: "2026-11-24 21:25 MT"

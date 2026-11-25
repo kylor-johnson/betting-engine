@@ -1,8 +1,8 @@
 # NBA playbook picks
 
-How these are made: PLAYBOOK.md. Our team points come from the NBA game-script model; our number is pulled toward the market at the playbook's starting weights (side 0.25, game total 0.35, team total 0.4, props 0.25). Full-game picks: shown only, not staked (its walk-forward test lost; Kylor can switch it on). Props: staked. Units: $25; A = 1 unit, B = half a unit; a $0 stake is a paper pick: do not bet it. At most one unit a game across picks and teaser legs; a pick Pinnacle has moved against since we first priced it is not issued.
+How these are made: PLAYBOOK.md. Our team points come from the NBA game-script model; our number is pulled toward the market at the playbook's starting weights (side 0.25, game total 0.35, team total 0.4, props 0.25). Full-game picks: staked. Props: staked. Units: $25; A = 1 unit, B = half a unit; a $0 stake is a paper pick: do not bet it. At most one unit a game across picks and teaser legs; a pick Pinnacle has moved against since we first priced it is not issued.
 
-**Record:** 1-2-0, -0.57 units at the grade's size (-0.57 staked), closing-line value -3.0% win chance; 3 open.
+**Record:** 3-3-0, +0.17 units at the grade's size (-0.26 staked), closing-line value -3.0% win chance; 0 open.
 
 ## Issued (frozen at the number shown; $0 = paper)
 
@@ -14,23 +14,26 @@ CHECK rows clear the edge but our number is far from the market. The research ag
 
 | Pick | Game | Edge | Our number / market / our handicap alone | Note | Key |
 |---|---|---|---|---|---|
-| Dallas Mavericks team total over 113 (-115) | Dallas Mavericks at Denver Nuggets | +0.3% | 114.0 / 113.1 / 115.5 | under the minimum edge | `401909316|team_total|away_over` |
-| Over 219 (-110) | Boston Celtics at Washington Wizards | -0.5% | 219.8 / 218.8 / 221.7 | under the minimum edge | `401909315|total|over` |
+| Over 222.5 (-110) | Chicago Bulls at Charlotte Hornets | +4.1% | 225.5 / 222.4 / 231.1 | CHECK: our number is far from the market; held until the research agent finds what the market knows | `401909318|total|over` |
+| Milwaukee Bucks +1 (-110) | Brooklyn Nets at Milwaukee Bucks | +3.6% | -0.7 / 0.4 / -3.9 | CHECK: our number is far from the market; held until the research agent finds what the market knows | `401909322|side|home` |
+| New York Knicks -3.5 (-110) | Cleveland Cavaliers at New York Knicks | +2.5% | -5.0 / -3.5 / -9.8 | under the minimum edge | `401909319|side|home` |
+| Under 226 (-110) | San Antonio Spurs at Portland Trail Blazers | +2.1% | 223.9 / 225.8 / 220.5 | under the minimum edge | `401909325|total|under` |
+| Over 230 (-110) | Los Angeles Clippers at Memphis Grizzlies | +1.4% | 231.8 / 229.4 / 236.1 | under the minimum edge | `401909321|total|over` |
 
 ## Props: best of the rest (C: shown, not staked)
 
 | Prop | Game | Edge | Why | Note | Key |
 |---|---|---|---|---|---|
-| Jamal Murray over 2.5 Threes Made (Pinnacle -111) | Dallas Mavericks at Denver Nuggets | +0.2% | typical outcome 3 against a line of 2.5; chance over: ours 53%, Pinnacle 49%; blowout risk (spread 8.5) | under the minimum edge | `prop|3936299|fg3m|over|2.5|401909316` |
-| Kyshawn George over 2.5 Threes Made (Pinnacle +122) | Boston Celtics at Washington Wizards | +0.1% | typical outcome 2 against a line of 2.5; chance over: ours 45%, Pinnacle 42%; blowout risk (spread 11.5) (-4% on the projection) | under the minimum edge | `prop|5174563|fg3m|over|2.5|401909315` |
-| Zaccharie Risacher over 3.5 Rebounds (Pinnacle -137) | Dallas Mavericks at Denver Nuggets | -0.2% | typical outcome 5 against a line of 3.5; chance over: ours 58%, Pinnacle 54% | under the minimum edge | `prop|5211175|reb|over|3.5|401909316` |
-| AJ Dybantsa over 6.5 Rebounds (Pinnacle +112) | Boston Celtics at Washington Wizards | -0.4% | typical outcome 7 against a line of 6.5; chance over: ours 47%, Pinnacle 44%; blowout risk (spread 11.5) (-4% on the projection) | under the minimum edge | `prop|5142718|reb|over|6.5|401909315` |
-| Zaccharie Risacher over 8.5 Points (Pinnacle +114) | Dallas Mavericks at Denver Nuggets | -0.6% | typical outcome 9 against a line of 8.5; chance over: ours 46%, Pinnacle 44% | under the minimum edge | `prop|5211175|pts|over|8.5|401909316` |
-| Jamal Murray over 33.5 Pts & Rebs & Asts (Pinnacle -123) | Dallas Mavericks at Denver Nuggets | -0.6% | typical outcome 36 against a line of 33.5; chance over: ours 55%, Pinnacle 52%; blowout risk (spread 8.5) (-1% on the projection) | under the minimum edge | `prop|3936299|pra|over|33.5|401909316` |
-| Neemias Queta under 8.5 Rebounds (Pinnacle -102) | Boston Celtics at Washington Wizards | -0.6% | typical outcome 8 against a line of 8.5; chance over: ours 50%, Pinnacle 53% | under the minimum edge | `prop|4397424|reb|under|8.5|401909315` |
-| Kyrie Irving under 31.5 Pts & Rebs & Asts (Pinnacle -107) | Dallas Mavericks at Denver Nuggets | -0.7% | typical outcome 29 against a line of 31.5; chance over: ours 49%, Pinnacle 52%; blowout risk (spread 8.5) (-1% on the projection) | under the minimum edge | `prop|6442|pra|under|31.5|401909316` |
-| Alex Sarr over 9.5 Points (Pinnacle -107) | Boston Celtics at Washington Wizards | -0.7% | typical outcome 10 against a line of 9.5; chance over: ours 51%, Pinnacle 48% | under the minimum edge | `prop|5160992|pts|over|9.5|401909315` |
-| Jamal Murray over 22.5 Points (Pinnacle -132) | Dallas Mavericks at Denver Nuggets | -0.8% | typical outcome 24.8 against a line of 22.5; chance over: ours 56%, Pinnacle 53%; blowout risk (spread 8.5) | under the minimum edge | `prop|3936299|pts|over|22.5|401909316` |
+| Grayson Allen over 12.5 Points (Pinnacle -114) | Chicago Bulls at Charlotte Hornets | +0.6% | typical outcome 14.1 against a line of 12.5; chance over: ours 54%, Pinnacle 50%; out: Ryan Kalkbrenner; listed Questionable (official report); not adjusted (+2% on the projection) | under the minimum edge | `prop|3135045|pts|over|12.5|401909318` |
+| Kenrich Williams over 8.5 Points (Pinnacle -114) | Minnesota Timberwolves at Oklahoma City Thunder | +0.3% | typical outcome 10 against a line of 8.5; chance over: ours 54%, Pinnacle 50%; out: Jaylin Williams, Aday Mara (+5% on the projection) | under the minimum edge | `prop|3133626|pts|over|8.5|401909320` |
+| Grayson Allen over 2.5 Threes Made (Pinnacle -118) | Chicago Bulls at Charlotte Hornets | +0.0% | typical outcome 3 against a line of 2.5; chance over: ours 54%, Pinnacle 51%; listed Questionable (official report); not adjusted | under the minimum edge | `prop|3135045|fg3m|over|2.5|401909318` |
+| Miles Bridges over 5.5 Rebounds (Pinnacle -136) | Phoenix Suns at Houston Rockets | -0.1% | typical outcome 7 against a line of 5.5; chance over: ours 58%, Pinnacle 54%; blowout risk (spread 9) (-1% on the projection) | under the minimum edge | `prop|4066383|reb|over|5.5|401909323` |
+| Naz Reid over 8.5 Rebounds (Pinnacle +110) | Chicago Bulls at Charlotte Hornets | -0.1% | typical outcome 9 against a line of 8.5; chance over: ours 47%, Pinnacle 45% | under the minimum edge | `prop|4396971|reb|over|8.5|401909318` |
+| Rudy Gobert under 8.5 Points (Pinnacle -102) | Minnesota Timberwolves at Oklahoma City Thunder | -0.2% | typical outcome 7 against a line of 8.5; chance over: ours 50%, Pinnacle 53% | under the minimum edge | `prop|3032976|pts|under|8.5|401909320` |
+| Dillon Brooks over 1.5 Threes Made (Pinnacle -125) | Phoenix Suns at Houston Rockets | -0.5% | typical outcome 2 against a line of 1.5; chance over: ours 55%, Pinnacle 52%; blowout risk (spread 9) (-1% on the projection) | under the minimum edge | `prop|3155526|fg3m|over|1.5|401909323` |
+| Ayo Dosunmu over 1.5 Threes Made (Pinnacle -152) | Minnesota Timberwolves at Oklahoma City Thunder | -0.6% | typical outcome 2 against a line of 1.5; chance over: ours 60%, Pinnacle 56% | under the minimum edge | `prop|4397002|fg3m|over|1.5|401909320` |
+| Josh Giddey over 8.5 Assists (Pinnacle -148) | Chicago Bulls at Charlotte Hornets | -0.8% | typical outcome 9 against a line of 8.5; chance over: ours 59%, Pinnacle 56%; out: Norman Powell (+6% on the projection) | under the minimum edge | `prop|4871145|ast|over|8.5|401909318` |
+| Brandon Miller under 22.5 Points (Pinnacle -136) | Chicago Bulls at Charlotte Hornets | -0.8% | typical outcome 19.1 against a line of 22.5; chance over: ours 43%, Pinnacle 46%; out: Ryan Kalkbrenner (+2% on the projection) | under the minimum edge | `prop|4433287|pts|under|22.5|401909318` |
 
 ## News on this card (adjustments.yaml)
 

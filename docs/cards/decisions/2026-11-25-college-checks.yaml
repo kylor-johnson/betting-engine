@@ -1,0 +1,41 @@
+checks:
+  - key: "401862843|side|home"
+    verdict: hold
+    why: >
+      The market knows what the model cannot see. North Texas has lost three quarterbacks: starter Tayven Jackson
+      (upper body, UTSA game) is already ruled out for UAB, backup Chaston Ditta is "not going to be ready," and Chris
+      Jimerson Jr. hurt his knee at Tulane (Denton Record-Chronicle, Nov 21, updated Nov 23) and has since been ruled out
+      for the season (Wisevoter citing the Record-Chronicle, updated Nov 25). Wide receiver James Tyre may take the
+      snaps. The model's number is built from games played with a real quarterback, so a short North Texas price is
+      what you would expect. No adjustment was added because neither page gives a publication time, and the news is
+      four days old, so Pinnacle has had time to move for it.
+    source: "https://dentonrc.com/sports/colleges/mean_green/unt-falls-in-heartbreaker-at-tulane-after-losing-third-qb-this-season/article_43584c12-0f62-422b-a74d-93de23f88d88.html"
+  - key: "401856760|side|away"
+    verdict: hold
+    why: >
+      Same as yesterday. I searched for Georgia Tech and Georgia quarterback news for this game and found no current
+      injury report for either side. A November AJC preview names Lincoln Kienholz as Georgia Tech's starter. Finding
+      nothing is a hold.
+    source: "https://www.ajc.com/sports/2026/11/everything-to-know-georgia-tech-louisville/"
+  - key: "401861969|total|over"
+    verdict: hold
+    why: >
+      Wyoming starter Tyler Hughes has a small forearm fracture, and Landon Sims has made at least two straight starts
+      in his place, including the 24-17 loss to New Mexico (Wyo4News). A backup quarterback for Wyoming explains a lower
+      total than a points model built partly on Hughes's games. I found no update on Hughes for UConn and no news for
+      UConn's side.
+    source: "https://wyo4news.com/sports-2/cowboys-fall-24-17-in-frigid-laramie-showdown/"
+  - key: "401856765|total|over"
+    verdict: hold
+    why: >
+      Vanderbilt quarterback Jared Curtis hurt his left wrist against Florida but returned to finish the game, and Clark
+      Lea said "I expect him to practice. I expect him to play" against Tennessee (SI, this week). The market already
+      assumes he plays. I found nothing on Tennessee's quarterback and no reason the total is wrong.
+    source: "https://www.si.com/college/vanderbilt/football/clark-lea-updates-jared-curtis-status-for-vanderbilt-football-following-wrist-injury-against-florida-01m7zynqpf2m"
+  - key: "401871082|total|over"
+    verdict: hold
+    why: >
+      I searched for Sam Houston and FIU quarterback or injury news this week. The only 2026 item was a September roster
+      move (backup DJ Bailey off the Sam Houston roster, KBTX); everything else was from earlier seasons. Finding nothing
+      is a hold.
+    source: "https://www.kbtx.com/2026/09/24/backup-qb-dj-bailey-off-sam-houston-roster-following-homecoming-win/"

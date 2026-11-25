@@ -1,0 +1,32 @@
+# The agent's decisions for this card. Status and reasons only: every number on the
+# card comes from the slate sheet. A Bet the numbers do not support is refused.
+slate_note: >
+  Stale-number run at 08:04 MT. I searched for fresh news behind Pinnacle's moves on the trailing games (Texas at Texas
+  A&M, Virginia at Virginia Tech, UAB at North Texas and the CHECK games) and found nothing published in the last few
+  hours. The only big quarterback story is North Texas, which has lost Jackson, Ditta and now Jimerson (Denton
+  Record-Chronicle, Nov 21, updated Nov 23), but it is days old and the market has had time to price it. Kentucky is the
+  only flagged side and stays a Pass; all five CHECK rows are held and no adjustments were added.
+decisions:
+  - game: "Louisville Cardinals at Kentucky Wildcats"
+    market: spread
+    side: home
+    status: Pass
+    why_pass: >
+      The edge comes only from the book dealing Kentucky +3 at standard juice while Pinnacle charges more at the
+      same number. That is a price gap, not a reason. I found no Louisville or Kentucky quarterback news for this week
+      in yesterday's or today's searches. This would change with a sourced Louisville quarterback injury the market
+      has not followed.
+  - game: "Notre Dame Fighting Irish at Syracuse Orange"
+    market: spread
+    side: home
+    status: Pass
+    why_pass: >
+      No longer flagged. The only news hurts Syracuse: starting quarterback Steve Angeli is ruled out with a shoulder
+      injury (ESPN, Nov 23). A price gap against the news is not a reason.
+  - game: "San Diego State Aztecs at Washington State Cougars"
+    market: spread
+    side: home
+    status: Pass
+    why_pass: >
+      No longer flagged. Yesterday's search found no quarterback news for either team; a price gap with no news
+      behind it is not a reason.
