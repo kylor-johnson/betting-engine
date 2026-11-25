@@ -808,8 +808,8 @@ def run(cfg: dict, env: dict, con, now: datetime, send: bool = True, props_ctx: 
                 continue        # one full-game position per game, frozen at first qualification
             per = period_key(st, c["kick"], cfg)
             units, dollars, note = stake(st, c["grade"], now, down, unit)
-            if con.execute(f"SELECT count(*) FROM playbook_picks WHERE sport=? AND market <> 'prop' AND nfl_week=? AND {COUNTS_FOR_CAP}",
-                           [sport, per]).fetchone()[0] >= st["max_per_period"]:      # past the cap: paper, named in the recap (research 22, 7)
+            if st.get("max_per_period") and con.execute(f"SELECT count(*) FROM playbook_picks WHERE sport=? AND market <> 'prop' AND nfl_week=? AND {COUNTS_FOR_CAP}",
+                           [sport, per]).fetchone()[0] >= st["max_per_period"]:      # 0 = no cap (decision 0041)      # past the cap: paper, named in the recap (research 22, 7)
                 units, dollars, note = 0.0, 0.0, f"paper: past the cap of {st['max_per_period']} full-game picks per {st['period']}"
             units, dollars, note, nominal = _paper_or_staked(con, st, c, units, dollars, note, unit, full_game=True, now=now, cfg=cfg)
             # limit() walks on expected profit per $1; half the minimum edge is win chance. Profit = decimal odds x chance edge, so
@@ -958,10 +958,10 @@ def _issue_props(con, cfg, env, props_graded, st, now, down, unit, rv, tz, send)
         per = period_key(st, c["kick"], cfg)
         units, dollars, note = stake(st, c["grade"], now, down, unit)
         # past a cap: paper, named in the recap, never dropped (research 22, finding 7). Caps count paper picks too (decision 0025).
-        if con.execute("SELECT count(*) FROM playbook_picks WHERE market='prop' AND event_id=?", [c["event_id"]]).fetchone()[0] \
-                >= st["props_per_game"]:
+        if st.get("props_per_game") and con.execute("SELECT count(*) FROM playbook_picks WHERE market='prop' AND event_id=?", [c["event_id"]]).fetchone()[0] \
+                >= st["props_per_game"]:      # 0 = no cap (decision 0041)
             units, dollars, note = 0.0, 0.0, f"paper: past the cap of {st['props_per_game']} props per game"
-        elif con.execute(f"SELECT count(*) FROM playbook_picks WHERE sport=? AND market='prop' AND nfl_week=? AND {COUNTS_FOR_CAP}",
+        elif st.get("props_per_period") and con.execute(f"SELECT count(*) FROM playbook_picks WHERE sport=? AND market='prop' AND nfl_week=? AND {COUNTS_FOR_CAP}",
                          [sport, per]).fetchone()[0] >= st["props_per_period"]:
             units, dollars, note = 0.0, 0.0, f"paper: past the cap of {st['props_per_period']} props per {st['period']}"
         units, dollars, note, nominal = _paper_or_staked(con, st, c, units, dollars, note, unit, full_game=False, now=now, cfg=cfg)
@@ -1035,8 +1035,8 @@ def _paper_or_staked(con, st: dict, c: dict, units: float, dollars: float, note:
     if not staked_lane:
         why_paper = f"paper: this lane is not staked (decision 0025; config playbook.sports.{st['sport']})"
     elif dollars > 0:
-        on_game = game_exposure(con, c["event_id"])
-        if on_game + dollars > st["game_cap_units"] * unit + 1e-9:
+        on_game = game_exposure(con, c["event_id"]) if st.get("game_cap_units") else 0.0     # 0 = no per-game cap (decision 0041)
+        if st.get("game_cap_units") and on_game + dollars > st["game_cap_units"] * unit + 1e-9:
             why_paper = f"paper: ${on_game:g} is already on this game; the cap is one unit (${st['game_cap_units'] * unit:g}) a game"
         elif now is not None:
             why_paper = over_weekly_cap(con, cfg or {}, dollars, now)

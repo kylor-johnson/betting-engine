@@ -8,7 +8,7 @@ Replaces:
 - decision 0038 (NFL and NBA props to paper): props are staked again;
 - decision 0036 item 2 (NBA spreads, totals and team totals shown only, news picks off): NBA full-game is staked again, as in 0035.
 
-Unchanged: every money rule in the charter (unit sizes, A = 1 unit, B = half, the per-lane caps, one unit a game, the stops and the review
+(The caps kept here were removed the next morning by decision 0041.) Unchanged: every money rule in the charter (unit sizes, A = 1 unit, B = half, the per-lane caps, one unit a game, the stops and the review
 line), the props weights and everything else in 0036 and 0037, 0039. A pick past a cap, or on a game that already carries a unit, is still
 issued at $0 and named in the 9am recap; a stop still pauses a sport. The three paper lanes, college openers and NBA news props are tests of
 other signals, not the model's picks, and stay off Telegram.

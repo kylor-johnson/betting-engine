@@ -247,7 +247,7 @@ playbook:
   show_c: 5
   # Research 18 / decision 0025 (Kylor approved 2026-11-23): one unit a game across picks and teaser legs; never into a Pinnacle move
   # against us (1 point, or 10 points of chance on a prop); NBA props re-centred on outcomes before the blend.
-  game_cap_units: 1.0
+  game_cap_units: 0   # 0 = off: no per-game unit cap (decision 0041; Kylor, Nov 25: "there should be no cap on the number of bets")
   move_points: 1.0
   move_chance: 0.10
   calibrate_props: [NBA]
@@ -259,12 +259,12 @@ playbook:
   # staked; NBA and college full-game staked too since decision 0035 (Kylor's choice, Nov 24). Research 18's restart numbers are the yardstick for keeping a lane staked.
   sports:
     # weights.prop per sport (decision 0036): the blend weight the forward test supports (research 24: NFL 0.15 on 199 props, NBA 0.25 on 563)
-    NFL: {full_game: stake, props: true, props_stake: true, period: week, max_per_period: 5, props_per_period: 10, props_per_game: 2, weights: {prop: 0.15}}
+    NFL: {full_game: stake, props: true, props_stake: true, period: week, max_per_period: 0, props_per_period: 0, props_per_game: 0, weights: {prop: 0.15}}   # 0 = no cap (decision 0041)
     # NBA full-game staked again (decision 0040: every model pick is a real bet on Telegram; it was shown only under 0036 item 2)
-    NBA: {full_game: stake, news_picks: false, props: true, props_stake: true, period: day, max_per_period: 2, props_per_period: 4, props_per_game: 2, weights: {prop: 0.25}}
+    NBA: {full_game: stake, news_picks: false, props: true, props_stake: true, period: day, max_per_period: 0, props_per_period: 0, props_per_game: 0, weights: {prop: 0.25}}   # 0 = no cap (decision 0041)
     # news_picks (decision 0029): only matters in a shown-only lane, where a pick is staked only when unpriced sourced news is what clears the bar.
     # College full-game is staked by Kylor's choice since Nov 24 (decision 0035), like the NFL (0019), so every B pick is staked.
-    College: {full_game: stake, news_picks: true, props: false, period: week, max_per_period: 5}
+    College: {full_game: stake, news_picks: true, props: false, period: week, max_per_period: 0}   # 0 = no cap (decision 0041)
 
 # Sport parity (decision 0030; Kylor, Nov 23: "we keep losing focus between all three sports"). The same components for every sport. A cell
 # is live (running), testing, failed (tested and off), not_buildable (no free data), not_applicable, or planned (with a date or a trigger).

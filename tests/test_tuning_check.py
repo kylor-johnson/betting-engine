@@ -202,3 +202,24 @@ def test_books_short_warriors_name_maps_to_gs():
     """Pinnacle, Wagerhouse and DraftKings write "Golden St Warriors"; without the alias the NBA model and props skipped every Warriors game."""
     from engine.models.nba_props import NAME_TO_ABBR
     assert NAME_TO_ABBR["Golden St Warriors"] == NAME_TO_ABBR["Golden State Warriors"] == "GS"
+
+
+def test_no_caps_on_bets_decision_0041():
+    """Kylor, Nov 25: "there should be no cap on the number of bets". Every count cap and the per-game unit cap are off in the live config."""
+    import yaml
+    from pathlib import Path
+    cfg = yaml.safe_load(Path(__file__).resolve().parents[1].joinpath("config.yaml").read_text())
+    pb = cfg["playbook"]
+    assert not pb["game_cap_units"]
+    for sport, s in pb["sports"].items():
+        for k in ("max_per_period", "props_per_period", "props_per_game"):
+            assert not s.get(k), (sport, k)
+
+
+def test_zero_cap_means_no_cap():
+    from engine.picks import playbook
+    st = {"full_game": "stake", "units": {"A": 1.0, "B": 0.5}, "game_cap_units": 0, "sport": "NFL"}
+    import duckdb
+    con = duckdb.connect()
+    out = playbook._paper_or_staked(con, st, {"grade": "B", "event_id": "x"}, 0.5, 12.5, "", 25.0, full_game=True)
+    assert out[1] == 12.5 and out[2] == ""

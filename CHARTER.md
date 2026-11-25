@@ -22,7 +22,7 @@ past" number, and I place them from there. Telegram carries only three things:
 Anything that is not on Telegram is not a bet, and nothing on Telegram is a $0 pick. Config: `telegram.send_kinds: [bet, system, recap]`.
 
 It is not a price checker. The tracker (`tracker.html`, `docs/lanes/TRACKER.md`) grades every Telegram pick against what I actually bet,
-and shows the picks that were not sent (paper lanes, per-lane caps, holds) on their own line. The price checks, logs and reports are plumbing.
+and shows the picks that were not sent (paper lanes, holds, a tripped stop) on their own line. There are no caps on the number of bets (decision 0041). The price checks, logs and reports are plumbing.
 
 This repository is the betting engine only. My DFS model has its own folder and its own repository, and the two never share code, data or
 settings.

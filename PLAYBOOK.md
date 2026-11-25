@@ -67,7 +67,7 @@ For each market, **edge = our chance of winning − the chance Wagerhouse's pric
 
 ### Step 5: always produce picks
 
-**Every slate gets a pick list.** For each lane, it shows the top picks by edge with a grade. Caps: full-game, 5 a week for NFL and college and 2 a day for the NBA; props, 10 a week and 2 a game for the NFL, 4 a day and 2 a game for the NBA; one unit a game across everything. A pick past a cap is issued as paper, with the cap as its reason, and named in the 9am recap (decision 0033). A pick made paper only because its game already carries a unit does not use a cap slot; a pick Pinnacle has moved against is set aside before one pick per game is chosen (decision 0036).
+**Every slate gets a pick list.** For each lane, it shows the top picks by edge with a grade. No caps on the number of bets (decision 0041; Kylor, Nov 25: "there should be no cap on the number of bets"): no weekly or daily count, no props-per-game count and no one-unit-a-game limit. Every A or B pick in a staked lane is sent with its stake. The config switches stay (`max_per_period`, `props_per_period`, `props_per_game`, `game_cap_units`; 0 = off). Still in force: one full-game position per game, frozen at first qualification; a pick Pinnacle has moved against is set aside before that pick is chosen (decision 0036); the 10-unit stop per sport.
 
 - **A**: clears the minimum edge, no CHECK flag, and the principle behind it has passed a test.
 - **B**: clears the minimum edge; the principle is untested or the pick is CHECK-cleared.
@@ -148,7 +148,7 @@ We copy methods, never picks. Warren Sharp's write-ups are one example; Walters,
 | Outlier half weight, injury clusters, referees | Built, tested, off (no held-out gain, research 17) | `script.py` |
 | Blitz and stacked-box matchup splits for props | Built, tested, off (no held-out gain, research 17) | `props_matchup.py` |
 | Coverage-type (man/zone) splits | Not buildable: free data has 2023 only | |
-| Never into a move, one unit a game, CHECK clears with a reason, closing grades for props and team totals | Live (decision 0025, kept by 0026) | `picks/playbook.py` |
+| Never into a move, one unit a game (off since decision 0041), CHECK clears with a reason, closing grades for props and team totals | Live (decision 0025, kept by 0026) | `picks/playbook.py` |
 | NFL stop with teasers, review line, edge split (price against handicap); weekly dollar cap built but off | Live (decisions 0027, 0028) | `picks/playbook.py`, `bets/tracker.py` |
 | NBA news-timed props | Paper test (decision 0025) | `picks/news_props.py`, `docs/lanes/NEWS-PROPS.md` |
 | Paper lanes: Wagerhouse trailing Pinnacle (all sports), early-week NFL against public ratings, NFL first halves and team totals | Paper, $0, never sent; off at 150 graded unless closing-line value is above zero (decision 0036, research 24 tests L1, F1, D1b) | `picks/paper_lanes.py`, `docs/lanes/PAPER-LANES.md` |
