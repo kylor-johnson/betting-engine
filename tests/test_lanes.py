@@ -85,9 +85,9 @@ def test_wording_changes_are_not_lane_changes_and_money_state_is():
         lane["title"] = lane["title"]          # same structure; text-only edits elsewhere never count
     assert L.check_changed(con, c2, now) is None
     c3 = copy.deepcopy(c)
-    c3.setdefault("playbook", {}).setdefault("sports", {})["NBA"] = {"props": True, "props_stake": False}
+    c3.setdefault("playbook", {}).setdefault("sports", {})["NBA"] = {"props": True, "props_stake": True}   # paper since decision 0038
     msg = L.check_changed(con, c3, now)
-    assert msg and "NBA player props: now PAPER (was staked)." in msg
+    assert msg and "NBA player props: now STAKED (was paper)." in msg
 
 
 def test_card_lane_block_comes_from_config():

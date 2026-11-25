@@ -162,3 +162,15 @@ def test_team_total_close_ignores_an_earlier_meeting():
 def test_nba_shown_only_reason_comes_from_config():
     from engine.picks import playbook as pb
     assert "cannot see who is injured" in pb.shown_reason(pb.settings(_cfg(), "NBA"))
+
+
+# Decision 0038: NFL and NBA props are paper at $0, never sent.
+def test_props_are_paper_decision_0038():
+    from engine.picks import playbook as pb
+    cfg = _cfg()
+    for sport in ("NFL", "NBA"):
+        st = pb.settings(cfg, sport)
+        assert st["props"] and st["props_stake"] is False
+        c = {"grade": "B", "event_id": "e", "market": "prop"}
+        units, dollars, note, nominal = pb._paper_or_staked(_con(), st, c, 0.5, 12.5, "B pick", 25.0, full_game=False)
+        assert dollars == 0 and units == 0 and nominal == 0.5 and "not staked" in note

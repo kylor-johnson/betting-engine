@@ -203,7 +203,7 @@ lanes:
       wagerhouse_props: {enabled: false, text: "Wagerhouse's own prop lines are not logged yet, so no prop can be compared with the book you bet at."}
     models:
       nfl_props: {status: testing, switch: models.props.enabled, doc: docs/research/06-props-model.md, note: "forward test against Pinnacle"}
-      playbook_props: {status: overridden, switch: playbook.enabled, doc: docs/decisions/0026-telegram-is-the-source-of-truth.md, note: "props model fed by the game script, blended with Pinnacle; staked and sent to Telegram (decision 0026)"}
+      playbook_props: {status: paper, switch: playbook.enabled, doc: docs/decisions/0038-props-to-paper.md, note: "props model fed by the game script, blended with Pinnacle; paper at $0, not sent (decision 0038: best weight 0.00 on true first reads, research 24b)"}
     not_evaluating: ["any Wagerhouse prop price (Bet Builder is not readable; each pick says the worst line and price to take)", "props the model and Pinnacle disagree on by 15+ points until the research agent clears them"]
   nba_props:
     title: NBA player props
@@ -215,7 +215,7 @@ lanes:
       wagerhouse_props: {enabled: false, text: "Wagerhouse's own prop lines are not logged yet, so no prop can be compared with the book you bet at."}
     models:
       nba_props: {status: testing, switch: models.props.nba_enabled, doc: docs/research/08-nba-props-model.md, note: "forward test against Pinnacle"}
-      playbook_props: {status: overridden, switch: playbook.enabled, doc: docs/decisions/0026-telegram-is-the-source-of-truth.md, note: "NBA props model, re-centred on outcomes, fed by the game script, blended with Pinnacle; staked and sent to Telegram (decision 0026)"}
+      playbook_props: {status: paper, switch: playbook.enabled, doc: docs/decisions/0038-props-to-paper.md, note: "NBA props model, re-centred on outcomes, fed by the game script, blended with Pinnacle; paper at $0, not sent (decision 0038: paper suggestions 71-72, -11.9 units)"}
       news_props: {status: testing, switch: playbook.news_props.enabled, doc: docs/decisions/0025-research-18-paper-and-fixes.md, note: "news-timed props: a teammate ruled out, Pinnacle not moved yet (paper test, decision 0025)"}
     not_evaluating: ["any Wagerhouse prop price (Bet Builder is not readable; each pick says the worst line and price to take)", "props the model and Pinnacle disagree on by 15+ points until the research agent clears them"]
 
@@ -254,13 +254,13 @@ playbook:
   # No weekly dollar cap (Kylor, Nov 23 night: "just stick to units. no cap on $ either for now"); 0 = off. CHECK-cleared picks are staked.
   weekly_cap_dollars: 0
   # Per sport (decision 0022). full_game: stake = real money, paper = issued and graded at $0, show = C on the card only.
-  # props_stake: false = props issued and graded at $0. Current state (decision 0026, kept by 0027): NFL full-game, NFL props and NBA props
+  # props_stake: false = props issued and graded at $0. NFL and NBA props are paper since decision 0038 (Kylor, Nov 24). Before that (decision 0026): NFL full-game, NFL props and NBA props
   # staked; NBA and college full-game staked too since decision 0035 (Kylor's choice, Nov 24). Research 18's restart numbers are the yardstick for keeping a lane staked.
   sports:
     # weights.prop per sport (decision 0036): the blend weight the forward test supports (research 24: NFL 0.15 on 199 props, NBA 0.25 on 563)
-    NFL: {full_game: stake, props: true, props_stake: true, period: week, max_per_period: 5, props_per_period: 10, props_per_game: 2, weights: {prop: 0.15}}
+    NFL: {full_game: stake, props: true, props_stake: false, period: week, max_per_period: 5, props_per_period: 10, props_per_game: 2, weights: {prop: 0.15}}
     # NBA full-game back to shown only, no money, news picks included (decision 0036): the NBA script cannot see who is injured
-    NBA: {full_game: show, shown_reason: "the NBA script cannot see who is injured; back to staked takes a decision note Kylor asks for (decision 0036)", news_picks: false, props: true, props_stake: true, period: day, max_per_period: 2, props_per_period: 4, props_per_game: 2, weights: {prop: 0.25}}
+    NBA: {full_game: show, shown_reason: "the NBA script cannot see who is injured; back to staked takes a decision note Kylor asks for (decision 0036)", news_picks: false, props: true, props_stake: false, period: day, max_per_period: 2, props_per_period: 4, props_per_game: 2, weights: {prop: 0.25}}
     # news_picks (decision 0029): only matters in a shown-only lane, where a pick is staked only when unpriced sourced news is what clears the bar.
     # College full-game is staked by Kylor's choice since Nov 24 (decision 0035), like the NFL (0019), so every B pick is staked.
     College: {full_game: stake, news_picks: true, props: false, period: week, max_per_period: 5}

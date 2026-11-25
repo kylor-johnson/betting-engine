@@ -37,8 +37,8 @@ settings.
 6. NFL Wong teasers
 
 Each lane is in one of three states, set in `config.yaml` and shown in `docs/lanes/STATUS.md`: **staked** (sent to Telegram), **paper**
-(issued and graded at $0, not sent), or **shown** (on the card only). Today five lanes are staked; NBA spreads and totals are shown only,
-no money, because the NBA script cannot see who is injured (decision 0036). College spreads and totals are staked by my choice
+(issued and graded at $0, not sent), or **shown** (on the card only). Today three lanes are staked (NFL and college spreads and totals, NFL Wong teasers); NFL and NBA props are paper (decision 0038);
+NBA spreads and totals are shown only, no money, because the NBA script cannot see who is injured (decision 0036). College spreads and totals are staked by my choice
 (decision 0035), on the same unproven footing as the NFL's full-game picks (decision 0019). Three paper lanes run at $0 beside them
 (Wagerhouse trailing Pinnacle, early-week NFL against public ratings, NFL derivatives; `docs/lanes/PAPER-LANES.md`, decision 0036).
 

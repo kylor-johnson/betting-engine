@@ -6,7 +6,7 @@
 
 **News (decisions 0029, 0035).** NBA full-game picks are staked since decision 0035 (Kylor's choice), and sourced news Pinnacle has not priced moves their number. Every starter ruled out or returning that you can source, with the time it broke (`news_at`), goes in `adjustments.yaml` the same run; then run `uv run engine news --sport NBA`. Speed is the edge: an entry after Pinnacle moved counts for nothing.
 
-**Props.** Never issue a prop in the decisions file: playbook prop picks are issued by code (B picks, staked; decision 0026).
+**Props.** Never issue a prop in the decisions file: playbook prop picks are issued by code (B picks, paper at $0 since decision 0038).
 
 **Playbook CHECK picks (PLAYBOOK.md, decision 0022).** Open `docs/cards/{{DAY}}-nba-playbook.md` (or the latest one). Each row marked CHECK clears the edge, but the model's number (team points from pace and efficiency, or a player's projection from minutes) is far from the market. For each one, find out whether the market knows something the model does not: a player ruled out, questionable, returning or on a minutes limit; a starter resting; a trade. The models know box scores and the official injury report, not tonight's coach's plan. Then write `docs/cards/decisions/{{DAY}}-nba-checks.yaml`:
 

@@ -140,3 +140,14 @@ assists prop on the same game) grade on the next read.
 5. **Half-hourly full reads before NFL and college starts too, like the NBA (`read_pregame_hours`)?** Today the last full read before a
    6:15pm Thursday, Sunday or Monday night kick can be 58 minutes out, and college has no Saturday-evening fast reads. Cost: about 3 more
    Wagerhouse reads per NFL night game and up to about 10 on a college Saturday.
+
+## Kylor's answers (Nov 24, night)
+
+1. NBA props: **paper** (decision 0038).
+2. NFL props: **paper** (decision 0038).
+3. College props without a lane: fine.
+4. NBA fast reads before every tip: no.
+5. Half-hourly pre-start reads for NFL and college: no. "NFL and CFB need less of a read but at least 2 times early week and then 3-4 for
+   each game that is within 24 hours." The hourly read already reads every sport every hour from 7am to 9pm Mountain, every day
+   (`read_hours`), so both minimums are met today with no change: Monday and Tuesday get about 15 reads each, and any game gets 15 or more in
+   its last 24 hours unless the Mac is asleep, which the missed-read alarm now catches after 2 read hours.
