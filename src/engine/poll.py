@@ -102,6 +102,10 @@ def extra_slots(cfg: dict, now: datetime) -> list[tuple[str, datetime]]:
     return out
 
 
+def _props_season(now: datetime) -> int:
+    return now.year if now.month >= 3 else now.year - 1      # the NFL props model's season, as in the read
+
+
 def refresh_tracker(con, cfg: dict, now: datetime) -> list[str]:
     """Outside read hours (evenings, nights), grade finished picks and rebuild the tracker page at most once an hour, so tracker.html is
     current when games end at night. No Wagerhouse sign-in: grades come from final scores; your bets come from the last history sync."""
@@ -112,13 +116,20 @@ def refresh_tracker(con, cfg: dict, now: datetime) -> list[str]:
         from engine.bets import tracker as _tr
         from engine.picks import playbook as _pb, teasers as _tz
         _tz.grade(con)
+        notes = []
+        for name, fill in (("NBA props", lambda: __import__("engine.models.nba_props", fromlist=["grade"]).grade(con)),
+                           ("NFL props", lambda: __import__("engine.models.props", fromlist=["grade"]).grade(con, _props_season(now)))):
+            try:     # props need their stat lines filled before the playbook can grade them (late games, research 25)
+                fill()
+            except Exception as e:
+                notes.append(f"{name} outcomes not filled: {type(e).__name__}: {e}")
         _pb.grade(con, cfg)
         _tr.write(con, cfg)
         from engine.bets import public_page
         pub = public_page.publish(con, cfg)
         stamp.parent.mkdir(parents=True, exist_ok=True)
         stamp.write_text(now.isoformat())
-        return ["Tracker page refreshed (graded finished picks; no book read)."] + ([pub] if pub else [])
+        return ["Tracker page refreshed (graded finished picks; no book read)."] + notes + ([pub] if pub else [])
     except Exception as e:
         return [f"Tracker refresh failed: {type(e).__name__}: {e}"]
 
