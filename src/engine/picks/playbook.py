@@ -70,6 +70,10 @@ ALTER TABLE playbook_grades ADD COLUMN IF NOT EXISTS nominal_profit DOUBLE;
 ALTER TABLE playbook_picks ADD COLUMN IF NOT EXISTS price_edge DOUBLE;
 ALTER TABLE playbook_picks ADD COLUMN IF NOT EXISTS paper_reason VARCHAR;
 ALTER TABLE playbook_picks ADD COLUMN IF NOT EXISTS limit_price DOUBLE;
+ALTER TABLE playbook_picks ADD COLUMN IF NOT EXISTS blend_weight DOUBLE;
+ALTER TABLE playbook_candidates ADD COLUMN IF NOT EXISTS last_own_value DOUBLE;
+ALTER TABLE playbook_candidates ADD COLUMN IF NOT EXISTS last_market_value DOUBLE;
+ALTER TABLE playbook_candidates ADD COLUMN IF NOT EXISTS last_seen_utc TIMESTAMP;
 """
 # Picks made paper only because their game already carries a unit do not use up a weekly or daily cap slot (decision 0036).
 COUNTS_FOR_CAP = "NOT (coalesce(dollars, 0) = 0 AND coalesce(paper_reason, '') LIKE '%already on this game%')"
@@ -105,6 +109,11 @@ def settings(cfg: dict, sport: str = "NFL") -> dict:
         out[k] = {**DEFAULTS[k], **(pc.get(k) or {}), **(SPORT_DEFAULTS.get(sport, {}).get(k) or {}), **(sp.get(k) or {})}
     out["sport"] = sport
     return out
+
+
+def shown_reason(st: dict) -> str:
+    """Why a lane is shown only, from config (`playbook.sports.<SPORT>.shown_reason`), so the card says what the decision says."""
+    return st.get("shown_reason") or "its walk-forward test lost"
 
 
 def chance_needed(price: float) -> float:
@@ -334,7 +343,7 @@ def grade_all(cands: list[dict], st: dict, passed: set[str] = frozenset(), check
                     "News pick: sourced news Pinnacle has not priced is what clears the bar (decision 0029)."
             else:
                 c["grade"], c["note"] = "C", (c["note"] + " " if c["note"] else "") + \
-                    f"Shown only: {st.get('sport', '')} full-game picks are not staked (its walk-forward test lost; config playbook.sports.{st.get('sport', '')}.full_game)."
+                    f"Shown only: {st.get('sport', '')} full-game picks are not staked ({shown_reason(st)}; config playbook.sports.{st.get('sport', '')}.full_game)."
         if mover is not None and c["grade"] in ("A", "B"):
             moved = mover(c)
             if moved:
@@ -472,7 +481,7 @@ def grade_props(cands: list[dict], st: dict, checks: dict | None = None) -> list
             c["note"] = "CHECK cleared: " + str(v.get("because", ""))
         elif clears and c["check"]:
             c["note"] = ("CHECK held: a clear needs `because` and `market_assumes`" if str(v.get("verdict", "")).lower() == "clear" else
-                         ("CHECK held: " + str(v.get("why", ""))) if v else "CHECK: the model and Pinnacle disagree by 15+ points of chance; held until researched")
+                         ("CHECK held: " + str(v.get("why", ""))) if v else f"CHECK: the model and Pinnacle disagree by {100 * st['check_points']['prop']:.0f}+ points of chance; held until researched")
         else:
             c["note"] = ""
         k = (c["player_id"], c["stat"])
@@ -811,8 +820,9 @@ def run(cfg: dict, env: dict, con, now: datetime, send: bool = True, props_ctx: 
             _insert_pick(con, [key, now.replace(tzinfo=None), sport, c["event_id"], c["game"], c["market"], c["side"], c["pick"], c["line"], c["price"],
                                c["grade"], c["edge"], c["our_line"], c["market_line"], c["own_line"], units, dollars, dbp,
                                c["kick"].astimezone(timezone.utc).replace(tzinfo=None), per, why(c), rv, nominal, c.get("price_edge")])
-            if dollars <= 0:
-                con.execute("UPDATE playbook_picks SET paper_reason = ? WHERE pick_key = ?", [note, key])
+            # the weight in force at issue, so a later weight change can never cancel this pick (the FAIR_SINCE principle)
+            con.execute("UPDATE playbook_picks SET blend_weight = ?, paper_reason = ? WHERE pick_key = ?",
+                        [float(st["weights"][c["market"]]), note if dollars <= 0 else None, key])
             head = f"PLAYBOOK BET ({c['grade']})" if dollars > 0 else f"PLAYBOOK PAPER PICK ({c['grade']}), DO NOT BET"
             msg = (f"{sport} · {head}\n{c['pick']} ({int(c['price']):+d})\n{c['game']}, {c['kick'].astimezone(tz):%a %-I:%M %p} MT\n"
                    f"Stake: {config.units_text(units, dollars)} ({note})\nDon't bet past {dbp or 'this number'}.\n{edge_split(c)}\nWhy: {why(c)}" + (f"\n{c['note']}" if c.get("note") else ""))
@@ -840,10 +850,14 @@ def log_candidates(con, sport: str, cands: list[dict], now: datetime) -> int:
             side = c["side"]
             own, mkt = (-c["own_line"], -c["market_line"]) if c["market"] == "side" else (c["own_line"], c["market_line"])
         if con.execute("SELECT 1 FROM playbook_candidates WHERE cand_key=?", [key]).fetchone():
+            # the frozen first numbers stay for the weight re-fit; this read's numbers go beside them for D1b, which must carry today's
+            # disagreement, not the first read's (tuning check, research 25)
+            con.execute("UPDATE playbook_candidates SET last_own_value = ?, last_market_value = ?, last_seen_utc = ? WHERE cand_key = ?",
+                        [own, mkt, now.replace(tzinfo=None), key])
             continue
-        con.execute("INSERT INTO playbook_candidates VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        con.execute("INSERT INTO playbook_candidates VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     [key, now.replace(tzinfo=None), sport, c["event_id"], c["market"], side, c["line"], c["price"], c["grade"], c["edge"],
-                     own, mkt, c["kick"].astimezone(timezone.utc).replace(tzinfo=None), c["game"], None, None])
+                     own, mkt, c["kick"].astimezone(timezone.utc).replace(tzinfo=None), c["game"], None, None, own, mkt, now.replace(tzinfo=None)])
         n += 1
     return n
 
@@ -956,8 +970,9 @@ def _issue_props(con, cfg, env, props_graded, st, now, down, unit, rv, tz, send)
                            c["edge"], c["our_line"], c["market_line"], c["own_line"], units, dollars, dbp,
                            c["kick"].astimezone(timezone.utc).replace(tzinfo=None), per, why(c), rv, nominal, c.get("price_edge")])
         # a prop's profit is graded at the worst Wagerhouse price we said to take, not Pinnacle's (decision 0036)
-        con.execute("UPDATE playbook_picks SET limit_price = ?, paper_reason = ? WHERE pick_key = ?",
-                    [float(c["worst_price"]), note if dollars <= 0 else None, key])
+        # ...and the blend weight in force at issue, so a later weight change can never cancel it (the FAIR_SINCE principle)
+        con.execute("UPDATE playbook_picks SET limit_price = ?, paper_reason = ?, blend_weight = ? WHERE pick_key = ?",
+                    [float(c["worst_price"]), note if dollars <= 0 else None, float(st["weights"]["prop"]), key])
         head = f"PLAYBOOK PROP ({c['grade']})" if dollars > 0 else f"PLAYBOOK PAPER PROP ({c['grade']}), DO NOT BET"
         msg = (f"{sport} · {head}\n{c['pick']} (Pinnacle {int(c['price']):+d})\n{c['game']}, {c['kick'].astimezone(tz):%a %-I:%M %p} MT\n"
                f"Stake: {config.units_text(units, dollars)} ({note})\nAt Wagerhouse (Bet Builder): {dbp}.\n{edge_split(c)}\nWhy: {why(c)}" + (f"\n{c['note']}" if c.get("note") else ""))
@@ -983,6 +998,18 @@ def _backfill(con) -> None:
             m = re.search(r" at ([+-]\d+) or better", dbp or "")
             if m:
                 con.execute("UPDATE playbook_picks SET limit_price = ? WHERE pick_key = ?", [float(m.group(1)), key])
+        # props issued before blend_weight was stored: the weight is exact from the frozen numbers, since our chance over =
+        # Pinnacle's + weight x (model's - Pinnacle's) and edge = our chance of the side - the chance its price needs
+        for key, side, price, edge, mkt, own in con.execute("""SELECT pick_key, side, price, edge, market_line, own_line FROM playbook_picks
+                                                            WHERE market = 'prop' AND blend_weight IS NULL AND edge IS NOT NULL
+                                                            AND market_line IS NOT NULL AND own_line IS NOT NULL AND price IS NOT NULL""").fetchall():
+            if abs(own - mkt) > 1e-9:
+                p = edge + chance_needed(price)
+                con.execute("UPDATE playbook_picks SET blend_weight = ? WHERE pick_key = ?",
+                            [round(((p if side == "over" else 1 - p) - mkt) / (own - mkt), 4), key])
+    except Exception:
+        pass
+    try:
         from engine.picks import grade as g
         for key, units, nominal, lp in con.execute("""SELECT p.pick_key, p.units, coalesce(p.nominal_units, p.units), p.limit_price
                                                        FROM playbook_picks p JOIN playbook_grades r USING (pick_key)
@@ -1087,14 +1114,17 @@ def live_since_utc(cfg: dict | None, sport: str = "NFL") -> datetime:
     return local.astimezone(timezone.utc).replace(tzinfo=None)
 
 
-def teaser_profit_units(con, since: datetime | None = None) -> float:
+def teaser_profit_units(con, since: datetime | None = None, strict: bool = False) -> float:
     """Profit in NFL units of every graded teaser ticket that carried money (both legs graded; a push on a leg = no action on the ticket),
     sent on or after `since` (UTC, naive) when given."""
     try:
         rows = con.execute("""SELECT t.units, t.price, ga.result, gb.result FROM teaser_tickets t
                               JOIN teaser_grades ga ON ga.leg_key = t.leg_a JOIN teaser_grades gb ON gb.leg_key = t.leg_b
                               WHERE t.units > 0 AND (? IS NULL OR t.sent_utc >= ?)""", [since, since]).fetchall()
-    except Exception:
+    except Exception as e:
+        import duckdb
+        if strict and not isinstance(e, duckdb.CatalogException):     # the stop must not read an error as +0.0 (audit 24)
+            raise
         return 0.0
     out = 0.0
     for units, price, ra, rb in rows:
@@ -1107,14 +1137,16 @@ def teaser_profit_units(con, since: datetime | None = None) -> float:
 
 def down_units(con, sport: str, cfg: dict | None = None) -> float:
     """Staked profit in this sport's units for the stop, counted from `live_since` (research 22, finding 2). NFL counts teaser tickets too
-    (decision 0027)."""
+    (decision 0027). A missing table means nothing is graded yet (0); any other read error raises, so an unreadable stop is never
+    reported as +0.0 (audit 24): callers fail loudly (the playbook run, teaser tickets, the daily check, the tracker's money lines)."""
+    import duckdb
     since = live_since_utc(cfg, sport)
     try:
         pb = float(con.execute("SELECT coalesce(sum(g.profit_units), 0) FROM playbook_grades g JOIN playbook_picks p USING (pick_key) "
                                "WHERE p.sport = ? AND p.units > 0 AND p.first_seen_utc >= ?", [sport, since]).fetchone()[0])
-    except Exception:
+    except duckdb.CatalogException:
         pb = 0.0
-    return pb + (teaser_profit_units(con, since) if sport == "NFL" else 0.0)
+    return pb + (teaser_profit_units(con, since, strict=True) if sport == "NFL" else 0.0)
 
 
 def edge_split(c: dict) -> str:
@@ -1207,7 +1239,7 @@ def resend_undelivered(con, env: dict, cfg: dict, now: datetime, sender=None) ->
 FAIR_SINCE = datetime(2026, 11, 24, 23, 0)
 
 
-def _pin_now(con, sport: str, event_id: str, market: str, game: str, side: str, fair: bool = False) -> float | None:
+def _pin_now(con, sport: str, event_id: str, market: str, game: str, side: str, fair: bool = False, kick=None) -> float | None:
     """Pinnacle's latest number for this market: home spread, total, or a team total; with `fair`, moved by its price lean."""
     ls, lt, tl = _lands(sport) if fair else (None, None, None)
     if market in ("side", "total"):
@@ -1218,8 +1250,9 @@ def _pin_now(con, sport: str, event_id: str, market: str, game: str, side: str, 
     if market == "team_total":
         away, _, home = game.partition(" at ")
         r = con.execute("""SELECT line, price_a, price_b FROM derivative_snapshots WHERE source = 'Pinnacle' AND sport = ? AND home = ? AND away = ?
-                           AND market = 'team_total' AND period = 'Game' AND description = ? AND line IS NOT NULL ORDER BY ts_utc DESC LIMIT 1""",
-                        [sport, home, away, side.split("_")[0]]).fetchone()
+                           AND market = 'team_total' AND period = 'Game' AND description = ? AND line IS NOT NULL
+                           AND (CAST(? AS TIMESTAMP) IS NULL OR {SAME_GAME}) ORDER BY ts_utc DESC LIMIT 1""".replace("{SAME_GAME}", SAME_GAME_LOOSE),
+                        [sport, home, away, side.split("_")[0], _naive(kick), _naive(kick)]).fetchone()   # this game, not an earlier meeting
         return _fair_line(r[0], r[1], r[2], tl) if r else None
     return None
 
@@ -1243,7 +1276,7 @@ def cancel_reason(con, cfg: dict, row: dict, lands: tuple | None = None) -> str 
         if l1 != float(line):
             worse = (l1 > float(line)) if side == "over" else (l1 < float(line))
             return f"Pinnacle moved the line against it ({float(line):g} to {l1:g})." if worse else None
-        w = st["weights"]["prop"]
+        w = st["weights"]["prop"] if row.get("blend_weight") is None else row["blend_weight"]   # the weight it was sent under (FAIR_SINCE principle)
         over = m1 + w * (row["own_line"] - m1)
         p = over if side == "over" else 1 - over
         e = p - chance_needed(row["price"])
@@ -1255,10 +1288,10 @@ def cancel_reason(con, cfg: dict, row: dict, lands: tuple | None = None) -> str 
             return f"Pinnacle's chance over moved from {100 * row['market_line']:.0f}% to {100 * m1:.0f}%; {tail}"
         return None
     now_mkt = _pin_now(con, row["sport"], row["event_id"], row["market"], row["game"], row["side"],
-                       fair=row.get("first_seen_utc") is not None and row["first_seen_utc"] >= FAIR_SINCE)
+                       fair=row.get("first_seen_utc") is not None and row["first_seen_utc"] >= FAIR_SINCE, kick=row.get("kickoff_utc"))
     if now_mkt is None or row["market_line"] is None or row["our_line"] is None:
         return None
-    w = st["weights"][row["market"]]
+    w = st["weights"][row["market"]] if row.get("blend_weight") is None else row["blend_weight"]
     ours = row["our_line"] + (1 - w) * (now_mkt - row["market_line"])
     if lands is None:
         from engine import stale
@@ -1281,7 +1314,7 @@ def cancel_moved(con, env: dict, cfg: dict, now: datetime, sender=None) -> list[
     con.execute(ALERTS_SCHEMA)
     naive = now.astimezone(timezone.utc).replace(tzinfo=None)
     cols = ["pick_key", "sport", "event_id", "game", "market", "side", "pick", "line", "price", "our_line", "market_line", "own_line",
-            "kickoff_utc", "first_seen_utc"]
+            "kickoff_utc", "first_seen_utc", "blend_weight"]
     from engine.checks import SAVED_SINCE      # picks from before messages were saved have no row but most reached Telegram: check them too
     rows = con.execute(f"""SELECT {', '.join('p.' + c for c in cols)} FROM playbook_picks p LEFT JOIN alerts_sent a ON a.key = 'playbook|' || p.pick_key
                            WHERE p.dollars > 0 AND p.kickoff_utc > ? AND (a.delivered OR (a.key IS NULL AND p.first_seen_utc < ?))
@@ -1334,8 +1367,9 @@ def moved_against(con, c: dict, sport: str, st: dict) -> str | None:
         if c["market"] == "team_total":
             who, ou = c["side"].split("_")
             rows = con.execute("""SELECT line FROM derivative_snapshots WHERE source = 'Pinnacle' AND sport = ? AND home = ? AND away = ?
-                                  AND market = 'team_total' AND period = 'Game' AND description = ? AND line IS NOT NULL ORDER BY ts_utc""",
-                               [sport, c["home"], c["away"], who]).fetchall()
+                                  AND market = 'team_total' AND period = 'Game' AND description = ? AND line IS NOT NULL
+                                  AND {SAME_GAME} ORDER BY ts_utc""".replace("{SAME_GAME}", SAME_GAME_LOOSE),
+                               [sport, c["home"], c["away"], who, _naive(c["kick"])]).fetchall()
             if len(rows) < 2:
                 return None
             first, last = rows[0][0], rows[-1][0]
@@ -1396,12 +1430,12 @@ def card(con, cfg: dict, graded: list[dict], st: dict, now: datetime, props_grad
                          "ORDER BY kickoff_utc", [sport, now.replace(tzinfo=None)]).fetchall()
     w = st["weights"]
     staked = {"stake": "staked", "paper": "paper (issued and graded, not staked; decision 0025)"}.get(
-        st["full_game"], "shown only, not staked (its walk-forward test lost; Kylor can switch it on)" +
+        st["full_game"], f"shown only, not staked ({shown_reason(st)})" +
         ("; except news picks, where sourced news Pinnacle has not priced is what clears the bar (staked, decision 0029)" if st.get("news_picks") else ""))
     props_mode = "off" if not (st["props"] and props_graded is not None) else ("staked" if st.get("props_stake", True) else "paper (issued and graded, not staked; decision 0025)")
     out = [f"# {sport} playbook picks", "",
            f"How these are made: PLAYBOOK.md. Our team points come from the {sport} game-script model; our number is pulled toward the market at the "
-           f"playbook's starting weights (side {w['side']}, game total {w['total']}, team total {w['team_total']}, props {w['prop']}). Full-game picks: {staked}. "
+           f"playbook's starting weights (side {w['side']}, game total {w['total']}, team total {w['team_total']}{f", props {w['prop']}" if st["props"] else ""}). Full-game picks: {staked}. "
            f"Props: {props_mode}. Units: ${config.unit_for(cfg, sport):g}; A = 1 unit, B = half a unit; a $0 stake is a paper pick: do not bet it. "
            f"At most one unit a game across picks and teaser legs; a pick Pinnacle has moved against since we first priced it is not issued.", "",
            f"**Record:** {record(con, sport)}", "", "## Issued (frozen at the number shown; $0 = paper)", ""]
@@ -1629,6 +1663,9 @@ def _nv_over(po: float | None, pu: float | None) -> float | None:
 # A prop row belongs to this game only if its start is within 6 hours of the pick's kickoff: the same two NBA teams meet again,
 # and a query by player, stat and teams alone could read the other game (audit 24).
 SAME_GAME = "abs(epoch(CAST(replace(start_utc, 'Z', '') AS TIMESTAMP)) - epoch(CAST(? AS TIMESTAMP))) <= 21600"
+# The same, but a row with no readable start time still matches (every stored row has one; older test rows do not). Used where the
+# filter was added by the tuning check (research 25) so an earlier meeting of the same two teams is never read.
+SAME_GAME_LOOSE = "coalesce(abs(epoch(try_cast(replace(start_utc, 'Z', '') AS TIMESTAMP)) - epoch(CAST(? AS TIMESTAMP))) <= 21600, true)"
 
 
 def _naive(t):
@@ -1639,8 +1676,8 @@ def prop_close(con, sport, pid, stat, home, away, side, line, price, kick) -> tu
     """(Pinnacle closing line, points our way, no-vig chance of our bet at the close minus the chance our price needed). The chance needs the
     closing line to equal ours; otherwise only the points are kept."""
     row = con.execute("""SELECT line, market_p_over FROM prop_evals WHERE coalesce(sport, 'NFL') = ? AND player_id = ? AND stat = ? AND home = ?
-                         AND away = ? AND market_p_over IS NOT NULL AND ts_utc < ? ORDER BY ts_utc DESC LIMIT 1""",
-                      [sport, pid, stat, home, away, kick]).fetchone()
+                         AND away = ? AND market_p_over IS NOT NULL AND ts_utc < ? AND {SAME_GAME} ORDER BY ts_utc DESC LIMIT 1""".replace("{SAME_GAME}", SAME_GAME_LOOSE),
+                      [sport, pid, stat, home, away, kick, _naive(kick)]).fetchone()
     if row is None:
         return None, None, None
     cl, p_over = row
@@ -1655,7 +1692,7 @@ def team_total_close(con, cfg, sport, home, away, who, ou, line, price, kick) ->
     """Same as prop_close for a team total, from Pinnacle's team-total reads; a different closing line is carried to ours on the bell curve."""
     row = con.execute("""SELECT line, price_a, price_b FROM derivative_snapshots WHERE source = 'Pinnacle' AND sport = ? AND home = ? AND away = ?
                          AND market = 'team_total' AND period = 'Game' AND description = ? AND line IS NOT NULL AND ts_utc < ?
-                         ORDER BY ts_utc DESC LIMIT 1""", [sport, home, away, who, kick]).fetchone()
+                         AND {SAME_GAME} ORDER BY ts_utc DESC LIMIT 1""".replace("{SAME_GAME}", SAME_GAME_LOOSE), [sport, home, away, who, kick, _naive(kick)]).fetchone()
     if row is None:
         return None, None, None
     cl, po, pu = row

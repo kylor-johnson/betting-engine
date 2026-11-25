@@ -139,7 +139,7 @@ def run(force: bool = False) -> tuple[int, list[str]]:
         out += stale.scan(cfg, env, con, allsnaps, now)         # the only thing a fast read can send: a stale-number price alert
         out += stale.start_research(cfg, con, now, stale.new_sports(con, now))   # run on change (decision 0016)
         from engine.picks import teasers
-        out += teasers.scan(cfg, con, allsnaps, now)            # paper teaser legs (decision 0014)
+        out += teasers.scan(cfg, con, allsnaps, now, tickets=False)   # legs only; a ticket is a bet and goes out from the full read
     finally:
         con.close()
     return (0 if all(r[2] for r in rows) else 1), out

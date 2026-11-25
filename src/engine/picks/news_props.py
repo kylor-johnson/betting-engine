@@ -158,6 +158,7 @@ def log(con, cfg: dict, model, priced: list[dict], now: datetime, shifts: dict |
 
 def grade(con, now: datetime | None = None) -> int:
     """Close = Pinnacle's no-vig chance of our side at its last read before tip, same line; result from prop_evals."""
+    from engine.picks.playbook import SAME_GAME_LOOSE
     con.execute(SCHEMA)
     now = (now or datetime.now(timezone.utc)).replace(tzinfo=None)
     n = 0
@@ -165,9 +166,11 @@ def grade(con, now: datetime | None = None) -> int:
             "SELECT pick_key, player_id, stat, home, away, side, line, pin_p_side, kickoff_utc FROM news_prop_picks "
             "WHERE graded_utc IS NULL AND kickoff_utc < ?", [now]).fetchall():
         close = con.execute("""SELECT market_p_over FROM prop_evals WHERE sport = 'NBA' AND player_id = ? AND stat = ? AND home = ? AND away = ?
-                               AND line = ? AND ts_utc < ? ORDER BY ts_utc DESC LIMIT 1""", [pid, stat, home, away, line, kick]).fetchone()
+                               AND line = ? AND ts_utc < ? AND {SAME_GAME} ORDER BY ts_utc DESC LIMIT 1""".replace("{SAME_GAME}", SAME_GAME_LOOSE),
+                            [pid, stat, home, away, line, kick, kick]).fetchone()
         res = con.execute("""SELECT outcome FROM prop_evals WHERE sport = 'NBA' AND player_id = ? AND stat = ? AND home = ? AND away = ?
-                             AND outcome IS NOT NULL LIMIT 1""", [pid, stat, home, away]).fetchone()
+                             AND outcome IS NOT NULL AND {SAME_GAME} LIMIT 1""".replace("{SAME_GAME}", SAME_GAME_LOOSE),
+                          [pid, stat, home, away, kick]).fetchone()       # this game, not an earlier meeting (research 25)
         if res is None:
             continue
         cp = None if close is None else (close[0] if side == "over" else 1 - close[0])

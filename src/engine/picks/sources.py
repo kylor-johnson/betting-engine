@@ -121,6 +121,20 @@ CFBD = "https://api.collegefootballdata.com"
 PROVIDER_ORDER = ("DraftKings", "consensus", "ESPN Bet", "Bovada")
 
 
+# CollegeFootballData outages answered from the cache this process (audit 24: one outage used to stop every college slate). Never silent:
+# history.college puts these on the slate sheet's note.
+CFBD_FALLBACKS: list[str] = []
+
+
+def _cfbd_fallback(cache: Path, err: SourceError) -> list[dict]:
+    """The last good copy of a current season when the site fails, with a note; re-raise when there is no copy."""
+    if not cache.exists():
+        raise err
+    age = (datetime.now().timestamp() - cache.stat().st_mtime) / 3600
+    CFBD_FALLBACKS.append(f"{err}; using the cached copy from {age:.0f} hours ago ({cache.name})")
+    return json.loads(cache.read_text())
+
+
 def cfbd_lines(year: int, key: str, cache_dir: Path, current: bool) -> list[dict]:
     """A season of college games with closing lines and scores. Past seasons are fetched once."""
     if not key:
@@ -129,6 +143,13 @@ def cfbd_lines(year: int, key: str, cache_dir: Path, current: bool) -> list[dict
     fresh = cache.exists() and (not current or (datetime.now().timestamp() - cache.stat().st_mtime) < 12 * 3600)
     if fresh:
         return json.loads(cache.read_text())
+    try:
+        return _cfbd_lines_fetch(year, key, cache_dir, cache)
+    except SourceError as e:
+        return _cfbd_fallback(cache, e)
+
+
+def _cfbd_lines_fetch(year: int, key: str, cache_dir: Path, cache: Path) -> list[dict]:
     out = []
     for season_type in ("regular", "postseason"):
         req = urllib.request.Request(f"{CFBD}/lines?year={year}&seasonType={season_type}",
@@ -158,6 +179,13 @@ def cfbd_advanced(year: int, key: str, cache_dir: Path, current: bool) -> list[d
     cache = cache_dir / f"cfbd_adv_{year}.json"
     if cache.exists() and (not current or (datetime.now().timestamp() - cache.stat().st_mtime) < 12 * 3600):
         return json.loads(cache.read_text())
+    try:
+        return _cfbd_advanced_fetch(year, key, cache_dir, cache)
+    except SourceError as e:
+        return _cfbd_fallback(cache, e)
+
+
+def _cfbd_advanced_fetch(year: int, key: str, cache_dir: Path, cache: Path) -> list[dict]:
     req = urllib.request.Request(f"{CFBD}/stats/game/advanced?year={year}&seasonType=both&excludeGarbageTime=true",
                                  headers={"Authorization": "Bearer " + key, "Accept": "application/json", "User-Agent": "Mozilla/5.0"})
     try:

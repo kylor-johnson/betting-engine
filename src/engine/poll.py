@@ -34,6 +34,22 @@ def pregame(con, cfg: dict, now: datetime) -> bool:
     return False
 
 
+def missed_read_hours(cfg: dict, last_ok: datetime | None, now: datetime) -> int:
+    """How many scheduled read hours (config `read_hours`, Mountain) began after the last good read and before this hour. The overnight
+    gap has none, so the alarm needs no allowance for it (audit 24: the old flat 8 + 12 hours let a whole day's reads go missing)."""
+    if last_ok is None:
+        return 0
+    tz = config.display_tz(cfg)
+    h = last_ok.astimezone(tz).replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+    this_hour = now.astimezone(tz).replace(minute=0, second=0, microsecond=0)
+    n = 0
+    while h < this_hour:
+        if h.hour in cfg["read_hours"]["sunday" if h.weekday() == 6 else "other"]:
+            n += 1
+        h = (h + timedelta(hours=1)).astimezone(tz)
+    return n
+
+
 def scheduled_slot(cfg: dict, now: datetime) -> datetime | None:
     """The scheduled research time that fell in the last 30 minutes, if any (as UTC)."""
     sched = (cfg.get("agent") or {}).get("schedule") or {}
@@ -212,13 +228,19 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
         if not force and not due(cfg, now, last_ok, pregame(con, cfg, now)):
             out += refresh_tracker(con, cfg, now)
             return 0, out + ["Nothing read: outside the scheduled hours, or a read already ran in the last 45 minutes."]
-        gap = rules.missed_reads(last_ok, now, cfg["missed_read_alert_hours"] + 12)
+        missed = missed_read_hours(cfg, last_ok, now)
+        gap = (rules.missed_reads(last_ok, now, 0) + f" {missed} scheduled read hours were missed.") \
+            if missed >= int(cfg.get("missed_read_alert_hours", 2)) else None
         if gap and send_alerts:
             _deliver(con, env, [rules.Alert(f"gap|{last_ok.isoformat()}", "gap", gap)], now, out)
+        # the line read is all network (Wagerhouse, ESPN, Pinnacle): let go of the database meanwhile, so the fast reads, the NBA watcher and
+        # research runs are not left waiting on its write lock (audit 24; NBA nights now read twice an hour, decision 0037)
+        con.close()
         try:
             wh = Wagerhouse(env.get("WAGERHOUSE_USER", ""), env.get("WAGERHOUSE_PASSWORD", ""))
             snaps, problems = snap.collect(wh, cfg["sports"], now)
         except Exception as e:  # fail loudly: record it, alert, exit non-zero
+            con = snap.connect(config.DB)
             msg = str(e) if isinstance(e, (SourceError, PermissionError)) else f"{type(e).__name__}: {e}"
             con.execute("INSERT INTO polls VALUES (?,?,?,?,?)", [now.replace(tzinfo=None), False, 0, 0, msg])
             if not isinstance(e, SourceError):
@@ -228,6 +250,7 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
             else:
                 out.append(f"Line read FAILED: {msg}")
             return 1, out
+        con = snap.connect(config.DB)
 
         wh_now = {s.event_id: s for s in snaps if s.source == snap.WH}
         mk_now = {s.event_id: s for s in snaps if s.source == snap.MKT}

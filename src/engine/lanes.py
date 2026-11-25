@@ -373,11 +373,37 @@ def parity_rows(cfg: dict) -> list[tuple[str, dict[str, str]]]:
         for sp in SPORTS:
             c = (cells or {}).get(sp) or {}
             txt = f"{c.get('status', 'MISSING')}: {c.get('note', '')}".strip()
+            if comp == "news_source" and sp == "NBA" and read_schedule(cfg, sp):
+                txt = txt.rstrip(".") + "; " + read_schedule(cfg, sp)
             if comp == "teasers" and sp == "NFL":
                 txt = ("staked" if tz.get("real_money") else "paper") + f", judged at {tz['kill_after_legs']} legs. " + c.get("note", "")
             row[sp] = txt
         out.append((names.get(comp, comp), row))
     return out
+
+
+def _clock(hhmm: str) -> str:
+    h, m = (int(x) for x in str(hhmm).split(":"))
+    return f"{h % 12 or 12}{f':{m:02d}' if m else ''}{'am' if h < 12 else 'pm'}"
+
+
+def read_schedule(cfg: dict, sport: str) -> str:
+    """When this sport's news and lines are read before games, built from config (nba_watch, read_pregame_hours, burst), so the parity
+    table cannot go stale when a time changes (handoff 2026-11-24, gap 1)."""
+    parts = []
+    nw = cfg.get("nba_watch") or {}
+    if sport == "NBA" and nw.get("enabled") and nw.get("run_times"):
+        t = [_clock(x) for x in nw["run_times"]]
+        parts.append("watcher at " + (", ".join(t[:-1]) + " and " + t[-1] if len(t) > 1 else t[0]))
+    h = (cfg.get("read_pregame_hours") or {}).get(sport)
+    if h:
+        parts.append(f"full reads every 30 minutes in the {h:g} hours before any tip" if sport == "NBA" else
+                     f"full reads every 30 minutes in the {h:g} hours before any start")
+    bs = ((cfg.get("burst") or {}).get("sports") or {}).get(sport) or {}
+    if (cfg.get("burst") or {}).get("enabled") and bs.get("before_first_start"):
+        b, a = bs["before_first_start"]
+        parts.append(f"10-minute fast reads from {b / 60:g} hours before the day's first start only (cap {bs.get('max_reads_per_day', 40)} a day)")
+    return "; ".join(parts)
 
 
 def parity_problems(cfg: dict) -> list[str]:

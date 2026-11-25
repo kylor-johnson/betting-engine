@@ -339,11 +339,14 @@ def report(con, cfg: dict, now: datetime | None = None) -> str:
     out += ["## Every pick sent, and what you did", "",
             "| Sent (MT) | Sport | Pick | Price sent | Don't bet past | Stake sent | Model result | You | Your result |", "|---|---|---|---|---|---|---|---|---|"]
     for r in recs:
-        res = "open" if r.result is None else f"{r.result} ({'+' if (r.model_dollars or 0) >= 0 else '−'}${abs(r.model_dollars or 0):,.2f})"
+        # units first, "void" spelled out (decision 0036 items 7 and 11)
+        word = {"V": "void"}.get(r.result, r.result)
+        res = "open" if r.result is None else (f"{word} ({(r.profit_units or 0):+.2f} units, {'+' if (r.model_dollars or 0) >= 0 else '−'}"
+                                                f"${abs(r.model_dollars or 0):,.2f})")
         mine = "; ".join((f"{w.status} {'+' if w.net >= 0 else '−'}${abs(w.net):,.2f}" if w.status in ('W', 'L', 'X') else f"open, ${w.risk:g} at risk")
                          for w in r.matched) or "—"
         price = "" if r.price is None else f" {int(r.price):+d}"
-        out.append(f"| {r.sent.astimezone(tz):%a %-I:%M %p} | {r.sport} | {r.pick} | {price.strip() or '-110'} | {r.limit or ''} | ${r.dollars:g} | {res} | "
+        out.append(f"| {r.sent.astimezone(tz):%a %-I:%M %p} | {r.sport} | {r.pick} | {price.strip() or '-110'} | {r.limit or ''} | {config.units_text(r.dollars / r.unit if r.unit else 0, r.dollars)} | {res} | "
                    f"{grade_follow(r)} | {mine} |")
     if not recs:
         out.append("| | | none sent yet | | | | | | |")
@@ -383,7 +386,11 @@ def money_lines(con, cfg: dict, now: datetime) -> list[str]:
         st = playbook.settings(cfg, sport)
         if st["full_game"] != "stake" and not (st.get("props") and st.get("props_stake", True)):
             continue
-        down = playbook.down_units(con, sport, cfg)
+        try:
+            down = playbook.down_units(con, sport, cfg)
+        except Exception as e:      # never show an unreadable stop as +0.0 (audit 24)
+            out.append(f"- {sport}: COULD NOT READ the staked result for the stop ({type(e).__name__}); see the read log.")
+            continue
         out.append(f"- {sport}{' (with teasers)' if sport == 'NFL' else ''}: {down:+.2f} units staked result; the stop is at "
                    f"-{st['stop_loss_units']:g} ({st['stop_loss_units'] + min(down, 0):.1f} units left).")
     return out + [""]

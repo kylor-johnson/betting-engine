@@ -46,6 +46,7 @@ def college(now: datetime, hfa: float, env: dict) -> History:
     cache = config.DATA / "raw" / "cfbd"
     key = env.get("CFBD_API_KEY", "")
     year = now.year if now.month >= 8 else now.year - 1
+    sources.CFBD_FALLBACKS.clear()
     seasons = {y: sources.cfbd_lines(y, key, cache, current=(y == year)) for y in range(year - 5, year + 1)}
     for y in range(year - 5, year + 1):     # the college game script reads these (decision 0034)
         sources.cfbd_advanced(y, key, cache, current=(y == year))
@@ -69,7 +70,8 @@ def college(now: datetime, hfa: float, env: dict) -> History:
     sr, tt, avg, n = ratings.fit(games, hfa, min_games=200)
     return History(sr, tt, avg, n, Landing(landing_spread, "spread", window=1.5, min_n=600),
                    Landing(landing_total, "total", window=3.0, min_n=600), key=lambda team: str(team["id"]),
-                   note="College ratings come from this season's closing lines; teams with few lined games sit near average.")
+                   note="College ratings come from this season's closing lines; teams with few lined games sit near average."
+                   + "".join(f" PROBLEM: {m}." for m in sources.CFBD_FALLBACKS))
 
 
 def nba(now: datetime, hfa: float, sd: dict, days: int = 35) -> History:

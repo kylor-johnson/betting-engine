@@ -1,6 +1,7 @@
 """NBA injury watcher: catch a status change for a player who matters before Wagerhouse moves its line.
 
-Runs three times a day (10:00, 15:00 and 17:00 Mountain; launchd, `engine nba-watch`; times in config `nba_watch.run_times`).
+Runs at the times in config `nba_watch.run_times` (10:00, 15:00, 17:00 and 18:30 Mountain since decision 0036; launchd, `engine nba-watch`).
+Between runs, the hourly read reads every 30 minutes in the 3 hours before any tip (decision 0037, `read_pregame_hours`).
 Each run compares today's injury report with the one stored at the previous run, so the 10:00 run catches overnight and morning changes.
 Each run:
   1. reads ESPN's public NBA injury report (no account, no Wagerhouse);

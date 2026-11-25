@@ -679,6 +679,8 @@ def cmd_playbook(args) -> int:
             print(card)
     finally:
         con.close()
+        if args.dry_run:            # the copy is about 21 MB; never leave it behind (audit 24)
+            shutil.rmtree(tmp.parent, ignore_errors=True)
     return 0
 
 

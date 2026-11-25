@@ -40,7 +40,7 @@ read_hours:
   sunday: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]   # news all day, openers in the evening
   other: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]   # to 9pm every day since decision 0036: evening NBA and college games get resends, CANCELLED and a closing read
 read_pregame_hours: {NBA: 3}   # a full read every half hour (both wake-ups) when a game of this sport starts within this many hours (decision 0037)
-missed_read_alert_hours: 8   # poll.py adds 12 for the overnight gap, so the alert fires after 20 hours without a good read
+missed_read_alert_hours: 2   # Telegram system line when this many scheduled read hours (read_hours) passed without a good read; the overnight gap has none (charter check 7: 2 hours)
 opener_messages: [NFL]     # sports that get a "your book posted new games" message on the log and board (kind info, held back from Telegram)
 
 # Picks engine
@@ -260,7 +260,7 @@ playbook:
     # weights.prop per sport (decision 0036): the blend weight the forward test supports (research 24: NFL 0.15 on 199 props, NBA 0.25 on 563)
     NFL: {full_game: stake, props: true, props_stake: true, period: week, max_per_period: 5, props_per_period: 10, props_per_game: 2, weights: {prop: 0.15}}
     # NBA full-game back to shown only, no money, news picks included (decision 0036): the NBA script cannot see who is injured
-    NBA: {full_game: show, news_picks: false, props: true, props_stake: true, period: day, max_per_period: 2, props_per_period: 4, props_per_game: 2, weights: {prop: 0.25}}
+    NBA: {full_game: show, shown_reason: "the NBA script cannot see who is injured; back to staked takes a decision note Kylor asks for (decision 0036)", news_picks: false, props: true, props_stake: true, period: day, max_per_period: 2, props_per_period: 4, props_per_game: 2, weights: {prop: 0.25}}
     # news_picks (decision 0029): only matters in a shown-only lane, where a pick is staked only when unpriced sourced news is what clears the bar.
     # College full-game is staked by Kylor's choice since Nov 24 (decision 0035), like the NFL (0019), so every B pick is staked.
     College: {full_game: stake, news_picks: true, props: false, period: week, max_per_period: 5}
@@ -281,7 +281,7 @@ parity:
   news_source:
     NFL: {status: live, note: "ESPN injuries hourly, QB status watcher, reporter relay, practice-report fast reads"}
     College: {status: live, note: "no free injury feed: the research agent searches availability reports; Friday and Saturday fast reads"}
-    NBA: {status: live, note: "official injury PDF, reporter relay, ESPN; watcher at 10am, 3pm, 5pm; fast reads before first tip"}
+    NBA: {status: live, note: "official injury PDF, reporter relay, ESPN"}   # the read schedule is appended from nba_watch, read_pregame_hours and burst
   weather:
     NFL: {status: live, note: "wind totals passed, weaker since 2024; in the NFL script (research 05, 17)"}
     College: {status: failed, note: "wind totals on day-before forecasts, 2024-2026: 57-53 at 1 point, closing total already prices it (research 20)"}

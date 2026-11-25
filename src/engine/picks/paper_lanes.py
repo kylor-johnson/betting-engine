@@ -234,10 +234,11 @@ def log_d1b(con, cfg: dict, now: datetime, st: dict) -> int:
     from engine.picks import playbook
     pst = playbook.settings(cfg, "NFL")
     naive = now.astimezone(timezone.utc).replace(tzinfo=None)
-    cands = con.execute("""SELECT event_id, game, market, side, own_value, market_value, kickoff_utc FROM (
-                             SELECT *, row_number() OVER (PARTITION BY event_id, market, side ORDER BY first_seen_utc DESC) rn
-                             FROM playbook_candidates WHERE sport = 'NFL' AND kickoff_utc > ?) WHERE rn = 1""",
-                        [naive]).fetchall()
+    # this read's disagreement (last_*), not the first read's: a candidate row is frozen at first sight, so its own_value / market_value can
+    # be days old and would count a Pinnacle move toward us twice (tuning check, research 25). Only candidates priced in the last read.
+    con.execute(playbook.SCHEMA)
+    cands = con.execute("""SELECT event_id, game, market, side, last_own_value, last_market_value, kickoff_utc FROM playbook_candidates
+                           WHERE sport = 'NFL' AND kickoff_utc > ? AND last_seen_utc > ?""", [naive, naive - FRESH]).fetchall()
     games: dict[str, dict] = {}
     for eid, game, market, side, own, mkt, kick in cands:
         if own is None or mkt is None:
@@ -261,6 +262,10 @@ def log_d1b(con, cfg: dict, now: datetime, st: dict) -> int:
 
 
 # ---------- grading ----------
+# this game only, not an earlier meeting of the same two teams (tuning check, research 25)
+from engine.picks.playbook import SAME_GAME_LOOSE  # noqa: E402
+
+
 def _close(con, p: dict) -> tuple | None:
     """(line, price_a, price_b) of Pinnacle's last read before the start for this pick's market."""
     if p["period"] == "Game" and p["market"] in ("spread", "total"):
@@ -270,8 +275,8 @@ def _close(con, p: dict) -> tuple | None:
     away, home = p["game"].split(" at ", 1)
     desc = p["side"].split("_")[0] if p["market"] == "team_total" else ""
     return con.execute("""SELECT line, price_a, price_b FROM derivative_snapshots WHERE source = 'Pinnacle' AND sport = ? AND home = ? AND away = ?
-                          AND market = ? AND period = ? AND description = ? AND ts_utc < ? ORDER BY ts_utc DESC LIMIT 1""",
-                       [p["sport"], home, away, p["market"], p["period"], desc, p["kick_utc"]]).fetchone()
+                          AND market = ? AND period = ? AND description = ? AND ts_utc < ? AND {SAME_GAME} ORDER BY ts_utc DESC LIMIT 1"""
+                       .replace("{SAME_GAME}", SAME_GAME_LOOSE), [p["sport"], home, away, p["market"], p["period"], desc, p["kick_utc"], p["kick_utc"]]).fetchone()
 
 
 def clv_of(p: dict, close: tuple | None, cfg: dict) -> float | None:

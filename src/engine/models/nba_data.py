@@ -111,7 +111,8 @@ def download(seasons: list[int] | None = None, pause: float = 0.25, workers: int
     for season in seasons or sorted(SEASONS):
         start, end = SEASONS[season]
         day = start
-        while day <= min(end, today - timedelta(days=1)):
+        while day <= min(end, today):     # today too: same-night props grade on the evening reads (handoff 2026-11-24, gap 4); a
+                                          # scoreboard is cached only once its day is past and every game final (espn.scoreboard)
             try:
                 events = espn.scoreboard("NBA", day, sb_cache)
             except SourceError as e:
