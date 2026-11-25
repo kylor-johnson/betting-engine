@@ -174,3 +174,22 @@ def test_props_are_paper_decision_0038():
         c = {"grade": "B", "event_id": "e", "market": "prop"}
         units, dollars, note, nominal = pb._paper_or_staked(_con(), st, c, 0.5, 12.5, "B pick", 25.0, full_game=False)
         assert dollars == 0 and units == 0 and nominal == 0.5 and "not staked" in note
+
+
+# Decision 0039: one full read 8-25 minutes before each NFL and college kickoff.
+def test_closing_read_before_each_nfl_and_college_kickoff():
+    from engine import poll
+    cfg = {"closing_read": {"enabled": True, "sports": ["NFL", "College"], "minutes_before": [25, 8]}}
+    con = duckdb.connect()
+    con.execute("CREATE TABLE line_snapshots (sport VARCHAR, start_utc TIMESTAMP)")
+    kick = datetime(2026, 11, 27, 1, 15, tzinfo=timezone.utc)                     # Thu 6:15pm MT
+    con.execute("INSERT INTO line_snapshots VALUES ('NFL', ?), ('NBA', ?)", [kick.replace(tzinfo=None), datetime(2026, 11, 27, 1, 5)])
+    hourly = kick - timedelta(minutes=43)                                         # the 5:32pm read
+    assert poll.closing_due(con, cfg, kick - timedelta(minutes=30), hourly) is None       # too early
+    assert poll.closing_due(con, cfg, kick - timedelta(minutes=20), hourly) == kick       # 5:55pm: due
+    assert poll.closing_due(con, cfg, kick - timedelta(minutes=10), kick - timedelta(minutes=19)) is None   # already done
+    assert poll.closing_due(con, cfg, kick - timedelta(minutes=5), hourly) is None        # too late to bet on it
+    cfg["closing_read"]["sports"] = ["College"]
+    assert poll.closing_due(con, cfg, kick - timedelta(minutes=20), hourly) is None       # NBA and unlisted sports never
+    from engine import lanes
+    assert "closing read 8-25 minutes before each kickoff" in dict(lanes.parity_rows(_cfg()))["News source"]["NFL"]

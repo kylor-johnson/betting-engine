@@ -373,7 +373,7 @@ def parity_rows(cfg: dict) -> list[tuple[str, dict[str, str]]]:
         for sp in SPORTS:
             c = (cells or {}).get(sp) or {}
             txt = f"{c.get('status', 'MISSING')}: {c.get('note', '')}".strip()
-            if comp == "news_source" and sp == "NBA" and read_schedule(cfg, sp):
+            if comp == "news_source" and read_schedule(cfg, sp):
                 txt = txt.rstrip(".") + "; " + read_schedule(cfg, sp)
             if comp == "teasers" and sp == "NFL":
                 txt = ("staked" if tz.get("real_money") else "paper") + f", judged at {tz['kill_after_legs']} legs. " + c.get("note", "")
@@ -399,6 +399,10 @@ def read_schedule(cfg: dict, sport: str) -> str:
     if h:
         parts.append(f"full reads every 30 minutes in the {h:g} hours before any tip" if sport == "NBA" else
                      f"full reads every 30 minutes in the {h:g} hours before any start")
+    cr = cfg.get("closing_read") or {}
+    if cr.get("enabled") and sport in (cr.get("sports") or []):
+        a, b = cr.get("minutes_before", [25, 8])
+        parts.append(f"a closing read {b}-{a} minutes before each kickoff, any hour (decision 0039)")
     bs = ((cfg.get("burst") or {}).get("sports") or {}).get(sport) or {}
     if (cfg.get("burst") or {}).get("enabled") and bs.get("before_first_start"):
         b, a = bs["before_first_start"]

@@ -39,6 +39,7 @@ alerts:
 read_hours:
   sunday: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]   # news all day, openers in the evening
   other: [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]   # to 9pm every day since decision 0036: evening NBA and college games get resends, CANCELLED and a closing read
+closing_read: {enabled: true, sports: [NFL, College], minutes_before: [25, 8]}   # one full read 8-25 minutes before each NFL and college kickoff, any hour, started by the 10-minute fast-read job (decision 0039)
 read_pregame_hours: {NBA: 3}   # a full read every half hour (both wake-ups) when a game of this sport starts within this many hours (decision 0037)
 missed_read_alert_hours: 2   # Telegram system line when this many scheduled read hours (read_hours) passed without a good read; the overnight gap has none (charter check 7: 2 hours)
 opener_messages: [NFL]     # sports that get a "your book posted new games" message on the log and board (kind info, held back from Telegram)

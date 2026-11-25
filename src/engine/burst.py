@@ -143,3 +143,20 @@ def run(force: bool = False) -> tuple[int, list[str]]:
     finally:
         con.close()
     return (0 if all(r[2] for r in rows) else 1), out
+
+
+def closing(now: datetime | None = None) -> list[str]:
+    """Decision 0039: this job wakes every 10 minutes, so it starts the full read (`poll.run`) when an NFL or college kickoff is 8 to 25
+    minutes away and none has run since. The hourly job wakes only at :02 and :32, which left the close up to 58 minutes old."""
+    from engine import poll
+    cfg = config.load_config()
+    now = now or datetime.now(timezone.utc)
+    con = snap.connect(config.DB, read_only=True)
+    try:
+        due = poll.closing_due(con, cfg, now, snap.last_ok_poll(con))
+    finally:
+        con.close()
+    if due is None:
+        return []
+    code, lines = poll.run()
+    return lines + ([] if code == 0 else ["Closing read failed (see above)."])

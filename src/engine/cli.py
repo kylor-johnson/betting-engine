@@ -129,6 +129,10 @@ def cmd_poll(args) -> int:
 def cmd_burst(args) -> int:
     from engine import burst
     code, lines = burst.run(force=args.force)
+    try:
+        lines += burst.closing()            # decision 0039: the closing read before NFL and college kickoffs
+    except Exception as e:
+        lines.append(f"Closing read check failed: {type(e).__name__}: {e}")
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%SZ")
     for line in lines:
         print(f"{stamp} {line}")

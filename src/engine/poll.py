@@ -50,6 +50,30 @@ def missed_read_hours(cfg: dict, last_ok: datetime | None, now: datetime) -> int
     return n
 
 
+def closing_due(con, cfg: dict, now: datetime, last_ok: datetime | None) -> datetime | None:
+    """The kickoff a closing read is due for, or None (decision 0039). Due when a game of a sport in config `closing_read.sports` starts
+    between `minutes_before[1]` and `minutes_before[0]` minutes from now and no good full read has run since `minutes_before[0]` minutes
+    before that start. The fast-read job wakes every 10 minutes and checks this, so each kickoff time gets one full read about 8 to 25
+    minutes before it, at any hour: the closing number, a last CANCELLED and the grade's close."""
+    cr = cfg.get("closing_read") or {}
+    if not cr.get("enabled") or not cr.get("sports"):
+        return None
+    early, late = (int(x) for x in cr.get("minutes_before", [25, 8]))
+    marks = ",".join("?" * len(cr["sports"]))
+    try:
+        row = con.execute(f"SELECT min(start_utc) FROM line_snapshots WHERE sport IN ({marks}) AND start_utc > ? AND start_utc <= ?",
+                          [*cr["sports"], (now + timedelta(minutes=late)).replace(tzinfo=None),
+                           (now + timedelta(minutes=early)).replace(tzinfo=None)]).fetchone()
+    except Exception:
+        return None
+    if not row or row[0] is None:
+        return None
+    start = row[0].replace(tzinfo=timezone.utc)
+    if last_ok is not None and last_ok >= start - timedelta(minutes=early):
+        return None
+    return start
+
+
 def scheduled_slot(cfg: dict, now: datetime) -> datetime | None:
     """The scheduled research time that fell in the last 30 minutes, if any (as UTC)."""
     sched = (cfg.get("agent") or {}).get("schedule") or {}
@@ -225,7 +249,10 @@ def run(force: bool = False, send_alerts: bool = True) -> tuple[int, list[str]]:
                     _deliver(con, env, extra, now, out)
             except Exception as e:
                 out.append(f"Lane status check failed: {type(e).__name__}: {e}")
-        if not force and not due(cfg, now, last_ok, pregame(con, cfg, now)):
+        closing = closing_due(con, cfg, now, last_ok)        # decision 0039: one read before each NFL and college kickoff, any hour
+        if closing is not None:
+            out.append(f"Closing read for the {closing.astimezone(config.display_tz(cfg)):%-I:%M %p} MT kickoff (decision 0039).")
+        if not force and closing is None and not due(cfg, now, last_ok, pregame(con, cfg, now)):
             out += refresh_tracker(con, cfg, now)
             return 0, out + ["Nothing read: outside the scheduled hours, or a read already ran in the last 45 minutes."]
         missed = missed_read_hours(cfg, last_ok, now)

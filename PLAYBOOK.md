@@ -154,5 +154,6 @@ We copy methods, never picks. Warren Sharp's write-ups are one example; Walters,
 | Paper lanes: Wagerhouse trailing Pinnacle (all sports), early-week NFL against public ratings, NFL first halves and team totals | Paper, $0, never sent; off at 150 graded unless closing-line value is above zero (decision 0036, research 24 tests L1, F1, D1b) | `picks/paper_lanes.py`, `docs/lanes/PAPER-LANES.md` |
 | Voids, props at the limit price, units-first messages, reads to 9pm | Live (decision 0036) | `picks/playbook.py`, `bets/tracker.py`, `config.yaml` |
 | Full reads every 30 minutes in the 3 hours before an NBA tip | Live (decision 0037) | `poll.py`, `config.yaml` `read_pregame_hours` |
+| A closing read 8-25 minutes before each NFL and college kickoff, any hour | Live (decision 0039) | `poll.closing_due`, `burst.closing`, `config.yaml` `closing_read` |
 
 Commands: `engine playbook --dry-run [--sport NFL|NBA|College]` shows the current lists without sending or writing; `engine playbook-record`.
