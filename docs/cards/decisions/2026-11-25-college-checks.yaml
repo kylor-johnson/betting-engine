@@ -14,8 +14,9 @@ checks:
     verdict: hold
     why: >
       Same as yesterday. I searched for Georgia Tech and Georgia quarterback news for this game and found no current
-      injury report for either side. A November AJC preview names Lincoln Kienholz as Georgia Tech's starter. Finding
-      nothing is a hold.
+      injury report for either side, and nothing new in the 08:16 run. (An earlier note named Lincoln Kienholz as
+      Georgia Tech's starter; a 2026 Louisville page lists him on Louisville's roster, so that claim is withdrawn as
+      unverified.) Finding nothing is a hold.
     source: "https://www.ajc.com/sports/2026/11/everything-to-know-georgia-tech-louisville/"
   - key: "401861969|total|over"
     verdict: hold
