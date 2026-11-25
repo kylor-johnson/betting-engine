@@ -172,7 +172,13 @@ def _leg_matches(rec: Rec, leg, w: Wager) -> bool:
             return False
         player, ou = norm(m.group(1)), m.group(2)
         last = player.split()[-1] if player else ""
-        want, have = stat_words(m.group(3)), stat_words(leg.team2)
+        stat = leg.team2
+        if not stat and leg.kind == "other" and w.description.count(" / Game / ") == 1:
+            # a settled single-prop ticket from the same-game builder ("G159... Basketball - A vs B / Game / Total 3pt FG Made / John Collins
+            # Over 1.5 +160") comes back with an empty leg; the stat is the part before the player. Two-leg builders never match.
+            parts = [x.strip() for x in w.description.split(" / ")]
+            stat = parts[-2] if len(parts) >= 4 else ""
+        want, have = stat_words(m.group(3)), stat_words(stat)
         same_stat = want == have if {"points", "rebounds", "assists"} & (want | have) else bool(want & have)
         return bool(last) and last in norm(leg.team1 + " " + leg.chosen + " " + desc) and same_stat and \
             ((leg.over_under or "").upper() == ou[0].upper() or ou in desc)

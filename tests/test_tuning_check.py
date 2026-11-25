@@ -223,3 +223,20 @@ def test_zero_cap_means_no_cap():
     con = duckdb.connect()
     out = playbook._paper_or_staked(con, st, {"grade": "B", "event_id": "x"}, 0.5, 12.5, "", 25.0, full_game=True)
     assert out[1] == 12.5 and out[2] == ""
+
+
+def test_tracker_matches_single_prop_builder_ticket():
+    """Wagerhouse settles a single prop as a same-game-builder ticket with an empty leg; it must still match the prop pick (Collins, Nov 24)."""
+    from datetime import datetime, timezone
+    from engine.bets import tracker
+    from engine.bets.history import Leg, Wager
+    leg = Leg(0, "other", "", "", "", "", None, None, 0.0, 0.0, "", None, None, "", "")
+    def wager(desc):
+        return Wager(1, 1, "S", "builder", datetime(2026, 11, 24, 14, 13, tzinfo=timezone.utc), 13.0, 20.8, 0.0, 0.0, "W", False, "", desc, "", [leg])
+    rec = tracker.Rec("k", "playbook", "NBA", datetime(2026, 11, 24, 14, 2, tzinfo=timezone.utc), "Detroit Pistons at Orlando Magic", "prop", "over",
+                      "John Collins over 1.5 Threes Made", 1.5, 182, 12.5, None, datetime(2026, 11, 25, 0, 0, tzinfo=timezone.utc), "W", 0.81, 25.0, [])
+    one = wager("G15965086  Basketball - Detroit Pistons vs Orlando Magic / Game / Total 3pt FG Made / John Collins Over 1.5 +160")
+    assert tracker._leg_matches(rec, leg, one)
+    two = wager("G1  Basketball - Detroit Pistons vs Orlando Magic / Game / Total 3pt FG Made / John Collins Over 1.5 +160  "
+                "Basketball - Detroit Pistons vs Orlando Magic / Game / Winner (2 way) / Orlando Magic -150")
+    assert not tracker._leg_matches(rec, leg, two)
