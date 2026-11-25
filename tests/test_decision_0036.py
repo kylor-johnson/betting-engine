@@ -30,7 +30,7 @@ def test_config_switches():
     cfg = _cfg()
     assert pb.settings(cfg, "NFL")["weights"]["prop"] == 0.15 and pb.settings(cfg, "NBA")["weights"]["prop"] == 0.25
     nba = pb.settings(cfg, "NBA")
-    assert nba["full_game"] == "show" and not nba.get("news_picks")          # no money on NBA full-game, news picks included
+    assert nba["full_game"] == "stake"                                        # 0036 item 2 replaced by decision 0040
     assert pb.settings(cfg, "College")["full_game"] == "stake"
     assert all(pb.settings(cfg, s)["live_since"] == "2026-11-23" for s in ("NFL", "NBA", "College"))
     assert cfg["read_hours"]["other"][-1] == 21 and cfg["read_hours"]["sunday"][-1] == 21

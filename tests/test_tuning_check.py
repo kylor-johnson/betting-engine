@@ -158,22 +158,25 @@ def test_team_total_close_ignores_an_earlier_meeting():
     assert pb.team_total_close(con, {}, "NBA", "H", "A", "home", "over", 112.5, -110, kick)[0] == 113.5
 
 
-# Grid B4: the shown-only reason on the card is decision 0036's, from config.
-def test_nba_shown_only_reason_comes_from_config():
+# Grid B4: the shown-only reason on the card comes from config.
+def test_shown_only_reason_comes_from_config():
     from engine.picks import playbook as pb
-    assert "cannot see who is injured" in pb.shown_reason(pb.settings(_cfg(), "NBA"))
+    st = {**pb.settings(_cfg(), "NBA"), "shown_reason": "the NBA script cannot see who is injured"}
+    assert "cannot see who is injured" in pb.shown_reason(st)
 
 
-# Decision 0038: NFL and NBA props are paper at $0, never sent.
-def test_props_are_paper_decision_0038():
+# Decision 0040 (replacing 0038 and 0036 item 2): every pick the model makes is staked and sent.
+def test_every_model_pick_is_staked_decision_0040():
     from engine.picks import playbook as pb
     cfg = _cfg()
-    for sport in ("NFL", "NBA"):
+    for sport in ("NFL", "NBA", "College"):
         st = pb.settings(cfg, sport)
-        assert st["props"] and st["props_stake"] is False
-        c = {"grade": "B", "event_id": "e", "market": "prop"}
-        units, dollars, note, nominal = pb._paper_or_staked(_con(), st, c, 0.5, 12.5, "B pick", 25.0, full_game=False)
-        assert dollars == 0 and units == 0 and nominal == 0.5 and "not staked" in note
+        assert st["full_game"] == "stake"
+        c = {"grade": "B", "event_id": "e", "market": "side"}
+        assert pb._paper_or_staked(_con(), st, c, 0.5, 12.5, "B pick", 25.0, full_game=True)[1] == 12.5
+        if sport != "College":
+            assert st["props"] and st["props_stake"] is True
+            assert pb._paper_or_staked(_con(), st, {**c, "market": "prop"}, 0.5, 12.5, "B pick", 25.0, full_game=False)[1] == 12.5
 
 
 # Decision 0039: one full read 8-25 minutes before each NFL and college kickoff.

@@ -38,7 +38,7 @@ def test_parity_money_cells_come_from_switches():
     rows = dict(lanes.parity_rows(_cfg()))
     assert rows["Full-game picks (money)"]["NFL"] == "staked"
     assert rows["Full-game picks (money)"]["College"] == "staked"     # decision 0035
-    assert rows["Full-game picks (money)"]["NBA"] == "shown"         # decision 0036: back to shown, news picks off
+    assert rows["Full-game picks (money)"]["NBA"] == "staked"        # decision 0040 (was shown under 0036)
     assert rows["News into our number (decision 0029)"]["College"].startswith("staked lane")
 
 
