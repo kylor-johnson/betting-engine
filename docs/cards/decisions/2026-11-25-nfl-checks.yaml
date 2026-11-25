@@ -3,6 +3,10 @@ checks:
     verdict: hold
     why: "Mason Rudolph will start Friday against Denver (Tom Pelissero, ESPN feed Nov 24 21:25 MT), and Aaron Rodgers was not at the facility Wednesday morning (Jordan Schultz, ESPN feed Nov 25 07:20 MT). The model assumes Rodgers. Pinnacle moved Pittsburgh from +2.5 to +3.5 after the report, so the market knows and the model does not. Rechecked 08:15 MT: no newer report."
     source: "https://www.espn.com/nfl/injuries"
+  - key: "401873083|total|over"
+    verdict: hold
+    why: "Same game as the side row: Pittsburgh announced Tuesday that Mason Rudolph replaces Aaron Rodgers as the starter (Pelissero, ESPN feed Nov 24 21:25 MT; Rodgers on McAfee, ESPN feed Nov 25 12:33 MT). The model assumes Rodgers; a 36.5 total prices the backup. Nothing found that the market has wrong."
+    source: "https://www.espn.com/nfl/injuries"
   - key: "401873089|side|home"
     verdict: hold
     why: "Malik Willis is on injured reserve with a groin/core injury (Hafley Monday, via Joe Schad, ESPN feed Nov 23 10:19 MT) and Kyle McCord starts; the model assumes the usual starter. No change this morning."
