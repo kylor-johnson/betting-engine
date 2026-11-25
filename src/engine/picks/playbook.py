@@ -1248,8 +1248,11 @@ def cancel_reason(con, cfg: dict, row: dict, lands: tuple | None = None) -> str 
         p = over if side == "over" else 1 - over
         e = p - chance_needed(row["price"])
         if e < half:
-            return (f"Pinnacle's chance over moved from {100 * row['market_line']:.0f}% to {100 * m1:.0f}%; at {int(row['price']):+d} the edge is "
-                    f"{100 * e:+.1f}%, under the {100 * half:.1f}% limit.")
+            tail = f"at {int(row['price']):+d} the edge is {100 * e:+.1f}%, under the {100 * half:.1f}% limit."
+            if round(100 * row["market_line"]) == round(100 * m1):
+                return (f"Pinnacle has not moved (chance over {100 * m1:.0f}%), but our props model now counts for less against it "
+                        f"({w:g}); {tail}")
+            return f"Pinnacle's chance over moved from {100 * row['market_line']:.0f}% to {100 * m1:.0f}%; {tail}"
         return None
     now_mkt = _pin_now(con, row["sport"], row["event_id"], row["market"], row["game"], row["side"],
                        fair=row.get("first_seen_utc") is not None and row["first_seen_utc"] >= FAIR_SINCE)

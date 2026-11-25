@@ -213,3 +213,25 @@ def test_backfill_regrades_old_prop_wins_at_the_limit():
     con.execute("INSERT INTO playbook_grades (pick_key, result, profit_units, nominal_profit) VALUES ('k', 'W', 0.615, 0.615)")
     pb._backfill(con)
     assert con.execute("SELECT profit_units FROM playbook_grades").fetchone()[0] == pytest.approx(0.555)
+
+
+def _prop_cancel(m_then, m_now):
+    import duckdb
+    from engine.picks import playbook as pb
+    con = duckdb.connect()
+    con.execute("CREATE TABLE prop_evals (ts_utc TIMESTAMP, sport VARCHAR, player_id VARCHAR, stat VARCHAR, home VARCHAR, away VARCHAR, "
+                "start_utc VARCHAR, line DOUBLE, market_p_over DOUBLE)")
+    kick = datetime(2026, 11, 25, 0, 0)
+    con.execute("INSERT INTO prop_evals VALUES (?, 'NBA', 'p1', 'threes', 'Magic', 'Pistons', '2026-11-25T00:00:00Z', 1.5, ?)",
+                [kick - timedelta(hours=2), m_now])
+    row = {"sport": "NBA", "market": "prop", "pick_key": "prop|p1|threes|over|1.5|e1", "game": "Pistons at Magic", "kickoff_utc": kick,
+           "first_seen_utc": kick - timedelta(hours=10), "market_line": m_then, "own_line": 0.40, "price": 182}
+    return pb.cancel_reason(con, {"playbook": {"sports": {"NBA": {"weights": {"prop": 0.25}}}}}, row)
+
+
+def test_prop_cancel_says_when_pinnacle_has_not_moved():
+    # The Collins message on Nov 24 said "moved from 33% to 33%": the edge fell because the props weight changed, not Pinnacle.
+    msg = _prop_cancel(0.33, 0.33)
+    assert msg and "has not moved" in msg and "moved from" not in msg
+    moved = _prop_cancel(0.36, 0.33)
+    assert moved and "moved from 36% to 33%" in moved
