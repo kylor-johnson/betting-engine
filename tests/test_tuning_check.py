@@ -196,3 +196,9 @@ def test_closing_read_before_each_nfl_and_college_kickoff():
     assert poll.closing_due(con, cfg, kick - timedelta(minutes=20), hourly) is None       # NBA and unlisted sports never
     from engine import lanes
     assert "closing read 8-25 minutes before each kickoff" in dict(lanes.parity_rows(_cfg()))["News source"]["NFL"]
+
+
+def test_books_short_warriors_name_maps_to_gs():
+    """Pinnacle, Wagerhouse and DraftKings write "Golden St Warriors"; without the alias the NBA model and props skipped every Warriors game."""
+    from engine.models.nba_props import NAME_TO_ABBR
+    assert NAME_TO_ABBR["Golden St Warriors"] == NAME_TO_ABBR["Golden State Warriors"] == "GS"
