@@ -8,8 +8,8 @@ Luck range: how far the units could land from zero by chance alone for a bettor 
 
 | Sport | Market | Graded picks | W-L | Units | Luck range | Closing-line value (win chance) |
 |---|---|---|---|---|---|---|
-| NBA | prop | 3 | 1-2 | -0.54 | ±1.89 | -3.0% on 3 |
-| NFL | prop | 2 | 2-0 | +1.16 | ±1.52 | -2.1% on 2 |
+| NBA | prop | 3 | 1-2 | -0.57 | ±1.89 | -3.0% on 3 |
+| NFL | prop | 2 | 2-0 | +1.04 | ±1.52 | -2.1% on 2 |
 | NFL | team_total | 1 | 1-0 | +0.48 | ±0.98 | +1.1% on 1 |
 
 ## Weight re-fit from graded candidates
