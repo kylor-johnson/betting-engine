@@ -1,6 +1,6 @@
 # College openers on paper
 
-Generated Wed Nov 25, 1:02 PM MT by the hourly read. Research 23 (test T4), decision 0034. $0: never sent, never staked.
+Generated Wed Nov 25, 4:32 PM MT by the hourly read. Research 23 (test T4), decision 0034. $0: never sent, never staked.
 
 Every college game Wagerhouse posts gets our college script's own number against Wagerhouse's first number. Where we differ by 3+ points on the side or 4+ on the total, a paper pick is frozen at that first number. Graded on the move to the close (Pinnacle's last number before kickoff) and on the result at the first number.
 

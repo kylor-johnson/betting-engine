@@ -1,14 +1,14 @@
 # Tracker: the model's picks against your bets (generated; do not edit)
 
-From 2026-11-23 (Mountain). Updated Wed Nov 25, 1:04 PM MT. Your wagers come from the account history, which shows a bet once it is graded; open bets are entered from your open-bets screen (data.nosync/tracker/open_bets.yaml) until they settle. Picks come from what Telegram sent.
+From 2026-11-23 (Mountain). Updated Wed Nov 25, 4:34 PM MT. Your wagers come from the account history, which shows a bet once it is graded; open bets are entered from your open-bets screen (data.nosync/tracker/open_bets.yaml) until they settle. Picks come from what Telegram sent.
 
 ## Scoreboard
 
 | | Bets | Record | Net | Notes |
 |---|---|---|---|---|
-| **Model** (every staked pick, at the stake and number sent) | 30 sent, 8 graded | 5-3-0 | +1.25u (+$69.16) | 15.5 units ($525.00) recommended in all; luck range ±3.09u (±$109.96) |
+| **Model** (every staked pick, at the stake and number sent) | 31 sent, 8 graded | 5-3-0 | +1.25u (+$69.16) | 15.5 units ($525.00) recommended in all; luck range ±3.09u (±$109.96) |
 | **Model, paper picks** (not sent; graded at the stake they would carry) | 1 issued, 1 graded | 1-0-0 | +0.43u (+$10.78) | not sent: paper lanes, the one-unit-a-game cap, the weekly cap, a stop |
-| **You, on the model's picks** | 29 | 4-2 | +$56.05 | followed 26 of 30 picks |
+| **You, on the model's picks** | 29 | 4-2 | +$56.05 | followed 26 of 31 picks |
 | **You, your own bets** | 13 | 5-5 | −$88.92 | not on the model's list |
 | **You, everything** | 46 (30 open) | 9-7 | −$32.87 | the account's own grading |
 
@@ -62,6 +62,7 @@ The charter says a price gap alone is never a reason. This shows how much of eac
 | Wed 9:14 AM | College | Over 40 | -110 | Over 40 | ½ unit ($12.50) | open | bet: same number | open, $12 at risk |
 | Wed 10:02 AM | College | Bowling Green -3 | -110 | Bowling Green -3 | ½ unit ($12.50) | open | not bet | — |
 | Mon 3:51 PM | NFL | Teaser Green Bay Packers +8 / Pittsburgh Steelers +8.5 | -110 |  | 1 unit ($50) | open | bet: 2 wagers on it | open, $25 at risk; open, $25 at risk |
+| Wed 2:02 PM | NFL | Teaser Washington Commanders -1.5 / Seattle Seahawks +8.5 | -110 |  | 0 units ($0) | open | not bet | — |
 
 ## Your bets that were not on the model's list
 

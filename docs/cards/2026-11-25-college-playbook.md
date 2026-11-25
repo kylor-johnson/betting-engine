@@ -29,9 +29,9 @@ CHECK rows clear the edge but our number is far from the market. The research ag
 | Pick | Game | Edge | Our number / market / our handicap alone | Note | Key |
 |---|---|---|---|---|---|
 | Georgia Tech +35.5 (-110) | Georgia Tech at Georgia | +7.4% | -32.2 / -35.0 / -23.7 | CHECK held: Same as yesterday. I searched for Georgia Tech and Georgia quarterback news for this game and found no current injury report for either side, and nothing new in the 08:16 run. (An earlier note named Lincoln Kienholz as Georgia Tech's starter; a 2026 Louisville page lists him on Louisville's roster, so that claim is withdrawn as unverified.) Finding nothing is a hold. | `401856760|side|away` |
-| Over 46 (-110) | UAB at North Texas | +7.1% | 50.2 / 45.4 / 59.1 | CHECK: our number is far from the market; held until the research agent finds what the market knows | `401862843|total|over` |
+| Over 45.5 (-110) | UAB at North Texas | +7.4% | 50.1 / 45.3 / 59.1 | CHECK: our number is far from the market; held until the research agent finds what the market knows | `401862843|total|over` |
+| Over 37.5 (-110) | Michigan at Ohio St | +6.3% | 40.4 / 37.9 / 45.0 | CHECK: our number is far from the market; held until the research agent finds what the market knows | `401858540|total|over` |
 | Over 45 (-110) | Connecticut at Wyoming | +4.8% | 47.9 / 45.1 / 53.2 | CHECK held: Wyoming starter Tyler Hughes has a small forearm fracture, and Landon Sims has made at least two straight starts in his place, including the 24-17 loss to New Mexico (Wyo4News). A backup quarterback for Wyoming explains a lower total than a points model built partly on Hughes's games. I found no update on Hughes for UConn and no news for UConn's side. | `401861969|total|over` |
-| Over 38 (-110) | Michigan at Ohio St | +4.6% | 40.4 / 37.9 / 45.0 | CHECK: our number is far from the market; held until the research agent finds what the market knows | `401858540|total|over` |
 | Over 41 (-110) | Sam Houston St at Florida Intl | +4.5% | 43.6 / 41.1 / 48.2 | CHECK held: I searched for Sam Houston and FIU quarterback or injury news this week. The only 2026 item was a September roster move (backup DJ Bailey off the Sam Houston roster, KBTX); everything else was from earlier seasons. Finding nothing is a hold. | `401871082|total|over` |
 
 ## News on this card (adjustments.yaml)
@@ -48,6 +48,7 @@ No sourced news entries match games on this card. News is how a shown-only lane 
 | Wagerhouse trailing Pinnacle | Over 67.5 (West Virginia at Utah) | -110 | Wagerhouse 67.5, Pinnacle 68.5 |
 | Wagerhouse trailing Pinnacle | West Virginia +26 (West Virginia at Utah) | -110 | Wagerhouse -26, Pinnacle -25 (home spread) |
 | Wagerhouse trailing Pinnacle | Under 54.5 (Louisiana Tech at Georgia Southern) | -110 | Wagerhouse 54.5, Pinnacle 53.5 |
+| Wagerhouse trailing Pinnacle | Over 37.5 (Michigan at Ohio St) | -110 | Wagerhouse 37.5, Pinnacle 38.5 |
 | Wagerhouse trailing Pinnacle | Under 50 (LSU at Arkansas) | -110 | Wagerhouse 50, Pinnacle 49 |
 | Wagerhouse trailing Pinnacle | Under 54 (Kennesaw St at Western Kentucky) | -110 | Wagerhouse 54, Pinnacle 53 |
 | Wagerhouse trailing Pinnacle | Over 50.5 (Virginia at Virginia Tech) | -110 | Wagerhouse 50.5, Pinnacle 52 |

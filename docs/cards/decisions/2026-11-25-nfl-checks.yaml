@@ -13,20 +13,20 @@ checks:
     source: "https://www.espn.com/nfl/injuries"
   - key: "401873093|total|over"
     verdict: hold
-    why: "Drake Maye is out and Tommy DeVito starts (Vrabel via Mike Reiss, ESPN feed Nov 23 18:15 MT), and Justin Herbert is in the concussion protocol, still listed Questionable (The Athletic, Nov 22 17:32 MT). The model assumes both usual starters; a 35.5 total prices a backup and a doubtful Herbert."
+    why: "Drake Maye is out and Tommy DeVito starts (Vrabel via Mike Reiss, ESPN feed Nov 23 18:15 MT), and Justin Herbert (concussion) did not practice Wednesday and is still Questionable (Noah Furtado, The Athletic, ESPN feed Nov 25 13:27 MT). The model assumes both usual starters; a 35.5 total prices a backup and a doubtful Herbert."
     source: "https://www.espn.com/nfl/injuries"
   - key: "401873092|total|over"
     verdict: hold
-    why: "Arizona's quarterback is unsettled: Josh Johnson started Sunday's 34-7 loss to Kansas City, and Carson Beck is Questionable with no note (ESPN feed Nov 24 05:39 MT). The model assumes the usual starter; the market is pricing a backup."
+    why: "Josh Johnson is preparing to start for Carson Beck (back), per Mike LaFleur (Cardinals site, ESPN feed Nov 25 12:27 MT), as he did in Sunday's 34-7 loss. The model assumes the usual starter; the market is pricing the backup."
     source: "https://www.espn.com/nfl/injuries"
   - key: "401873092|side|home"
     verdict: hold
-    why: "Same game as the total row: Josh Johnson started Sunday's 34-7 loss, Gardner Minshew II is on injured reserve after UCL surgery (ESPN, Nov 17), and Carson Beck is Questionable with no note (ESPN feed Nov 24 05:39 MT). The model assumes the usual starter; Washington at 7.5 on the road already prices a backup."
+    why: "Same game as the total row: Josh Johnson started Sunday's 34-7 loss, Gardner Minshew II is on injured reserve after UCL surgery (ESPN, Nov 17), and Carson Beck (back) did not practice; Mike LaFleur says Johnson is preparing to start (Cardinals site, ESPN feed Nov 25 12:27 MT). The model assumes the usual starter; Washington at 7.5 on the road already prices a backup."
     source: "https://www.espn.com/nfl/injuries"
   - key: "401873079|side|home"
     verdict: hold
-    why: "Rams are without Puka Nacua (MCL surgery, ESPN feed Nov 21 18:25 MT), Davante Adams (IR) and Steve Avila; Green Bay lists Micah Parsons out and Josh Jacobs Questionable after a limited Monday practice (Matt Schneidman, The Athletic, ESPN feed Nov 23 14:35 MT). The market knows this and the play-by-play model does not."
-    source: "https://www.espn.com/nfl/injuries"
+    why: "Rams are without Puka Nacua (MCL surgery), Davante Adams (IR), Steve Avila and Coleman Shelton. Tonight's inactives (Yahoo Sports, Nov 25 16:51 MT) have Green Bay's Josh Jacobs out, as expected, and Micah Parsons active for his season debut. The two cancel more than they add, all of it is public an hour before kickoff, and the play-by-play model sees none of it. Nothing says the market is wrong."
+    source: "https://sports.yahoo.com/nfl/live/packers-rams-score-live-updates-inactives-highlights-stats-where-to-watch-week-12-wednesday-235059451.html"
   - key: "401873088|side|home"
     verdict: hold
     why: "Colts waived Daniel Jones and named Anthony Richardson the starter (Steichen, ESPN feed Nov 20 11:16 MT), and signed Shane Buechele Tuesday (ESPN feed Nov 24 15:05 MT); tackles Raimann and Travis and corners Gardner and Ward are listed out. The model's usual starter is wrong."
