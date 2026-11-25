@@ -1,0 +1,13 @@
+checks:
+  - key: "401909324|total|over"
+    verdict: hold
+    why: "The market knows about missing players the NBA script cannot see. Golden State is without Stephen Curry (oblique tear, re-evaluated in two weeks, feed Nov 12 10:03 MT), Jimmy Butler, Kristaps Porzingis and Moses Moody. Brandon Williams (Nov 24 13:58 MT) and Yaxel Lendeborg (Nov 24 16:20 MT) are questionable. Sacramento has Maxime Raynaud out (Nov 24 21:21 MT). DraftKings' total fell from its opener, which fits that. I found nothing saying the low total is wrong."
+    source: "https://www.espn.com/nba/injuries"
+  - key: "401909319|side|home"
+    verdict: hold
+    why: "New York has OG Anunoby (calf) and Jordan Clarkson (foot) out, and Karl-Anthony Towns, Josh Hart and Miles McBride questionable, all on the feed Nov 24 14:50 to 14:56 MT. Pinnacle is a shorter Knicks favorite than DraftKings' opener, so the market has moved for this. Our script cannot see who is injured, so the gap is the news, not an edge."
+    source: "https://www.espn.com/nba/injuries"
+  - key: "401909318|total|over"
+    verdict: hold
+    why: "Charlotte has Dennis Schroder (hamstring) out (Nov 24 15:32 MT), Grayson Allen questionable with a concussion (15:29 MT), Ryan Kalkbrenner doubtful (15:33 MT) and Kon Knueppel out since Nov 8. Chicago has Norman Powell and Caleb Wilson out and Jalen Smith questionable. The market total prices a thin lineup our script cannot see, and I found nothing saying it is wrong."
+    source: "https://www.espn.com/nba/injuries"

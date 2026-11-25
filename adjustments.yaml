@@ -13,3 +13,11 @@ adjustments:
     source: "https://www.espn.com/nfl/injuries"
     added: "2026-11-25 08:04 MT"
     news_at: "2026-11-24 21:25 MT"
+  - game: "Cleveland Cavaliers at New York Knicks"
+    team: "New York Knicks"
+    market: spread
+    points: -1.5
+    reason: "OG Anunoby (calf) is out for Wednesday's game against Cleveland (Rotoworld relay via ESPN feed, Nov 24 14:53 MT). Starting forward out; NBA starter sized 1 to 2 points, not measured. Towns, Hart and McBride are questionable and not counted."
+    source: "https://www.espn.com/nba/injuries"
+    added: "2026-11-25 08:17 MT"
+    news_at: "2026-11-24 14:53 MT"
