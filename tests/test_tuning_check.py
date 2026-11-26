@@ -240,3 +240,11 @@ def test_tracker_matches_single_prop_builder_ticket():
     two = wager("G1  Basketball - Detroit Pistons vs Orlando Magic / Game / Total 3pt FG Made / John Collins Over 1.5 +160  "
                 "Basketball - Detroit Pistons vs Orlando Magic / Game / Winner (2 way) / Orlando Magic -150")
     assert not tracker._leg_matches(rec, leg, two)
+
+
+def test_cancelled_is_kept_off_telegram():
+    """Kylor, Nov 25: no message when Pinnacle moves an already-sent pick; CANCELLED is saved but its kind is not sent."""
+    import yaml
+    from pathlib import Path
+    cfg = yaml.safe_load(Path(__file__).resolve().parents[1].joinpath("config.yaml").read_text())
+    assert "cancel" not in cfg["telegram"]["send_kinds"] and "bet" in cfg["telegram"]["send_kinds"]

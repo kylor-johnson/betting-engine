@@ -13,7 +13,8 @@ one holding the good number.
 **Telegram is the source of truth (decisions 0026, 0027).** It is where I get every bet this model finds, with its stake and its "don't bet
 past" number, and I place them from there. Telegram carries only three things:
 - **staked picks**: playbook A and B picks and teaser tickets, each with stake, limit, and how much of the edge is price and how much is
-  handicap; a CANCELLED message, once, if Pinnacle moves so a sent pick should no longer be bet before the game; a message that failed
+  handicap (no CANCELLED message when Pinnacle later moves a sent pick: I place picks when they arrive, so it is saved and shows as
+  closing-line value on the tracker, not sent; decision 0042); a message that failed
   to send is sent again on the next read, marked SENT LATE (decision 0033);
 - **the 9am recap**: the record since Nov 23, the paper picks of the last 24 hours and why they were paper, and the money rules (this week's total, units left
   before each stop);

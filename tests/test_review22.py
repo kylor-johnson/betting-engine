@@ -124,8 +124,8 @@ def test_cancelled_once_when_pinnacle_moves_past_the_limit_and_not_for_a_small_m
     _pin(con, 10.5, NOW + timedelta(hours=2))                    # Pinnacle now has the home team +10.5: home +9.5 is no longer a bet
     sent = []
     out = pb.cancel_moved(con, {}, CFG, NOW + timedelta(hours=2), sender=_sender(sent))
-    assert len(sent) == 1 and sent[0][0].startswith("NFL · CANCELLED, DO NOT BET") and sent[0][2] == "bet"
-    assert "7 to 10.5" in sent[0][0] and "keep it" in sent[0][0] and out
+    assert len(sent) == 1 and sent[0][0].startswith("NFL · CANCELLED, DO NOT BET") and sent[0][2] == "cancel"   # held back from Telegram since Nov 25
+    assert "7.0 to 10.5" in sent[0][0] and "keep it" in sent[0][0] and out
     assert pb.cancel_moved(con, {}, CFG, NOW + timedelta(hours=3), sender=_sender(sent)) == [] and len(sent) == 1    # once
     assert con.execute("SELECT dollars FROM playbook_picks").fetchone()[0] == 25.0                                      # still frozen
 

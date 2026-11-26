@@ -1300,14 +1300,14 @@ def cancel_reason(con, cfg: dict, row: dict, lands: tuple | None = None) -> str 
     side = row["side"].split("_")[1] if row["market"] == "team_total" else row["side"]
     e = edge_of(land, ours, row["line"], side, row["price"])[0]
     if e < half:
-        return (f"Pinnacle moved from {row['market_line']:g} to {now_mkt:g}. With that, our number is {ours:.1f} and {row['pick']} at "
+        return (f"Pinnacle moved from {row['market_line']:.1f} to {now_mkt:.1f}. With that, our number is {ours:.1f} and {row['pick']} at "
                 f"{int(row['price']):+d} has {100 * e:+.1f}% edge, under the {100 * half:.1f}% limit.")
     return None
 
 
 def cancel_moved(con, env: dict, cfg: dict, now: datetime, sender=None) -> list[str]:
-    """CANCELLED message, once, for a sent staked pick that should no longer be bet, before its game starts (CHARTER, Telegram; research 22,
-    finding 8; Kylor 2026-11-24). The pick stays frozen and on the record: a bet already placed is kept."""
+    """CANCELLED record, once, for a sent staked pick that should no longer be bet, before its game starts (research 22, finding 8). The pick
+    stays frozen and on the record: a bet already placed is kept. Saved to alerts_sent; held back from Telegram since Nov 25 (kind "cancel")."""
     if sender is None:
         from engine.alerts import telegram
         sender = telegram.send
@@ -1318,7 +1318,7 @@ def cancel_moved(con, env: dict, cfg: dict, now: datetime, sender=None) -> list[
     from engine.checks import SAVED_SINCE      # picks from before messages were saved have no row but most reached Telegram: check them too
     rows = con.execute(f"""SELECT {', '.join('p.' + c for c in cols)} FROM playbook_picks p LEFT JOIN alerts_sent a ON a.key = 'playbook|' || p.pick_key
                            WHERE p.dollars > 0 AND p.kickoff_utc > ? AND (a.delivered OR (a.key IS NULL AND p.first_seen_utc < ?))
-                           AND NOT EXISTS (SELECT 1 FROM alerts_sent c WHERE c.key = 'cancel|' || p.pick_key AND c.delivered)""",
+                           AND NOT EXISTS (SELECT 1 FROM alerts_sent c WHERE c.key = 'cancel|' || p.pick_key)""",
                        [naive, SAVED_SINCE]).fetchall()
     out, lands = [], {}
     tz = config.display_tz(cfg) if cfg.get("timezone_display") else timezone.utc
@@ -1338,7 +1338,9 @@ def cancel_moved(con, env: dict, cfg: dict, now: datetime, sender=None) -> list[
         text = (f"{row['sport']} · CANCELLED, DO NOT BET\n{row['pick']} ({int(row['price']):+d})\n{row['game']}, {kick:%a %-I:%M %p} MT\n{why_c}\n"
                 "If you already placed it, keep it: it stays on the record at the number sent.")
         try:
-            ok = bool(sender(env, text, _lane_for(cfg, row["sport"], row["market"]), kind="bet"))
+            # kind "cancel" is not in telegram.send_kinds: kept on the record, not sent (Kylor, Nov 25: he places each pick when it arrives,
+            # so a later CANCELLED changes nothing he can do; closing-line value on the tracker shows the move). Add "cancel" to send_kinds to see it.
+            ok = bool(sender(env, text, _lane_for(cfg, row["sport"], row["market"]), kind="cancel"))
         except Exception as e:
             out.append(f"CANCELLED not sent ({type(e).__name__}); tried again next read: {row['pick']}")
             continue

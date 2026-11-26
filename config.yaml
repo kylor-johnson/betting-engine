@@ -306,6 +306,8 @@ parity:
 # Held back (still on the cards and board.html): stale = STALE NUMBER price alerts; info = the old path's $0 picks, NO BETS summaries,
 # openers, news, paper picks. Add a kind here to see it again.
 telegram:
+  # cancel = CANCELLED (Pinnacle moved a sent pick under the limit): held back since Kylor, Nov 25 ("it doesnt alert me on bets that have already
+  # been suggested / posted if the model changes"); still saved, and the move shows as closing-line value on the tracker.
   send_kinds: [bet, system, recap]
 
 # The live model-picks page (Kylor, Nov 23): only picks the model sent to Telegram (staked playbook picks and teaser tickets), never his own
