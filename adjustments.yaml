@@ -21,3 +21,11 @@ adjustments:
     source: "https://www.espn.com/nba/injuries"
     added: "2026-11-25 08:17 MT"
     news_at: "2026-11-24 14:53 MT"
+  - game: "Sacramento Kings at Golden St Warriors"
+    team: "Sacramento Kings"
+    market: spread
+    points: -2.0
+    reason: "Zach LaVine (knee) is listed as out for Wednesday's game at Golden State, moved from questionable to out on the official report (ESPN injury feed, Nov 25 15:40 MT). Starting guard and lead scorer out; NBA sized 1.5 to 3 points, not measured."
+    source: "https://www.espn.com/nba/injuries"
+    added: "2026-11-25 17:00 MT"
+    news_at: "2026-11-25 15:40 MT"
